@@ -29,6 +29,13 @@ import {
   type NegotiationState,
 } from "@/lib/engine/negotiation";
 import { publish } from "./bus";
+import {
+  BUYER_CONCESSION,
+  DEFAULT_BUYER,
+  PRIORITY_WEIGHTS,
+  SELLER_CONCESSION,
+  type BuyerAgentSettings,
+} from "@/lib/agents/settings";
 import { scoreDeals, type DealCandidate } from "./scoring";
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -52,7 +59,7 @@ export interface ListingMatch {
 }
 
 /** Postgres full-text search, best listing per seller, deadline filter applied. */
-export async function findListings(mandate: Mandate, now = new Date()): Promise<ListingMatch[]> {
+export async function findListings(mandate: Mandate, now = new Date(), maxSellers = MAX_SELLERS): Promise<ListingMatch[]> {
   const terms = mandate.query
     .toLowerCase()
     .split(/[^a-z0-9]+/)
@@ -83,7 +90,7 @@ export async function findListings(mandate: Mandate, now = new Date()): Promise<
     if (!meetsDeadline(r.seller.shipByDays, r.seller.transitDays, deadline, now)) continue;
     bestPerSeller.set(r.seller.id, { listing: r.listing, seller: r.seller, match: Math.min(1, r.rank / top) });
   }
-  return [...bestPerSeller.values()].slice(0, MAX_SELLERS);
+  return [...bestPerSeller.values()].slice(0, Math.min(MAX_SELLERS, maxSellers));
 }
 
 /** Confirms a draft mandate and opens one negotiation per matching listing. */
@@ -95,7 +102,8 @@ export async function openNegotiations(mandateId: string) {
     .returning();
   if (!mandate) return null;
 
-  const matches = await findListings(mandate);
+  const buyer = await buyerSettings(mandate);
+  const matches = await findListings(mandate, new Date(), buyer.maxSellers);
   if (matches.length === 0) {
     await db.update(schema.mandates).set({ status: "no_match" }).where(eq(schema.mandates.id, mandateId));
     return [];
@@ -113,6 +121,20 @@ interface Party {
   listing: Listing;
   seller: Seller;
   referenceMinor: number | null;
+  buyer: BuyerAgentSettings;
+}
+
+/** The buyer's agent settings (defaults when the mandate has no account). */
+async function buyerSettings(mandate: Mandate): Promise<BuyerAgentSettings> {
+  if (!mandate.buyerUserId) return DEFAULT_BUYER;
+  const [u] = await db.select().from(schema.users).where(eq(schema.users.id, mandate.buyerUserId));
+  if (!u) return DEFAULT_BUYER;
+  return {
+    agentStyle: u.agentStyle as BuyerAgentSettings["agentStyle"],
+    maxSellers: u.maxSellers,
+    acceptBundles: u.acceptBundles,
+    priority: u.priority as BuyerAgentSettings["priority"],
+  };
 }
 
 function views(p: Party): { seller: SellerView; buyer: BuyerView } {
@@ -129,9 +151,13 @@ function views(p: Party): { seller: SellerView; buyer: BuyerView } {
       listPriceMinor: p.listing.listPriceMinor,
       floorMinor: p.listing.floorPriceMinor,
       shipByDays: p.seller.shipByDays,
+      style: p.seller.agentStyle as SellerView["style"],
+      offerGiftWrap: p.seller.offerGiftWrap,
+      agentNote: p.seller.agentNote,
     },
     buyer: {
       buyerName: p.mandate.buyerName,
+      style: p.buyer.agentStyle,
       requestText: p.mandate.requestText,
       currency: p.mandate.currency,
       ceilingMinor: p.mandate.maxPriceMinor,
@@ -191,7 +217,12 @@ async function runNegotiation(negotiationId: string, referenceMinor: number | nu
     .where(eq(schema.negotiations.id, negotiationId));
   if (!row || row.n.state !== "OPEN") return;
 
-  const party: Party = { mandate: row.mandate, listing: row.listing, seller: row.seller, referenceMinor };
+  const buyer = await buyerSettings(row.mandate);
+  const party: Party = { mandate: row.mandate, listing: row.listing, seller: row.seller, referenceMinor, buyer };
+  const rates = {
+    seller: SELLER_CONCESSION[row.seller.agentStyle as keyof typeof SELLER_CONCESSION] ?? SELLER_CONCESSION.balanced,
+    buyer: BUYER_CONCESSION[buyer.agentStyle],
+  };
   const v = views(party);
   const mandateId = row.mandate.id;
   const transcript: TranscriptTurn[] = [];
@@ -217,8 +248,8 @@ async function runNegotiation(negotiationId: string, referenceMinor: number | nu
 
   const agentReply = (who: Actor, note?: string): Promise<AgentReply> =>
     who === "seller"
-      ? sellerTurn({ view: v.seller, turns: transcript, ctx: ctxFor(who), engineNote: note })
-      : buyerTurn({ view: v.buyer, turns: transcript, ctx: ctxFor(who), engineNote: note });
+      ? sellerTurn({ view: v.seller, turns: transcript, ctx: ctxFor(who), engineNote: note, concession: rates.seller })
+      : buyerTurn({ view: v.buyer, turns: transcript, ctx: ctxFor(who), engineNote: note, concession: rates.buyer });
 
   while (!TERMINAL_STATES.has(state)) {
     if (round > MAX_ROUNDS) {
@@ -287,7 +318,7 @@ async function runNegotiation(negotiationId: string, referenceMinor: number | nu
       reply =
         attempt === 0
           ? (scripted.shift() ?? (await agentReply(actor, engineNote(out, actor))))
-          : { turn: fallbackTurn(ctxFor(actor), row.listing.listPriceMinor), source: "fallback" };
+          : { turn: fallbackTurn(ctxFor(actor), row.listing.listPriceMinor, rates), source: "fallback" };
       out = applyGuardrails(reply.turn, ctxFor(actor));
     }
     // A fallback turn should never be refused; if it is, stop the negotiation.
@@ -336,7 +367,10 @@ async function runNegotiation(negotiationId: string, referenceMinor: number | nu
   if (state === "AGREED") {
     const [agreedRow] = await db.select().from(schema.negotiations).where(eq(schema.negotiations.id, negotiationId));
     if (agreedRow?.agreedPriceMinor != null) {
-      await offerAddon({ row, views: v, agreedMinor: agreedRow.agreedPriceMinor, round, mandateId, negotiationId });
+      // Both sides must allow bundles: the seller offers them, the buyer accepts them.
+      if (row.seller.offerBundles && buyer.acceptBundles) {
+        await offerAddon({ row, views: v, agreedMinor: agreedRow.agreedPriceMinor, round, mandateId, negotiationId });
+      }
     }
   }
 
@@ -378,7 +412,7 @@ async function offerAddon(opts: {
     .limit(3);
   const candidates = others.map((l) => ({ title: l.title, listPriceMinor: l.listPriceMinor, floorMinor: l.floorPriceMinor }));
 
-  const offer = await sellerAddonOffer({ view: v.seller, agreedMinor, candidates });
+  const offer = await sellerAddonOffer({ view: v.seller, agreedMinor, candidates, maxDiscountPct: row.seller.maxBundleDiscountPct });
   if (!offer) return;
   const addon = others[offer.index];
   const base = { negotiationId, mandateId, seller: row.seller.name, round, state: "AGREED" as NegotiationState };
@@ -397,13 +431,15 @@ async function offerAddon(opts: {
   const check = checkAddon({
     priceMinor: offer.priceMinor,
     addonFloorMinor: addon.floorPriceMinor,
+    // The seller's max bundle discount is enforced here too, not just asked for.
+    minDiscountedMinor: Math.ceil((addon.listPriceMinor * (100 - row.seller.maxBundleDiscountPct)) / 100),
     agreedMinor,
     ceilingMinor: row.mandate.maxPriceMinor,
   });
   if (check !== "OK") {
     const why =
       check === "REJECTED_BELOW_FLOOR"
-        ? "below that item's private floor"
+        ? "below that item's private floor or the seller's bundle-discount limit"
         : check === "REJECTED_OVER_BUDGET"
           ? "the order total would exceed the buyer's budget"
           : "invalid price";
@@ -569,7 +605,9 @@ async function recommend(mandate: Mandate, referenceMinor: number | null) {
       addon: r.n.addonListingId && r.n.addonPriceMinor != null ? { title: addonTitles.get(r.n.addonListingId) ?? "second item", priceMinor: r.n.addonPriceMinor } : null,
     }));
 
+  const buyer = await buyerSettings(mandate);
   const rec = scoreDeals({
+    weights: PRIORITY_WEIGHTS[buyer.priority],
     deals,
     ceilingMinor: mandate.maxPriceMinor,
     referenceMinor,

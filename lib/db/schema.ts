@@ -52,6 +52,12 @@ export const sellers = pgTable("sellers", {
   transitDays: integer("transit_days").notNull().default(7),
   // Partial refunds above this need the seller's tap.
   refundCapMinor: integer("refund_cap_minor").notNull().default(1000),
+  // Seller agent settings (the "My agent" page).
+  agentStyle: text("agent_style").notNull().default("balanced"), // firm | balanced | flexible
+  offerGiftWrap: boolean("offer_gift_wrap").notNull().default(true),
+  offerBundles: boolean("offer_bundles").notNull().default(true),
+  maxBundleDiscountPct: integer("max_bundle_discount_pct").notNull().default(15),
+  agentNote: text("agent_note"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -65,6 +71,11 @@ export const users = pgTable("users", {
   sellerId: uuid("seller_id").references(() => sellers.id),
   // Buyers: default ship-to country for new mandates.
   shipToCountry: text("ship_to_country").notNull().default("GB"),
+  // Buyer agent settings (the "My agent" page).
+  agentStyle: text("agent_style").notNull().default("balanced"), // patient | balanced | quick
+  maxSellers: integer("max_sellers").notNull().default(3),
+  acceptBundles: boolean("accept_bundles").notNull().default(true),
+  priority: text("priority").notNull().default("balanced"), // price | balanced | delivery
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

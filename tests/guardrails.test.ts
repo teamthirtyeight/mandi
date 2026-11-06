@@ -198,3 +198,20 @@ describe("bundle add-on", () => {
     expect(checkAddon({ ...base, priceMinor: 1900 })).toBe("REJECTED_OVER_BUDGET");
   });
 });
+
+describe("agent style in the rule-based fallback", () => {
+  it("a firm seller concedes less than a flexible one", () => {
+    const c = ctx({ state: "COUNTERED", lastSellerOfferMinor: 9500, lastBuyerOfferMinor: 7000 });
+    const firm = fallbackTurn(c, 9500, { seller: 0.2 }).offer_price!;
+    const flexible = fallbackTurn(c, 9500, { seller: 0.5 }).offer_price!;
+    expect(firm).toBeGreaterThan(flexible);
+    expect(flexible).toBeGreaterThanOrEqual(68);
+  });
+
+  it("the seller's bundle-discount limit is enforced", () => {
+    expect(checkAddon({ priceMinor: 2000, addonFloorMinor: 1800, minDiscountedMinor: 2125, agreedMinor: 6000, ceilingMinor: 9000 })).toBe(
+      "REJECTED_BELOW_FLOOR",
+    );
+  });
+});
+

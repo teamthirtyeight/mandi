@@ -35,6 +35,10 @@ Meera follows all of this on a phone-sized view in Hindi with rupee amounts (`/s
 
 Sellers and buyers sign up at `/signup`. A seller account also creates the seller profile: city, the story their agent tells, the PayPal account they're paid into, language, ship-by days, delivery time and refund cap. Logins use email and password (scrypt-hashed) with a signed, HTTP-only session cookie. Every API route checks the session and ownership: a buyer only sees their own requests and orders, and a seller only their own listings, orders and floors.
 
+Each user tunes their own agent at `/agent` (**My agent**):
+- **Sellers:** how firmly it holds the price (firm, balanced or flexible), whether it offers gift wrapping or bundles, the maximum bundle discount (enforced in code), their own instructions, and the profile it argues from (story, language, shipping, refund cap).
+- **Buyers:** how hard it haggles (patient, balanced or quick), how many sellers it talks to (1–3), whether it may accept bundles, and what matters most in the recommendation (price, balanced or delivery).
+
 For judges, `/login` has one-click demo accounts (Sarah the buyer; Meera, Arjun and Fatima the sellers), and **Try the demo** signs in as Sarah automatically. The demo logins can be turned off with `DEMO_LOGINS=0`.
 
 ## Safety design
@@ -119,7 +123,7 @@ Every call is written to `paypal_events`, which feeds the docked "PayPal API cal
    npm run dev
    ```
 
-**Pages:** `/` (Try the demo), `/login`, `/signup`, `/shop`, `/orders`, `/deal/[id]`, `/order/[id]`, `/sell`, `/dashboard`, `/seller` (the seller's phone view), and `/paypal-test` (a bare sandbox check).
+**Pages:** `/` (Try the demo), `/login`, `/signup`, `/agent` (My agent), `/shop`, `/orders`, `/deal/[id]`, `/order/[id]`, `/sell`, `/dashboard`, `/seller` (the seller's phone view), and `/paypal-test` (a bare sandbox check).
 
 ## Tests
 

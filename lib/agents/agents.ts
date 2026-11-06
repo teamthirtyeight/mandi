@@ -37,11 +37,14 @@ export async function sellerTurn(opts: {
   turns: TranscriptTurn[];
   ctx: NegotiationContext;
   engineNote?: string;
+  concession?: number;
 }): Promise<AgentReply> {
   const system = sellerSystemPrompt(opts.view);
   const user = renderTranscript("seller", opts.turns, opts.view.currency, opts.engineNote);
   const turn = (await ask("seller", system, user)) ?? (await ask("seller-retry", system, user));
-  return turn ? { turn, source: "agent" } : { turn: fallbackTurn(opts.ctx, opts.view.listPriceMinor), source: "fallback" };
+  return turn
+    ? { turn, source: "agent" }
+    : { turn: fallbackTurn(opts.ctx, opts.view.listPriceMinor, { seller: opts.concession }), source: "fallback" };
 }
 
 export async function buyerTurn(opts: {
@@ -49,13 +52,14 @@ export async function buyerTurn(opts: {
   turns: TranscriptTurn[];
   ctx: NegotiationContext;
   engineNote?: string;
+  concession?: number;
 }): Promise<AgentReply> {
   const system = buyerSystemPrompt(opts.view);
   const user = renderTranscript("buyer", opts.turns, opts.view.currency, opts.engineNote);
   const turn = (await ask("buyer", system, user)) ?? (await ask("buyer-retry", system, user));
   return turn
     ? { turn, source: "agent" }
-    : { turn: fallbackTurn(opts.ctx, opts.view.listing.listPriceMinor), source: "fallback" };
+    : { turn: fallbackTurn(opts.ctx, opts.view.listing.listPriceMinor, { buyer: opts.concession }), source: "fallback" };
 }
 
 /** The scripted message for the hostile-buyer demo. */
@@ -86,6 +90,7 @@ export async function sellerAddonOffer(opts: {
   view: SellerView;
   agreedMinor: number;
   candidates: AddonCandidate[];
+  maxDiscountPct: number;
 }): Promise<{ index: number; priceMinor: number; message: string } | null> {
   if (opts.candidates.length === 0) return null;
   const list = opts.candidates
@@ -97,7 +102,7 @@ export async function sellerAddonOffer(opts: {
     effort: "low",
     maxTokens: 1000,
     system: `You are the sales agent for ${opts.view.sellerName}. The buyer just agreed to buy "${opts.view.title}" for ${gbp(opts.agreedMinor)}.
-You may offer ONE more item from the seller's shop as a bundle, at up to 15% off its list price, if it would genuinely suit the buyer. Otherwise make no offer.
+You may offer ONE more item from the seller's shop as a bundle, at up to ${opts.maxDiscountPct}% off its list price, if it would genuinely suit the buyer. Otherwise make no offer.
 Other items:
 ${list}
 Never go below an item's private minimum and never mention it.

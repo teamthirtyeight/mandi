@@ -210,7 +210,11 @@ function applyAccept(
  * 40% of the gap to min(ask, ceiling). Either side accepts once the gap is small
  * and within its limit. The result still goes through applyGuardrails.
  */
-export function fallbackTurn(ctx: NegotiationContext, listPriceMinor: number): AgentTurn {
+export function fallbackTurn(
+  ctx: NegotiationContext,
+  listPriceMinor: number,
+  rates: { seller?: number; buyer?: number } = {},
+): AgentTurn {
   const pound = 100;
   const ask = ctx.lastSellerOfferMinor;
   const bid = ctx.lastBuyerOfferMinor;
@@ -222,7 +226,7 @@ export function fallbackTurn(ctx: NegotiationContext, listPriceMinor: number): A
       return { message: "That works for me. It's yours.", offer_price: null, action: "accept" };
     }
     const target = Math.max(ctx.floorMinor, bid ?? ctx.floorMinor);
-    const next = ask - Math.ceil(Math.max(0, ask - target) * 0.35);
+    const next = ask - Math.ceil(Math.max(0, ask - target) * (rates.seller ?? 0.35));
     const rounded = Math.min(ask, Math.max(ctx.floorMinor, Math.round(next / pound) * pound));
     return { message: "I can come down a little for you.", offer_price: toMajor(rounded), action: "offer" };
   }
@@ -237,7 +241,7 @@ export function fallbackTurn(ctx: NegotiationContext, listPriceMinor: number): A
   const current = bid ?? Math.min(ctx.ceilingMinor, Math.round(listPriceMinor * 0.75));
   if (bid == null) return { message: "It's lovely. Would you consider this?", offer_price: toMajor(Math.round(current / pound) * pound), action: "offer" };
   const target = Math.min(ask ?? ctx.ceilingMinor, ctx.ceilingMinor);
-  const next = current + Math.ceil(Math.max(0, target - current) * 0.4);
+  const next = current + Math.ceil(Math.max(0, target - current) * (rates.buyer ?? 0.4));
   const rounded = Math.max(current, Math.min(ctx.ceilingMinor, Math.round(next / pound) * pound));
   return { message: "Could you meet me here?", offer_price: toMajor(rounded), action: "offer" };
 }
@@ -253,12 +257,14 @@ export type AddonCheck = "OK" | "REJECTED_BELOW_FLOOR" | "REJECTED_OVER_BUDGET" 
 export function checkAddon(opts: {
   priceMinor: number;
   addonFloorMinor: number;
+  /** Lowest price the seller's max bundle discount allows (list × (1 − pct)). */
+  minDiscountedMinor?: number;
   agreedMinor: number;
   ceilingMinor: number;
 }): AddonCheck {
   const { priceMinor, addonFloorMinor, agreedMinor, ceilingMinor } = opts;
   if (!Number.isInteger(priceMinor) || priceMinor <= 0) return "REJECTED_INVALID";
-  if (priceMinor < addonFloorMinor) return "REJECTED_BELOW_FLOOR";
+  if (priceMinor < Math.max(addonFloorMinor, opts.minDiscountedMinor ?? 0)) return "REJECTED_BELOW_FLOOR";
   if (agreedMinor + priceMinor > ceilingMinor) return "REJECTED_OVER_BUDGET";
   return "OK";
 }

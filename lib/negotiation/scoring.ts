@@ -34,7 +34,9 @@ export function scoreDeals(opts: {
   referenceMinor: number | null;
   deadline: Date;
   now?: Date;
+  weights?: { price: number; delivery: number; match: number };
 }): Recommendation {
+  const w = opts.weights ?? { price: 0.6, delivery: 0.3, match: 0.1 };
   const now = opts.now ?? new Date();
   const window = Math.max(1, (opts.deadline.getTime() - now.getTime()) / DAY);
 
@@ -43,7 +45,7 @@ export function scoreDeals(opts: {
       const priceScore = Math.max(0, (opts.ceilingMinor - d.agreedMinor) / opts.ceilingMinor);
       const slackDays = Math.floor((opts.deadline.getTime() - d.arrival.getTime()) / DAY);
       const deliveryScore = Math.min(1, Math.max(0, slackDays / window));
-      const score = 0.6 * priceScore + 0.3 * deliveryScore + 0.1 * d.match;
+      const score = w.price * priceScore + w.delivery * deliveryScore + w.match * d.match;
 
       const reasons = [`${money(d.agreedMinor, d.currency)}, ${money(opts.ceilingMinor - d.agreedMinor, d.currency)} under budget`];
       if (opts.referenceMinor != null) {

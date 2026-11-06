@@ -10,11 +10,13 @@ export async function SiteNav() {
           { href: "/sell", label: "Sell" },
           { href: "/dashboard", label: "Dashboard" },
           { href: "/seller", label: "Phone view" },
+          { href: "/agent", label: "My agent" },
         ]
       : user?.role === "buyer"
         ? [
             { href: "/shop", label: "Shop" },
             { href: "/orders", label: "My orders" },
+            { href: "/agent", label: "My agent" },
           ]
         : [];
 

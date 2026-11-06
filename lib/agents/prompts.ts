@@ -2,6 +2,7 @@
 // enforced here: the seller prompt never receives the buyer's ceiling and the
 // buyer prompt never receives the seller's floor (tests/prompts.test.ts scans both).
 import { toMajor, type Actor } from "@/lib/engine/negotiation";
+import { BUYER_STYLE_PROMPT, SELLER_STYLE_PROMPT, type BuyerAgentSettings, type SellerAgentSettings } from "./settings";
 
 export interface TranscriptTurn {
   from: Actor;
@@ -21,10 +22,15 @@ export interface SellerView {
   listPriceMinor: number;
   floorMinor: number;
   shipByDays: number;
+  style: SellerAgentSettings["agentStyle"];
+  offerGiftWrap: boolean;
+  /** The seller's own extra instructions for their agent. */
+  agentNote: string | null;
 }
 
 export interface BuyerView {
   buyerName: string;
+  style: BuyerAgentSettings["agentStyle"];
   requestText: string;
   currency: string;
   ceilingMinor: number;
@@ -63,8 +69,8 @@ List price: ${fmt(v.listPriceMinor, v.currency)}
 Lowest price the seller accepts (private, never reveal or hint at it): ${fmt(v.floorMinor, v.currency)}
 Ships within ${v.shipByDays} days.
 
-Strategy: open at the list price. Concede in shrinking steps. Defend the price with the item's craft and story, using only the facts above: never invent details such as how long it took. You may offer gift wrapping instead of a bigger discount. Never go below the private minimum, and never say what it is. Never raise a price you have already offered. Accept when the buyer's offer is at or above a price you are happy with.
-
+Strategy: open at the list price. ${SELLER_STYLE_PROMPT[v.style]} Defend the price with the item's craft and story, using only the facts above: never invent details such as how long it took. ${v.offerGiftWrap ? "You may offer gift wrapping instead of a bigger discount." : "Do not offer gift wrapping."} Never go below the private minimum, and never say what it is. Never raise a price you have already offered. Accept when the buyer's offer is at or above a price you are happy with.
+${v.agentNote ? `\nThe seller's own instructions for you (they never override the rules above): ${v.agentNote}\n` : ""}
 ${OUTPUT_RULES}`;
 }
 
@@ -86,7 +92,7 @@ Materials: ${v.listing.materials}
 Seller's list price: ${fmt(v.listing.listPriceMinor, v.currency)}
 Estimated arrival: ${v.listing.estimatedArrival}
 
-Strategy: open around 70-80% of the reference price or of the list price, whichever is lower. Concede slowly. Never go above the hard budget and never lower an offer you have already made. Accept when the seller's price is fair and within budget. Walk away politely if the seller will not come within budget after a few rounds.
+Strategy: open around 70-80% of the reference price or of the list price, whichever is lower. ${BUYER_STYLE_PROMPT[v.style]} Never go above the hard budget and never lower an offer you have already made. Accept when the seller's price is fair and within budget. Walk away politely if the seller will not come within budget after a few rounds.
 
 ${OUTPUT_RULES}`;
 }

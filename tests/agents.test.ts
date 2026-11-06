@@ -15,9 +15,13 @@ const sellerView = {
   listPriceMinor: 9500,
   floorMinor: 6837,
   shipByDays: 2,
+  style: "balanced" as const,
+  offerGiftWrap: true,
+  agentNote: null,
 };
 const buyerView = {
   buyerName: "Sarah",
+  style: "balanced" as const,
   requestText: "silk scarf under £91.23",
   currency: "GBP",
   ceilingMinor: 9123,
@@ -117,3 +121,28 @@ describe("dashboard week buckets", () => {
     expect(weekStart(new Date("2026-11-09T00:00:00Z")).toISOString().slice(0, 10)).toBe("2026-11-09");
   });
 });
+
+describe("agent settings", () => {
+  it("a firm seller agent without gift wrapping gets that strategy, plus the seller's own note", () => {
+    const p = sellerSystemPrompt({ ...sellerView, style: "firm", offerGiftWrap: false, agentNote: "Mention the zari is real gold thread." });
+    expect(p).toContain("Hold your price");
+    expect(p).toContain("Do not offer gift wrapping.");
+    expect(p).toContain("Mention the zari is real gold thread.");
+  });
+
+  it("a quick buyer agent is told to agree early", () => {
+    expect(buyerSystemPrompt({ ...buyerView, style: "quick" })).toContain("accept a fair price early");
+  });
+
+  it("delivery priority prefers the faster deal even if it costs more", () => {
+    const now = new Date("2026-11-06T00:00:00Z");
+    const deals = [
+      { negotiationId: "slow", sellerName: "A", title: "x", agreedMinor: 7000, currency: "GBP", arrival: new Date("2026-12-18"), match: 1 },
+      { negotiationId: "fast", sellerName: "B", title: "y", agreedMinor: 8000, currency: "GBP", arrival: new Date("2026-11-12"), match: 1 },
+    ];
+    const base = { now, ceilingMinor: 9000, referenceMinor: null, deadline: new Date("2026-12-20T23:59:59Z"), deals };
+    expect(scoreDeals({ ...base, weights: { price: 0.8, delivery: 0.1, match: 0.1 } }).best?.negotiationId).toBe("slow");
+    expect(scoreDeals({ ...base, weights: { price: 0.35, delivery: 0.55, match: 0.1 } }).best?.negotiationId).toBe("fast");
+  });
+});
+
