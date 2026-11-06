@@ -16,9 +16,11 @@ const Body = z
     images: z.array(z.string().startsWith("data:image/").max(7_000_000)).max(3),
     listPrice: z.number().positive().max(10000),
     floorPrice: z.number().positive(),
+    refundCap: z.number().min(0).max(10000).optional(),
     comps: z.unknown().optional(),
   })
-  .refine((b) => b.floorPrice <= b.listPrice, { message: "Floor must be at or below the list price" });
+  .refine((b) => b.floorPrice <= b.listPrice, { message: "Floor must be at or below the list price" })
+  .refine((b) => b.refundCap == null || b.refundCap <= b.listPrice, { message: "Refund cap can't exceed the list price" });
 
 export async function POST(req: Request) {
   const parsed = Body.safeParse(await req.json().catch(() => null));
@@ -38,6 +40,7 @@ export async function POST(req: Request) {
       images: b.images,
       listPriceMinor: Math.round(b.listPrice * 100),
       floorPriceMinor: Math.round(b.floorPrice * 100),
+      refundCapMinor: b.refundCap != null ? Math.round(b.refundCap * 100) : null,
       currency: "GBP",
       compsJson: b.comps ?? null,
     })

@@ -29,8 +29,8 @@ export type NegotiationState =
 
 export type GuardrailResult =
   | "PASSED"
-  | "CLAMPED_TO_FLOOR"
-  | "CLAMPED_TO_CEILING"
+  | "REJECTED_BELOW_FLOOR"
+  | "REJECTED_ABOVE_CEILING"
   | "REJECTED_BACKTRACK"
   | "REJECTED_INVALID"
   | "REJECTED_TERMINAL"
@@ -113,17 +113,13 @@ export function applyGuardrails(turn: AgentTurn, ctx: NegotiationContext): Guard
     return refuse("REJECTED_INVALID", true);
   }
 
-  let finalMinor = proposedMinor;
-  let guardrailResult: GuardrailResult = "PASSED";
+  // Out-of-limit offers are rejected, not clamped: clamping would put the
+  // private floor or ceiling on the table for the other side to see.
+  if (ctx.actor === "seller" && proposedMinor < ctx.floorMinor) return refuse("REJECTED_BELOW_FLOOR", true);
+  if (ctx.actor === "buyer" && proposedMinor > ctx.ceilingMinor) return refuse("REJECTED_ABOVE_CEILING", true);
 
-  if (ctx.actor === "seller" && finalMinor < ctx.floorMinor) {
-    finalMinor = ctx.floorMinor;
-    guardrailResult = "CLAMPED_TO_FLOOR";
-  }
-  if (ctx.actor === "buyer" && finalMinor > ctx.ceilingMinor) {
-    finalMinor = ctx.ceilingMinor;
-    guardrailResult = "CLAMPED_TO_CEILING";
-  }
+  const finalMinor = proposedMinor;
+  const guardrailResult: GuardrailResult = "PASSED";
 
   // No backtracking: the seller never raises, the buyer never lowers.
   const own = ctx.actor === "seller" ? ctx.lastSellerOfferMinor : ctx.lastBuyerOfferMinor;
@@ -144,7 +140,7 @@ export function applyGuardrails(turn: AgentTurn, ctx: NegotiationContext): Guard
     return {
       proposedMinor,
       finalMinor,
-      guardrailResult: guardrailResult === "PASSED" ? "AGREED" : guardrailResult,
+      guardrailResult: "AGREED",
       state: "AGREED",
       agreedMinor: lastSellerOfferMinor,
       lastSellerOfferMinor,
@@ -246,12 +242,31 @@ export function fallbackTurn(ctx: NegotiationContext, listPriceMinor: number): A
   return { message: "Could you meet me here?", offer_price: toMajor(rounded), action: "offer" };
 }
 
+/**
+ * Leak filter: removes the sender's own private limit (floor for the seller,
+ * ceiling for the buyer) from a message before the other side can read it.
+ * The limit may still appear as the price actually being offered this turn.
+ */
+export function redactLimit(
+  message: string,
+  limitMinor: number,
+  offeredMinor: number | null,
+): { message: string; redacted: boolean } {
+  if (offeredMinor === limitMinor) return { message, redacted: false };
+  const pounds = limitMinor / 100;
+  const amount = Number.isInteger(pounds) ? `${pounds}(?:\\.00)?` : pounds.toFixed(2).replace(".", "\\.");
+  const pattern = new RegExp(`(£\\s?${amount}(?!\\d|\\.\\d)|\\b${amount}\\s?(?:pounds|GBP)\\b)`, "gi");
+  const out = message.replace(pattern, "[withheld]");
+  return { message: out, redacted: out !== message };
+}
+
 const INJECTION_PATTERNS = [
   /ignore (all |any |your |the )?(previous |prior |above )?(instructions|rules|prompt)/i,
   /disregard (all |your |the )?(previous |prior )?(instructions|rules)/i,
   /you are now/i,
   /system prompt/i,
-  /(reveal|tell me|what is) (your|the) (floor|minimum|lowest)/i,
+  /(reveal|tell me|what is|what's) (your|the) (floor|minimum|lowest|bottom line)/i,
+  /lowest (price )?you('re| are)? (allowed|able|willing) to accept/i,
 ];
 
 /** Labels counterparty text that tries to instruct the other agent. Detection only;

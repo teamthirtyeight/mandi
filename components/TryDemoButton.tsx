@@ -14,7 +14,7 @@ export function TryDemoButton({ hostile = false, label = "Try the demo" }: { hos
         onClick={async () => {
           setBusy(true);
           setError(null);
-          const res = await fetch(`/api/demo/start${hostile ? "?hostile=1" : ""}`, { method: "POST" });
+          const res = await fetch(`/api/demo/start${hostile ? "?hostile=2" : ""}`, { method: "POST" });
           const body = await res.json();
           if (!res.ok) {
             setBusy(false);

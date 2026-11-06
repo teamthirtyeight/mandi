@@ -32,7 +32,7 @@ export async function reportProblem(
     if (row) {
       sellerName = row.seller.name;
       itemTitle = row.listing.title;
-      capMinor = row.seller.refundCapMinor;
+      capMinor = row.listing.refundCapMinor ?? row.seller.refundCapMinor;
     }
   }
 
@@ -61,6 +61,7 @@ export async function reportProblem(
     .update(schema.orders)
     .set({
       problemNote: input.description,
+      problemPhoto: input.photo ? `data:${input.photo.mediaType};base64,${input.photo.base64}` : null,
       agentRefundMessage: pending
         ? `${proposal.message} (Waiting for ${sellerName} to approve this amount.)`
         : proposal.message,

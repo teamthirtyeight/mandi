@@ -36,6 +36,7 @@ export default function SellPage() {
   const [draft, setDraft] = useState<Draft | null>(null);
   const [listPrice, setListPrice] = useState(95);
   const [floor, setFloor] = useState(70);
+  const [refundCap, setRefundCap] = useState(10);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [published, setPublished] = useState<{ title: string; paypalProductId: string | null } | null>(null);
@@ -111,6 +112,7 @@ export default function SellPage() {
         images: draft.images,
         listPrice,
         floorPrice: floor,
+        refundCap,
         comps: draft.comps,
       }),
     });
@@ -259,6 +261,20 @@ export default function SellPage() {
               </span>
             </label>
           </div>
+
+          <label className="block max-w-xs">
+            <span className="text-sm text-neutral-600">Refund cap (private): {gbp(refundCap)}</span>
+            <input
+              type="number"
+              min={0}
+              max={listPrice}
+              className="mt-1 block w-full rounded-lg border border-neutral-300 px-3 py-2"
+              value={refundCap}
+              onChange={(e) => setRefundCap(Math.max(0, Math.min(listPrice, Number(e.target.value))))}
+              aria-label="Refund cap"
+            />
+            <span className="text-xs text-neutral-500">Your agent can refund up to this for a damage claim. Anything more waits for you.</span>
+          </label>
 
           <button onClick={publish} disabled={busy} className="rounded-lg bg-neutral-900 px-5 py-3 text-white disabled:opacity-40">
             {busy ? "Publishing…" : "Publish"}

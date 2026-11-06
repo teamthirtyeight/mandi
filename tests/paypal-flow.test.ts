@@ -174,4 +174,24 @@ describe.skipIf(!TEST_DB)("PayPal money flow", () => {
 
     await expect(reportProblem(order.id, { description: "Again", photo: null, requestKey: "p2" })).resolves.toBeTruthy();
   });
+
+  it("auto-voids a hold the seller didn't ship in time, and leaves fresh ones", async () => {
+    const { voidExpiredHolds } = await import("@/lib/orders/expiry");
+    const stale = await authorizedOrder();
+    const { eq } = await import("drizzle-orm");
+    await dbmod.db
+      .update(dbmod.schema.orders)
+      .set({ authorizedAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000) })
+      .where(eq(dbmod.schema.orders.id, stale.id));
+    const [fresh] = await dbmod.db
+      .insert(dbmod.schema.orders)
+      .values({ amountMinor: 5000, status: "AUTHORIZED", paypalOrderId: "ORDERFRESH12345", authorizationId: "AUTH-2", authorizedAt: new Date() })
+      .returning();
+
+    const voided = await voidExpiredHolds();
+    expect(voided).toEqual([stale.id]);
+    expect((await svc.getOrderRow(stale.id)).status).toBe("VOIDED");
+    expect((await svc.getOrderRow(fresh.id)).status).toBe("AUTHORIZED");
+    expect(calls.some((c) => c.path === "/v2/payments/authorizations/AUTH-1/void")).toBe(true);
+  });
 });

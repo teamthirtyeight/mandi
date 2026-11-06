@@ -42,20 +42,13 @@ const STATE_LABEL: Record<string, string> = {
 };
 
 function GuardrailBadge({ t }: { t: Turn }) {
-  const clamped = t.guardrail_result.startsWith("CLAMPED");
-  const rejected = t.guardrail_result.startsWith("REJECTED");
-  if (!clamped && !rejected && !t.injection) return null;
+  if (!t.injection && !t.limit_redacted) return null;
   return (
     <div className="mt-2 flex flex-wrap gap-1 text-xs">
-      {t.injection && (
-        <span className="rounded bg-amber-100 px-2 py-0.5 text-amber-900">Injection attempt ignored</span>
+      {t.injection && <span className="rounded bg-amber-100 px-2 py-0.5 text-amber-900">Injection attempt ignored</span>}
+      {t.limit_redacted && (
+        <span className="rounded bg-amber-100 px-2 py-0.5 text-amber-900">Engine withheld a private limit from this message</span>
       )}
-      {clamped && (
-        <span className="rounded bg-amber-100 px-2 py-0.5 text-amber-900">
-          Engine: {money(t.proposed_price)} → {money(t.final_price)} ({t.guardrail_result.replaceAll("_", " ").toLowerCase()})
-        </span>
-      )}
-      {rejected && <span className="rounded bg-red-100 px-2 py-0.5 text-red-900">Engine rejected the turn</span>}
     </div>
   );
 }
@@ -148,7 +141,11 @@ export default function DealPage({ params }: { params: Promise<{ id: string }> }
         </div>
         <p className="text-lg">
           Budget <span className="font-semibold">{money(snap.mandate.maxPrice, currency)}</span> · by {snap.mandate.deadline}
-          {snap.mandate.hostile && <span className="ml-2 rounded bg-amber-100 px-2 py-0.5 text-sm text-amber-900">Hostile buyer test</span>}
+          {snap.mandate.hostile && (
+            <span className="ml-2 rounded bg-amber-100 px-2 py-0.5 text-sm text-amber-900">
+              {snap.mandate.compromised ? "Attack test: compromised seller agent" : "Hostile buyer test"}
+            </span>
+          )}
         </p>
         {FINAL.has(status) && turns.length > 0 && (
           <div className="flex items-center gap-2 text-sm">
@@ -260,12 +257,20 @@ export default function DealPage({ params }: { params: Promise<{ id: string }> }
                 {ts.map((t) => (
                   <li key={t.id} className={t.from === "buyer" ? "pl-8" : t.from === "engine" ? "text-center" : "pr-8"}>
                     {t.from === "engine" ? (
-                      <p className="text-sm text-neutral-500">{t.message}</p>
+                      t.guardrail_result.startsWith("REJECTED") ? (
+                        <div className="rounded-xl border-2 border-red-300 bg-red-50 p-3 text-left">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-red-800">Engine blocked</p>
+                          <p className="text-sm text-red-900">{t.message}</p>
+                        </div>
+                      ) : (
+                        <p className="text-sm text-neutral-500">{t.message}</p>
+                      )
                     ) : (
                       <div className={`rounded-xl p-3 ${t.from === "buyer" ? "bg-blue-50" : "bg-neutral-100"}`}>
                         <p className="text-xs uppercase tracking-wide text-neutral-500">
                           {t.from === "buyer" ? `${snap.mandate.buyerName}'s agent` : `${n.seller.name}'s agent`} · round {t.round}
                           {t.source === "fallback" && " · rule-based"}
+                          {t.source === "script" && (t.from === "buyer" ? " · scripted attack" : " · simulated compromised agent")}
                         </p>
                         <p>{t.message}</p>
                         {t.final_price != null && <p className="mt-1 text-lg font-semibold">{money(t.final_price, currency)}</p>}

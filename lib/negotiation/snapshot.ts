@@ -39,6 +39,7 @@ export async function getMandateSnapshot(mandateId: string) {
       deadline: mandate.deadline,
       shipToCountry: mandate.shipToCountry,
       hostile: mandate.hostile,
+      compromised: mandate.compromised,
       status: mandate.status,
       recommendedNegotiationId: mandate.recommendedNegotiationId,
       recommendation: mandate.recommendation,

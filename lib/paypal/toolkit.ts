@@ -14,7 +14,7 @@ function getToolkit(): PayPalAgentToolkit | null {
     clientId,
     clientSecret,
     configuration: {
-      actions: { products: { create: true }, shipment: { create: true } },
+      actions: { products: { create: true }, shipment: { create: true }, disputes: { list: true, get: true } },
       context: { sandbox: process.env.PAYPAL_ENV !== "live" },
     },
   });
@@ -62,6 +62,38 @@ export async function createCatalogProduct(listing: {
       httpStatus: 500,
       summary: `create_product failed: ${(err as Error).message}`.slice(0, 200),
     });
+    return null;
+  }
+}
+
+export interface DisputeSummary {
+  id: string;
+  status: string;
+  reason: string;
+  amount: string | null;
+  transactionId: string | null;
+}
+
+/** Open PayPal disputes for the merchant, via the Agent Toolkit. Null if unavailable. */
+export async function listDisputes(): Promise<DisputeSummary[] | null> {
+  const tk = getToolkit();
+  if (!tk) return null;
+  try {
+    const result: unknown = await tk.getTools()["list_disputes"].execute!({ page_size: 20 }, { toolCallId: "dashboard-disputes", messages: [] });
+    const body = (typeof result === "string" ? JSON.parse(result) : result) as { items?: Record<string, unknown>[] };
+    return (body.items ?? []).map((d) => {
+      const amount = d.dispute_amount as { value?: string; currency_code?: string } | undefined;
+      const tx = (d.disputed_transactions as { seller_transaction_id?: string }[] | undefined)?.[0];
+      return {
+        id: String(d.dispute_id ?? ""),
+        status: String(d.status ?? ""),
+        reason: String(d.reason ?? ""),
+        amount: amount?.value ? `${amount.currency_code ?? ""} ${amount.value}`.trim() : null,
+        transactionId: tx?.seller_transaction_id ?? null,
+      };
+    });
+  } catch (err) {
+    console.error("[toolkit] list_disputes failed", err);
     return null;
   }
 }

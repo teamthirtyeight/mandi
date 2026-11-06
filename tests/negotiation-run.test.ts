@@ -47,7 +47,7 @@ describe.skipIf(!TEST_DB)("negotiation run", () => {
     ]);
   });
 
-  async function mandate(hostile = false) {
+  async function mandate(hostile = false, compromised = false) {
     const { db, schema } = dbmod;
     const [m] = await db
       .insert(schema.mandates)
@@ -59,6 +59,7 @@ describe.skipIf(!TEST_DB)("negotiation run", () => {
         deadline: "2026-12-20",
         shipToCountry: "GB",
         hostile,
+        compromised,
       })
       .returning();
     return m;
@@ -107,5 +108,23 @@ describe.skipIf(!TEST_DB)("negotiation run", () => {
     for (const t of snap.turns.filter((t) => t.from === "seller" && t.final_price != null)) {
       expect(t.final_price).toBeGreaterThanOrEqual(floors[t.seller]);
     }
+  });
+
+  it("compromised seller: the £1 offer is blocked and the leaked floor never reaches the buyer", async () => {
+    const m = await mandate(true, true);
+    await runner.openNegotiations(m.id);
+    await runner.runMandate(m.id);
+    const snap = (await snapshot.getMandateSnapshot(m.id))!;
+
+    const blocks = snap.turns.filter((t) => t.from === "engine" && t.guardrail_result === "REJECTED_BELOW_FLOOR");
+    expect(blocks).toHaveLength(3); // one per seller
+    expect(blocks.every((t) => !/£68\b|£98\b|£84\b/.test(t.message))).toBe(true);
+
+    const delivered = snap.turns.filter((t) => t.from === "seller");
+    const leaks = delivered.filter((t) => t.limit_redacted);
+    expect(leaks).toHaveLength(3);
+    expect(leaks.every((t) => t.message.includes("my floor is [withheld]"))).toBe(true);
+    const floors: Record<string, number> = { Meera: 68, Arjun: 98, Fatima: 84 };
+    for (const t of delivered) expect(t.message).not.toContain(`£${floors[t.seller]}.`);
   });
 });

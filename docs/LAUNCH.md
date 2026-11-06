@@ -49,7 +49,9 @@ Run these on the live URL. Watch the docked PayPal call log for the 2xx statuses
 | 7 | Double Approve | Click Approve twice quickly | One PayPal order (same id) |
 | 8 | Webhook before redirect | Watch the call log during approve | Status never moves backwards |
 | 9 | Declined capture | Send PayPal's negative-testing header on capture (sandbox) | Order goes back to AUTHORIZED; error shown |
-| 10 | Hostile buyer | Landing → Hostile buyer test | "Injection attempt ignored" badges; no seller below its floor |
+| 10 | Attack test | Landing → Hostile buyer test | Red "Engine blocked" rows for each £1 offer; "my floor is [withheld]"; no seller below its floor |
+| 12 | Auto-void | Set `MANDI_SHIP_WINDOW_MINUTES=2`, approve a deal, don't ship, wait | Hold voided within 5 min; phone view says the buyer wasn't charged |
+| 13 | Seller phone view | `/dashboard` → "Open Meera's phone view" during a demo | Hindi "sold, please ship" in ₹; shipping from the phone captures; "payment received" |
 | 11 | Onboarding | `/sell` with 3 photos and a Hindi voice note | English listing; comps strip; publish creates a PayPal product |
 
 ## 4. Recording (everyone) — Day 5

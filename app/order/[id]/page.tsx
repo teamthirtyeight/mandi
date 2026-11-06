@@ -271,6 +271,11 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
         {order.refundedMinor > 0 && (
           <p className="text-neutral-700">Refunded so far: {money(order.refundedMinor, order.currency)}</p>
         )}
+        {(order.status === "CAPTURED" || order.status === "REFUNDED" || order.problemNote) && (
+          <a href={`/api/orders/${order.id}/evidence`} className="inline-block text-sm text-neutral-600 underline">
+            Download dispute evidence pack (listing, chat log, tracking, photo)
+          </a>
+        )}
         {notice && <p className="text-amber-700">{notice}</p>}
         {error && <p className="text-red-700">{error}</p>}
       </section>

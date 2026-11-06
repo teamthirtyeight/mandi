@@ -26,19 +26,23 @@ AI shopping agents buy from merchants that have structured catalogs. Artisans, h
 3. **Parallel negotiation, visible.** Sarah's agent negotiates with up to three sellers at once. The negotiation room streams every turn with a price chart per seller. It shows both the price an agent proposed and the price the engine allowed.
 4. **One tap.** The buyer agent recommends one deal with its reasons. Sarah approves it, and PayPal authorizes the amount and holds it.
 5. **Ship, then get paid.** The seller adds tracking, Mandi captures the payment, and the tracking is attached to the PayPal order.
-6. **Problems handled.** Sarah reports a problem, optionally with a photo. The seller's agent proposes a refund; anything within the seller's cap is refunded through PayPal at once, and anything above it waits for the seller's approval.
+6. **Problems handled.** Sarah reports a problem, optionally with a photo. The seller's agent proposes a refund; anything within the seller's cap is refunded through PayPal at once, and anything above it waits for the seller's approval. For a formal PayPal dispute, the order page downloads an evidence pack: listing, chat log, tracking and photo.
+
+Meera follows all of this on a phone-sized view in Hindi with rupee amounts (`/seller/[id]`): "बिक गया! … कृपया भेजें", then "भुगतान मिल गया".
 
 ## Safety design
 
 | Rule | How it's enforced |
 | --- | --- |
 | The LLM proposes, code decides | Every agent turn passes `applyGuardrails` (`lib/engine/negotiation.ts`) before it is saved, shown or sent to the other agent |
-| Seller floor, buyer ceiling | Offers past a limit are clamped and logged. The approval endpoint re-checks both limits before any PayPal call |
+| Seller floor, buyer ceiling | An offer past a limit is blocked and never delivered; the room shows the block. Blocking, not clamping, keeps the limit itself off the table. The approval endpoint re-checks both limits before any PayPal call |
+| Leak filter | Before any message reaches the other side, the engine removes the sender's own private limit from the text and shows "[withheld]" |
 | No backtracking, 6 rounds | A seller can't raise its own offer and a buyer can't lower its own; a negotiation expires after 6 rounds |
 | Information isolation | The floor never enters buyer prompts and the ceiling never enters seller prompts (`tests/agents.test.ts`) |
-| Prompt injection | Counterparty messages reach the other agent as `<counterparty_message>` data. Injection attempts are labelled; the hostile-buyer test shows the floor holding |
+| Prompt injection | Counterparty messages reach the other agent as `<counterparty_message>` data. Injection attempts are labelled. The attack test (landing page) also simulates a seller agent that falls for it: its £1 offer is blocked and its leaked floor is withheld |
 | AI never touches money | Authorize, capture, refund and void live in `lib/paypal/rest.ts` and `lib/orders/service.ts`. No agent can call them. The Agent Toolkit gets only products and shipment tracking |
-| Human approval | No PayPal order exists without the buyer's tap; refunds above the seller's cap need the seller's tap |
+| Human approval | No PayPal order exists without the buyer's tap; refunds above the seller's per-listing cap need the seller's tap |
+| Holds expire | A hold the seller hasn't shipped within their ship-by window is voided automatically, so the buyer is never charged |
 | Idempotent money calls | Every POST carries a `PayPal-Request-Id`. Each action claims the order row first, so a double click can't capture or refund twice |
 | Integer money | Prices are stored as minor units (pence) |
 
@@ -107,7 +111,7 @@ Every call is written to `paypal_events`, which feeds the docked "PayPal API cal
    npm run dev
    ```
 
-**Pages:** `/` (Try the demo), `/shop`, `/deal/[id]`, `/order/[id]`, `/sell`, `/dashboard`, and `/paypal-test` (a bare sandbox check).
+**Pages:** `/` (Try the demo), `/shop`, `/deal/[id]`, `/order/[id]`, `/sell`, `/dashboard`, `/seller/[id]` (the seller's phone view), and `/paypal-test` (a bare sandbox check).
 
 ## Tests
 

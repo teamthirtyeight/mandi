@@ -67,7 +67,7 @@ export async function getDashboard(sellerId: string, now = new Date()) {
   const ACTIVE = new Set(["OPEN", "OFFERED", "COUNTERED", "AGREED", "AWAITING_BUYER_APPROVAL"]);
 
   return {
-    seller: { id: seller.id, name: seller.name, city: seller.city },
+    seller: { id: seller.id, name: seller.name, city: seller.city, language: seller.language, shipByDays: seller.shipByDays },
     tiles: {
       held: toMajor(heldMinor),
       captured: toMajor(capturedMinor),
@@ -97,6 +97,13 @@ export async function getDashboard(sellerId: string, now = new Date()) {
       ask: major(r.n.sellerOfferMinor),
       bid: major(r.n.buyerOfferMinor),
       agreed: major(r.n.agreedPriceMinor),
+      floor: toMajor(r.listing.floorPriceMinor),
+      // Margin above the private floor: agreed price if any, else the current ask.
+      marginAboveFloor: major(
+        (r.n.agreedPriceMinor ?? r.n.sellerOfferMinor) != null
+          ? (r.n.agreedPriceMinor ?? r.n.sellerOfferMinor)! - r.listing.floorPriceMinor
+          : null,
+      ),
       createdAt: r.n.createdAt.toISOString(),
     })),
     orders: orders.map(({ o, listing, mandate }) => ({
@@ -105,6 +112,10 @@ export async function getDashboard(sellerId: string, now = new Date()) {
       buyer: mandate.buyerName,
       amount: toMajor(o.amountMinor),
       refunded: toMajor(o.refundedMinor),
+      floor: toMajor(listing.floorPriceMinor),
+      marginAboveFloor: toMajor(o.amountMinor - listing.floorPriceMinor),
+      pendingRefund: major(o.pendingRefundMinor),
+      shipBy: o.authorizedAt ? new Date(o.authorizedAt.getTime() + seller.shipByDays * DAY).toISOString() : null,
       status: o.status,
       carrier: o.carrier,
       tracking: o.trackingNumber,

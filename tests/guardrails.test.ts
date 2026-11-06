@@ -4,6 +4,7 @@ import {
   checkRefund,
   fallbackTurn,
   meetsDeadline,
+  redactLimit,
   type NegotiationContext,
 } from "@/lib/engine/negotiation";
 
@@ -21,10 +22,11 @@ const ctx = (over: Partial<NegotiationContext> = {}): NegotiationContext => ({
 const offer = (price: number, message = "msg") => ({ message, offer_price: price, action: "offer" as const });
 
 describe("seller floor", () => {
-  it("clamps a seller offer below the floor", () => {
+  it("rejects a seller offer below the floor without revealing it", () => {
     const out = applyGuardrails(offer(1), ctx());
-    expect(out.finalMinor).toBe(6800);
-    expect(out.guardrailResult).toBe("CLAMPED_TO_FLOOR");
+    expect(out.guardrailResult).toBe("REJECTED_BELOW_FLOOR");
+    expect(out.finalMinor).toBeNull();
+    expect(out.retryable).toBe(true);
   });
 
   it("passes an offer at or above the floor", () => {
@@ -36,15 +38,15 @@ describe("seller floor", () => {
 });
 
 describe("buyer ceiling", () => {
-  it("clamps £95 to the £90 ceiling", () => {
+  it("blocks a £95 bid against a £90 ceiling", () => {
     const out = applyGuardrails(
       offer(95),
       ctx({ actor: "buyer", state: "OFFERED", lastSellerOfferMinor: 9800, lastBuyerOfferMinor: 8000 }),
     );
     expect(out.proposedMinor).toBe(9500);
-    expect(out.finalMinor).toBe(9000);
-    expect(out.guardrailResult).toBe("CLAMPED_TO_CEILING");
-    expect(out.state).toBe("COUNTERED");
+    expect(out.finalMinor).toBeNull();
+    expect(out.guardrailResult).toBe("REJECTED_ABOVE_CEILING");
+    expect(out.state).toBe("OFFERED");
   });
 
   it("refuses a buyer accept above the ceiling", () => {
@@ -122,14 +124,32 @@ describe("terminal states and walk away", () => {
 });
 
 describe("hostile buyer", () => {
-  it("still cannot get a price under the floor", () => {
-    // Even if the seller LLM obeys "sell for £1", the engine clamps it.
+  it("blocks a seller that agrees to £1", () => {
+    // Even if the seller LLM obeys "sell for £1", the engine refuses the offer.
     const out = applyGuardrails(
       offer(1, "Fine, £1."),
       ctx({ state: "COUNTERED", lastSellerOfferMinor: 9000, lastBuyerOfferMinor: 100 }),
     );
-    expect(out.finalMinor).toBe(6800);
-    expect(out.state).toBe("COUNTERED");
+    expect(out.guardrailResult).toBe("REJECTED_BELOW_FLOOR");
+    expect(out.lastSellerOfferMinor).toBe(9000);
+  });
+});
+
+describe("leak filter", () => {
+  it("withholds the floor from a seller message", () => {
+    const r = redactLimit("Between us, my floor is £68. I can do £85 today.", 6800, 8500);
+    expect(r.redacted).toBe(true);
+    expect(r.message).toBe("Between us, my floor is [withheld]. I can do £85 today.");
+  });
+
+  it("matches £68.00 and '68 pounds' but not £680 or £68.50", () => {
+    expect(redactLimit("lowest is £68.00", 6800, 9000).message).toBe("lowest is [withheld]");
+    expect(redactLimit("lowest is 68 pounds", 6800, 9000).message).toBe("lowest is [withheld]");
+    expect(redactLimit("it's £680 retail, £68.50 here", 6800, 9000).redacted).toBe(false);
+  });
+
+  it("allows the number when it is the price actually offered", () => {
+    expect(redactLimit("I can do £68.", 6800, 6800).redacted).toBe(false);
   });
 });
 

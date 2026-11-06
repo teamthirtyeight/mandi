@@ -87,6 +87,14 @@ export default function DashboardPage() {
   const [tab, setTab] = useState<"orders" | "negotiations" | "listings">("orders");
   const [selected, setSelected] = useState<Neg | null>(null);
   const [turns, setTurns] = useState<TurnRow[]>([]);
+  const [disputes, setDisputes] = useState<{ available: boolean; count: number } | null>(null);
+
+  useEffect(() => {
+    fetch("/api/disputes")
+      .then((r) => r.json())
+      .then((b) => setDisputes({ available: b.available, count: b.disputes.length }))
+      .catch(() => setDisputes(null));
+  }, []);
 
   useEffect(() => {
     fetch("/api/sellers")
@@ -122,6 +130,7 @@ export default function DashboardPage() {
       { field: "listing", flex: 2, minWidth: 220 },
       { field: "buyer", width: 110 },
       { field: "amount", ...money },
+      { field: "marginAboveFloor", headerName: "Above floor", ...money, width: 120 },
       { field: "refunded", ...money },
       { headerName: "Tracking", valueGetter: (p) => (p.data?.tracking ? `${p.data.carrier} ${p.data.tracking}` : "—"), flex: 1, minWidth: 160 },
       { field: "authorizedAt", headerName: "Held on", valueFormatter: (p) => when(p.value), width: 110 },
@@ -148,6 +157,7 @@ export default function DashboardPage() {
       { field: "ask", headerName: "Your ask", ...money },
       { field: "bid", headerName: "Their bid", ...money },
       { field: "agreed", ...money },
+      { field: "marginAboveFloor", headerName: "Above floor", ...money, width: 120 },
       { field: "rounds", width: 90, type: "rightAligned" },
       { field: "createdAt", headerName: "Started", valueFormatter: (p) => when(p.value), width: 110, sort: "desc" },
     ],
@@ -189,11 +199,19 @@ export default function DashboardPage() {
 
   if (!data) return <main className="p-8 text-neutral-500">Loading dashboard…</main>;
 
+  const deals = data.negotiations.filter((n) => n.agreed != null && n.marginAboveFloor != null);
+  const avgMargin = deals.length ? deals.reduce((a, n) => a + (n.marginAboveFloor ?? 0), 0) / deals.length : null;
   const tiles = [
     { label: "Money held", value: gbp(data.tiles.held), note: "Authorized, waiting for you to ship" },
     { label: "Captured", value: gbp(data.tiles.captured), note: "Paid out after shipping, net of refunds" },
     { label: "Refunded", value: gbp(data.tiles.refunded), note: "Returned to buyers" },
     { label: "Live negotiations", value: String(data.tiles.activeNegotiations), note: "Your agent is talking to buyers" },
+    { label: "Avg. above floor", value: avgMargin == null ? "—" : gbp(avgMargin), note: "How far your agent sold above your floor" },
+    {
+      label: "PayPal disputes",
+      value: disputes?.available ? String(disputes.count) : "—",
+      note: disputes?.available ? "Open disputes via the Agent Toolkit" : "Needs PayPal keys",
+    },
   ];
 
   return (
@@ -205,6 +223,9 @@ export default function DashboardPage() {
             {data.seller.name} · {data.seller.city}
           </h1>
         </div>
+        <Link href={`/seller/${sellerId}`} className="text-sm underline">
+          Open {data.seller.name}&apos;s phone view
+        </Link>
         <select
           className="rounded-lg border border-neutral-300 px-3 py-2"
           value={sellerId}
@@ -222,7 +243,7 @@ export default function DashboardPage() {
         </select>
       </header>
 
-      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <section className="grid gap-4 sm:grid-cols-3 lg:grid-cols-6">
         {tiles.map((t) => (
           <div key={t.label} className="rounded-xl border border-neutral-200 p-4">
             <p className="text-sm text-neutral-500">{t.label}</p>

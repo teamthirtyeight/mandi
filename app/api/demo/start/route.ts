@@ -15,7 +15,11 @@ function nextDec20(now = new Date()) {
 }
 
 export async function POST(req: Request) {
-  const hostile = new URL(req.url).searchParams.get("hostile") === "1";
+  // hostile=1: buyer tries to extract the floor. hostile=2: also simulates a seller
+  // agent that falls for it, so the engine's blocks show on camera.
+  const mode = new URL(req.url).searchParams.get("hostile");
+  const hostile = mode === "1" || mode === "2";
+  const compromised = mode === "2";
 
   const [{ running }] = await db
     .select({ running: sql<number>`count(*)::int` })
@@ -36,6 +40,7 @@ export async function POST(req: Request) {
       deadline: nextDec20(),
       shipToCountry: "GB",
       hostile,
+      compromised,
     })
     .returning();
 

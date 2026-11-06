@@ -67,6 +67,8 @@ export const listings = pgTable("listings", {
   listPriceMinor: integer("list_price_minor").notNull(),
   // Never sent to any buyer-side prompt.
   floorPriceMinor: integer("floor_price_minor").notNull(),
+  // Agent-proposed refunds up to this need no seller tap. Falls back to the seller's cap.
+  refundCapMinor: integer("refund_cap_minor"),
   currency: text("currency").notNull().default("GBP"),
   stock: integer("stock").notNull().default(1),
   paypalProductId: text("paypal_product_id"),
@@ -88,6 +90,9 @@ export const mandates = pgTable("mandates", {
   query: text("query").notNull().default(""),
   // Demo switch: the buyer sends a scripted prompt-injection message.
   hostile: boolean("hostile").notNull().default(false),
+  // Demo switch: the seller agent is scripted to fall for the attack, so the
+  // engine's blocks and the leak filter show on camera.
+  compromised: boolean("compromised").notNull().default(false),
   status: text("status").notNull().default("draft"),
   recommendedNegotiationId: uuid("recommended_negotiation_id"),
   recommendation: jsonb("recommendation"),
@@ -122,6 +127,8 @@ export const negotiationTurns = pgTable("negotiation_turns", {
   finalPriceMinor: integer("final_price_minor"),
   guardrailResult: text("guardrail_result").notNull(),
   injectionDetected: boolean("injection_detected").notNull().default(false),
+  // The leak filter removed the sender's private limit from this message.
+  limitRedacted: boolean("limit_redacted").notNull().default(false),
   // "agent" = model output, "fallback" = rule-based turn after invalid output.
   source: text("source").notNull().default("agent"),
   round: integer("round").notNull(),
@@ -139,6 +146,8 @@ export const orders = pgTable("orders", {
   refundedMinor: integer("refunded_minor").notNull().default(0),
   // Buyer's problem report and the seller agent's refund proposal.
   problemNote: text("problem_note"),
+  // Buyer's photo (data URL), kept for the dispute evidence pack.
+  problemPhoto: text("problem_photo"),
   agentRefundMessage: text("agent_refund_message"),
   // Set when the agent's proposal is above the seller's cap and needs their tap.
   pendingRefundMinor: integer("pending_refund_minor"),

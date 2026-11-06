@@ -101,12 +101,12 @@ export async function voidOrder(orderId: string) {
 async function sellerRefundCap(order: Order): Promise<number> {
   if (!order.negotiationId) return DEFAULT_REFUND_CAP_MINOR;
   const [row] = await db
-    .select({ cap: schema.sellers.refundCapMinor })
+    .select({ listingCap: schema.listings.refundCapMinor, sellerCap: schema.sellers.refundCapMinor })
     .from(schema.negotiations)
     .innerJoin(schema.listings, eq(schema.listings.id, schema.negotiations.listingId))
     .innerJoin(schema.sellers, eq(schema.sellers.id, schema.listings.sellerId))
     .where(eq(schema.negotiations.id, order.negotiationId));
-  return row?.cap ?? DEFAULT_REFUND_CAP_MINOR;
+  return row?.listingCap ?? row?.sellerCap ?? DEFAULT_REFUND_CAP_MINOR;
 }
 
 export interface RefundInput {

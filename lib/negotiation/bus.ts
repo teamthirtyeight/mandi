@@ -14,6 +14,7 @@ export type MandiEvent =
       final_price: number | null;
       guardrail_result: string;
       injection: boolean;
+      limit_redacted: boolean;
       source: string;
       state: string;
       round: number;

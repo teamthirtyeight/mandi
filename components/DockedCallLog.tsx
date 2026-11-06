@@ -9,7 +9,7 @@ import { PayPalCallLog } from "./PayPalCallLog";
 export function DockedCallLog() {
   const path = usePathname();
   const [open, setOpen] = useState(true);
-  if (path.startsWith("/order/") || path.startsWith("/paypal-test")) return null;
+  if (path.startsWith("/order/") || path.startsWith("/paypal-test") || path.startsWith("/seller/")) return null;
 
   return (
     <div className="fixed bottom-4 right-4 z-50 w-[min(400px,calc(100vw-2rem))] shadow-lg">
