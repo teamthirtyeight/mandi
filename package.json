@@ -13,9 +13,13 @@
     "db:seed": "tsx lib/db/seed.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^1.6.0",
+    "@channel3/sdk": "^4.8.0",
+    "@paypal/agent-toolkit": "^1.11.0",
     "@paypal/react-paypal-js": "^10.6.1",
     "drizzle-orm": "^0.45.4",
     "next": "15.5.29",
+    "openai": "^7.53.0",
     "postgres": "^4.1.0",
     "react": "19.1.0",
     "react-dom": "19.1.0",

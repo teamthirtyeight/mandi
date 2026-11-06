@@ -13,7 +13,7 @@ Mandi is an agent-to-agent marketplace for the PayPal AI Hackathon. A small sell
 
 ## Status
 
-Days 1–2 of the build plan:
+Days 1–3 of the build plan:
 
 | Area | State |
 | --- | --- |
@@ -25,7 +25,12 @@ Days 1–2 of the build plan:
 | Webhook listener with signature verification | done; needs `PAYPAL_WEBHOOK_ID` and a public URL to test |
 | `/paypal-test` page and `/order/[id]` tracker with the PayPal call log | done |
 | Live sandbox run (real PayPal popup) | waiting on sandbox keys |
-| Agents, onboarding, negotiation room, dashboard | not started |
+| Seller and buyer agents (Claude, structured output, untrusted-message wrapping, rule-based fallback) | done; real-model run needs `ANTHROPIC_API_KEY` |
+| Mandate parsing, listing search, parallel negotiation, SSE stream, deal scoring | done, tested with the model off |
+| `/shop` → `/deal/[id]` negotiation room → Approve → PayPal authorize | done; PayPal step needs sandbox keys |
+| Seller onboarding `/sell`: photos + voice → listing, Channel3 comps, floor, publish (Agent Toolkit `create_product`) | done; needs Anthropic, OpenAI, Channel3 and PayPal keys for the full path |
+| Hostile-buyer test | done |
+| AG Grid dashboard, camera polish | not started (Day 4) |
 
 ## Run locally
 
@@ -64,13 +69,17 @@ Then open `/paypal-test`, approve with the sandbox buyer (Sarah) login, and you 
 npm test
 ```
 
-This runs the guardrail and order-state tests. The money-flow tests in `tests/paypal-flow.test.ts` also need a Postgres with the schema pushed, and they truncate `orders` and `paypal_events`:
+This runs the guardrail, order-state, prompt-isolation, mandate and scoring tests. The money-flow and negotiation-run tests also need a Postgres with the schema pushed, and they truncate `orders` and `paypal_events`:
 
 ```bash
 createdb mandi_test
 DATABASE_URL=postgres://localhost:5432/mandi_test npx drizzle-kit push
 TEST_DATABASE_URL=postgres://localhost:5432/mandi_test npm test
 ```
+
+## Agents without keys
+
+Without `ANTHROPIC_API_KEY` (or with `MANDI_FAKE_AI=1`), both agents use the engine's rule-based turns. The flow still runs end to end, and the room labels those turns "rule-based".
 
 ## Layout
 
@@ -79,9 +88,13 @@ app/              pages and /api routes
 lib/engine/       negotiation state machine and guardrails (pure functions)
 lib/paypal/       rest.ts (money calls), log.ts (paypal_events)
 lib/orders/       state.ts (status machine), service.ts (ship, refund, void)
+lib/agents/       prompts, seller/buyer agents, mandate parser, listing writer
+lib/negotiation/  runner (parallel negotiations), bus + snapshot (SSE), scoring
+lib/ai/           claude.ts (structured calls), transcribe.ts
+lib/channel3/     comparable prices
 components/       PayPalCallLog
 lib/db/           schema.ts (Drizzle), seed.ts
-tests/            guardrails, order-state, paypal-flow
+tests/            guardrails, order-state, paypal-flow, agents, negotiation-run
 ```
 
 ## Deploy

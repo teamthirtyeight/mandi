@@ -9,6 +9,7 @@ import {
   jsonb,
   uuid,
   date,
+  boolean,
 } from "drizzle-orm/pg-core";
 
 export const negotiationState = pgEnum("negotiation_state", [
@@ -83,7 +84,13 @@ export const mandates = pgTable("mandates", {
   deadline: date("deadline").notNull(),
   shipToCountry: text("ship_to_country").notNull(),
   approvalRule: text("approval_rule").notNull().default("human_approves_final_deal"),
+  // Keywords the buyer agent searches listings with.
+  query: text("query").notNull().default(""),
+  // Demo switch: the buyer sends a scripted prompt-injection message.
+  hostile: boolean("hostile").notNull().default(false),
   status: text("status").notNull().default("draft"),
+  recommendedNegotiationId: uuid("recommended_negotiation_id"),
+  recommendation: jsonb("recommendation"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -114,6 +121,9 @@ export const negotiationTurns = pgTable("negotiation_turns", {
   proposedPriceMinor: integer("proposed_price_minor"),
   finalPriceMinor: integer("final_price_minor"),
   guardrailResult: text("guardrail_result").notNull(),
+  injectionDetected: boolean("injection_detected").notNull().default(false),
+  // "agent" = model output, "fallback" = rule-based turn after invalid output.
+  source: text("source").notNull().default("agent"),
   round: integer("round").notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });

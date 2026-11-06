@@ -208,24 +208,56 @@ function applyAccept(
 }
 
 /**
- * Rule-based counter-offer used when an agent's output fails validation twice,
- * so the demo never stalls. Concedes a third of the remaining gap per turn,
- * then rounds to whole pounds. The result still goes through applyGuardrails.
+ * Rule-based turn used when an agent's output is missing or invalid twice, so
+ * the demo never stalls. The seller opens at list price and concedes 35% of the
+ * gap to max(floor, buyer's bid); the buyer opens at 75% of list and concedes
+ * 40% of the gap to min(ask, ceiling). Either side accepts once the gap is small
+ * and within its limit. The result still goes through applyGuardrails.
  */
 export function fallbackTurn(ctx: NegotiationContext, listPriceMinor: number): AgentTurn {
   const pound = 100;
+  const ask = ctx.lastSellerOfferMinor;
+  const bid = ctx.lastBuyerOfferMinor;
+  const close = (a: number, b: number) => a - b <= Math.max(3 * pound, Math.round(a * 0.05));
+
   if (ctx.actor === "seller") {
-    const current = ctx.lastSellerOfferMinor ?? listPriceMinor;
-    const target = ctx.lastBuyerOfferMinor ?? ctx.floorMinor;
-    const next = Math.max(ctx.floorMinor, current - Math.ceil(Math.max(0, current - target) / 3));
-    const rounded = Math.max(ctx.floorMinor, Math.round(next / pound) * pound);
+    if (ask == null) return { message: "Thank you for your interest. It's made by hand and one of a kind.", offer_price: toMajor(listPriceMinor), action: "offer" };
+    if (bid != null && bid >= ctx.floorMinor && close(ask, bid)) {
+      return { message: "That works for me. It's yours.", offer_price: null, action: "accept" };
+    }
+    const target = Math.max(ctx.floorMinor, bid ?? ctx.floorMinor);
+    const next = ask - Math.ceil(Math.max(0, ask - target) * 0.35);
+    const rounded = Math.min(ask, Math.max(ctx.floorMinor, Math.round(next / pound) * pound));
     return { message: "I can come down a little for you.", offer_price: toMajor(rounded), action: "offer" };
   }
-  const current = ctx.lastBuyerOfferMinor ?? Math.round(listPriceMinor * 0.75);
-  const target = ctx.lastSellerOfferMinor ?? ctx.ceilingMinor;
-  const next = Math.min(ctx.ceilingMinor, current + Math.ceil(Math.max(0, target - current) / 3));
-  const rounded = Math.min(ctx.ceilingMinor, Math.round(next / pound) * pound);
+
+  // Buyer walks away once it is at its ceiling and the seller still won't come under it.
+  if (ctx.round >= 4 && bid === ctx.ceilingMinor && ask != null && ask > ctx.ceilingMinor) {
+    return { message: "Thank you, but that's above my budget. I'll pass.", offer_price: null, action: "walk_away" };
+  }
+  if (ask != null && ask <= ctx.ceilingMinor && (ctx.round >= 4 || (bid != null && close(ask, bid)))) {
+    return { message: "Deal, thank you.", offer_price: null, action: "accept" };
+  }
+  const current = bid ?? Math.min(ctx.ceilingMinor, Math.round(listPriceMinor * 0.75));
+  if (bid == null) return { message: "It's lovely. Would you consider this?", offer_price: toMajor(Math.round(current / pound) * pound), action: "offer" };
+  const target = Math.min(ask ?? ctx.ceilingMinor, ctx.ceilingMinor);
+  const next = current + Math.ceil(Math.max(0, target - current) * 0.4);
+  const rounded = Math.max(current, Math.min(ctx.ceilingMinor, Math.round(next / pound) * pound));
   return { message: "Could you meet me here?", offer_price: toMajor(rounded), action: "offer" };
+}
+
+const INJECTION_PATTERNS = [
+  /ignore (all |any |your |the )?(previous |prior |above )?(instructions|rules|prompt)/i,
+  /disregard (all |your |the )?(previous |prior )?(instructions|rules)/i,
+  /you are now/i,
+  /system prompt/i,
+  /(reveal|tell me|what is) (your|the) (floor|minimum|lowest)/i,
+];
+
+/** Labels counterparty text that tries to instruct the other agent. Detection only;
+ *  the floor and ceiling hold whether or not this fires. */
+export function detectInjection(text: string): boolean {
+  return INJECTION_PATTERNS.some((p) => p.test(text));
 }
 
 /** Deadline filter: drop listings that cannot arrive by the mandate deadline. */

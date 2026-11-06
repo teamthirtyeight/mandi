@@ -32,6 +32,16 @@ export async function POST(_req: Request, { params }: { params: Promise<{ paypal
         .update(schema.orders)
         .set({ status: "AUTHORIZED", authorizationId: auth.authorizationId, authorizedAt: new Date() })
         .where(and(eq(schema.orders.id, orderRowId), inArray(schema.orders.status, ["CREATED", "APPROVED"])));
+      const [order] = await db
+        .select({ negotiationId: schema.orders.negotiationId })
+        .from(schema.orders)
+        .where(eq(schema.orders.id, orderRowId));
+      if (order?.negotiationId) {
+        await db
+          .update(schema.negotiations)
+          .set({ state: "ORDERED" })
+          .where(eq(schema.negotiations.id, order.negotiationId));
+      }
     }
 
     return NextResponse.json({
