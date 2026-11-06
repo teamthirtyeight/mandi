@@ -49,7 +49,7 @@ async function main() {
     ])
     .returning();
 
-  await db.insert(schema.listings).values([
+  const listings = await db.insert(schema.listings).values([
     {
       sellerId: meera.id,
       title: "Handwoven Banarasi silk scarf, rose and gold",
@@ -122,35 +122,60 @@ async function main() {
       listPriceMinor: gbp(25),
       floorPriceMinor: gbp(18),
     },
-  ]);
+  ]).returning();
 
-  // Two completed historical orders so the dashboard is never empty.
+  // Two completed historical orders on Meera's stole and cushion cover, each
+  // with the mandate and negotiation behind it, so her dashboard is never empty.
   const now = Date.now();
   const day = 24 * 60 * 60 * 1000;
-  await db.insert(schema.orders).values([
-    {
-      amountMinor: gbp(64),
+  const [stole, cushion] = [listings[1], listings[2]];
+  const history = [
+    { listing: stole, buyer: "Priya", text: "Silk stole for a wedding, under £75", agreed: 64, daysAgo: 12, carrier: "India Post", tracking: "EE123456789IN" },
+    { listing: cushion, buyer: "Tom", text: "Brocade cushion cover under £40", agreed: 38, daysAgo: 5, carrier: "DHL", tracking: "1234567890" },
+  ];
+  for (const [i, h] of history.entries()) {
+    const created = new Date(now - h.daysAgo * day);
+    const [mandate] = await db
+      .insert(schema.mandates)
+      .values({
+        buyerName: h.buyer,
+        requestText: h.text,
+        query: h.listing.category,
+        maxPriceMinor: gbp(h.agreed + 10),
+        deadline: new Date(now - (h.daysAgo - 20) * day).toISOString().slice(0, 10),
+        shipToCountry: "GB",
+        status: "recommended",
+        createdAt: created,
+      })
+      .returning();
+    const [neg] = await db
+      .insert(schema.negotiations)
+      .values({
+        mandateId: mandate.id,
+        listingId: h.listing.id,
+        state: "ORDERED",
+        sellerOfferMinor: gbp(h.agreed),
+        buyerOfferMinor: gbp(h.agreed),
+        rounds: 3,
+        agreedPriceMinor: gbp(h.agreed),
+        createdAt: created,
+      })
+      .returning();
+    await db.update(schema.mandates).set({ recommendedNegotiationId: neg.id }).where(sql`id = ${mandate.id}`);
+    await db.insert(schema.orders).values({
+      negotiationId: neg.id,
+      amountMinor: gbp(h.agreed),
       status: "CAPTURED",
-      paypalOrderId: "SEED-ORDER-1",
-      authorizationId: "SEED-AUTH-1",
-      captureId: "SEED-CAPTURE-1",
-      carrier: "India Post",
-      trackingNumber: "EE123456789IN",
-      authorizedAt: new Date(now - 12 * day),
-      capturedAt: new Date(now - 10 * day),
-    },
-    {
-      amountMinor: gbp(38),
-      status: "CAPTURED",
-      paypalOrderId: "SEED-ORDER-2",
-      authorizationId: "SEED-AUTH-2",
-      captureId: "SEED-CAPTURE-2",
-      carrier: "DHL",
-      trackingNumber: "1234567890",
-      authorizedAt: new Date(now - 5 * day),
-      capturedAt: new Date(now - 4 * day),
-    },
-  ]);
+      paypalOrderId: `SEED-ORDER-${i + 1}`,
+      authorizationId: `SEED-AUTH-${i + 1}`,
+      captureId: `SEED-CAPTURE-${i + 1}`,
+      carrier: h.carrier,
+      trackingNumber: h.tracking,
+      authorizedAt: created,
+      capturedAt: new Date(created.getTime() + 2 * day),
+      createdAt: created,
+    });
+  }
 
   console.log("Seeded 3 sellers, 8 listings, 2 historical orders.");
   process.exit(0);

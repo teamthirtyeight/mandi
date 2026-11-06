@@ -108,3 +108,12 @@ describe("deal scoring", () => {
     expect(scoreDeals({ deals: [], ceilingMinor: 9000, referenceMinor: null, deadline: new Date() }).best).toBeNull();
   });
 });
+
+describe("dashboard week buckets", () => {
+  it("starts weeks on Monday (UTC)", async () => {
+    const { weekStart } = await import("@/lib/dashboard/weeks");
+    expect(weekStart(new Date("2026-11-06T15:00:00Z")).toISOString().slice(0, 10)).toBe("2026-11-02");
+    expect(weekStart(new Date("2026-11-08T23:00:00Z")).toISOString().slice(0, 10)).toBe("2026-11-02");
+    expect(weekStart(new Date("2026-11-09T00:00:00Z")).toISOString().slice(0, 10)).toBe("2026-11-09");
+  });
+});

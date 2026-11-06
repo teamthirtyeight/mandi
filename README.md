@@ -30,7 +30,8 @@ Days 1–3 of the build plan:
 | `/shop` → `/deal/[id]` negotiation room → Approve → PayPal authorize | done; PayPal step needs sandbox keys |
 | Seller onboarding `/sell`: photos + voice → listing, Channel3 comps, floor, publish (Agent Toolkit `create_product`) | done; needs Anthropic, OpenAI, Channel3 and PayPal keys for the full path |
 | Hostile-buyer test | done |
-| AG Grid dashboard, camera polish | not started (Day 4) |
+| `/dashboard` seller dashboard (AG Grid Community + AG Charts): tiles for money held vs captured, orders / negotiations / listings grids with status pills and live cell flashes, negotiation turns panel, weekly revenue chart | done |
+| Camera polish, Render deploy, freeze gate | not started (Day 4) |
 
 ## Run locally
 
