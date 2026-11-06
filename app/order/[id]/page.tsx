@@ -40,6 +40,8 @@ function stepsDone(o: Order): Record<(typeof STEPS)[number], boolean> {
 export default function OrderPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const [order, setOrder] = useState<Order | null>(null);
+  // "buyer" or "seller" for a real deal; "both" for /paypal-test orders.
+  const [viewer, setViewer] = useState<"buyer" | "seller" | "both">("both");
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -56,7 +58,10 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
     const res = await fetch(`/api/orders/${id}`, { cache: "no-store" });
     const body = await res.json();
     if (!res.ok) setError(body.error);
-    else setOrder(body.order);
+    else {
+      setOrder(body.order);
+      setViewer(body.viewer);
+    }
   }, [id]);
 
   useEffect(() => {
@@ -117,7 +122,7 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
           </ol>
         )}
 
-        {order.status === "AUTHORIZED" && (
+        {order.status === "AUTHORIZED" && viewer !== "buyer" && (
           <div className="rounded-xl border border-neutral-200 p-5">
             <p className="mb-3 text-lg font-medium">{money(order.amountMinor, order.currency)} held — ship within 3 days</p>
             <form
@@ -170,7 +175,7 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
                 <p>{order.agentRefundMessage}</p>
               </>
             )}
-            {order.pendingRefundMinor != null && (
+            {order.pendingRefundMinor != null && viewer !== "buyer" && (
               <button
                 disabled={busy}
                 onClick={async () => {
@@ -189,7 +194,7 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
           </div>
         )}
 
-        {order.status === "CAPTURED" && remaining > 0 && !order.problemNote && (
+        {order.status === "CAPTURED" && remaining > 0 && !order.problemNote && viewer !== "seller" && (
           <div className="rounded-xl border border-neutral-200 p-5">
             <p className="mb-3 font-medium">Buyer: something wrong with the item?</p>
             <form
@@ -234,7 +239,7 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
           </div>
         )}
 
-        {order.status === "CAPTURED" && remaining > 0 && (
+        {order.status === "CAPTURED" && remaining > 0 && viewer !== "buyer" && (
           <div className="rounded-xl border border-neutral-200 p-5">
             <p className="mb-3 font-medium">Seller: refund up to {money(remaining, order.currency)}</p>
             <form

@@ -3,6 +3,8 @@
 import { UUID } from "@/lib/api/errors";
 import { subscribe, type MandiEvent } from "@/lib/negotiation/bus";
 import { getMandateSnapshot } from "@/lib/negotiation/snapshot";
+import { AuthError, requireUser } from "@/lib/auth/session";
+import { assertMandateOwner } from "@/lib/auth/access";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +13,11 @@ const FINAL = new Set(["recommended", "no_deal", "no_match", "failed"]);
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   if (!UUID.test(id)) return new Response("Invalid mandate id", { status: 400 });
+  try {
+    await assertMandateOwner(await requireUser("buyer"), id);
+  } catch (err) {
+    return new Response(err instanceof AuthError ? err.message : "Error", { status: err instanceof AuthError ? err.status : 500 });
+  }
 
   const encoder = new TextEncoder();
   let cleanup = () => {};

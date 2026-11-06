@@ -4,14 +4,21 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db, schema } from "@/lib/db";
 import { parseMandate } from "@/lib/agents/mandate";
+import { requireUser } from "@/lib/auth/session";
+import { errorResponse } from "@/lib/api/errors";
 
 const Body = z.object({
   requestText: z.string().trim().min(5).max(300),
-  buyerName: z.string().trim().min(1).max(40).default("Sarah"),
   hostile: z.boolean().default(false),
 });
 
 export async function POST(req: Request) {
+  let user;
+  try {
+    user = await requireUser("buyer");
+  } catch (err) {
+    return errorResponse(err);
+  }
   const parsed = Body.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Describe what you want in a sentence." }, { status: 400 });
 
@@ -26,13 +33,15 @@ export async function POST(req: Request) {
   const [mandate] = await db
     .insert(schema.mandates)
     .values({
-      buyerName: parsed.data.buyerName,
+      buyerName: user.name,
+      buyerUserId: user.id,
       requestText: parsed.data.requestText,
       query: draft.item_query,
       maxPriceMinor: Math.round(draft.max_price * 100),
       currency: draft.currency,
       deadline: draft.deadline,
-      shipToCountry: draft.ship_to_country,
+      // The sentence wins if it names a country; otherwise the buyer's default.
+      shipToCountry: /\b(ship|deliver|send)\w*\b.*\bto\b/i.test(parsed.data.requestText) ? draft.ship_to_country : user.shipToCountry,
       hostile: parsed.data.hostile,
     })
     .returning();

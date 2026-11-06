@@ -3,11 +3,19 @@
 import { NextResponse } from "next/server";
 import { UUID } from "@/lib/api/errors";
 import { openNegotiations, runMandate } from "@/lib/negotiation/runner";
+import { requireUser } from "@/lib/auth/session";
+import { assertMandateOwner } from "@/lib/auth/access";
+import { errorResponse } from "@/lib/api/errors";
 
 export async function POST(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   if (!UUID.test(id)) return NextResponse.json({ error: "Invalid mandate id" }, { status: 400 });
 
+  try {
+    await assertMandateOwner(await requireUser("buyer"), id);
+  } catch (err) {
+    return errorResponse(err);
+  }
   const negotiations = await openNegotiations(id);
   if (negotiations === null) return NextResponse.json({ error: "Mandate already confirmed" }, { status: 409 });
   if (negotiations.length === 0) {

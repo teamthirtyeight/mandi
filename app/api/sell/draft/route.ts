@@ -3,7 +3,8 @@
 import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
-import { UUID } from "@/lib/api/errors";
+import { errorResponse } from "@/lib/api/errors";
+import { requireUser } from "@/lib/auth/session";
 import { generateListing, type PhotoInput } from "@/lib/agents/listing";
 import { transcribe } from "@/lib/ai/transcribe";
 import { getComps } from "@/lib/channel3/comps";
@@ -14,11 +15,15 @@ const MAX_AUDIO_BYTES = 10 * 1024 * 1024;
 const IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 
 export async function POST(req: Request) {
+  let sellerId: string;
+  try {
+    sellerId = (await requireUser("seller")).sellerId!;
+  } catch (err) {
+    return errorResponse(err);
+  }
   const form = await req.formData().catch(() => null);
   if (!form) return NextResponse.json({ error: "Expected multipart form data" }, { status: 400 });
 
-  const sellerId = String(form.get("sellerId") ?? "");
-  if (!UUID.test(sellerId)) return NextResponse.json({ error: "Pick a seller" }, { status: 400 });
   const [seller] = await db.select().from(schema.sellers).where(eq(schema.sellers.id, sellerId));
   if (!seller) return NextResponse.json({ error: "Seller not found" }, { status: 404 });
 

@@ -5,10 +5,11 @@ import { z } from "zod";
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { createCatalogProduct } from "@/lib/paypal/toolkit";
+import { requireUser } from "@/lib/auth/session";
+import { errorResponse } from "@/lib/api/errors";
 
 const Body = z
   .object({
-    sellerId: z.string().uuid(),
     title: z.string().trim().min(3).max(100),
     description: z.string().trim().min(10).max(600),
     category: z.string().trim().min(2).max(40),
@@ -23,6 +24,12 @@ const Body = z
   .refine((b) => b.refundCap == null || b.refundCap <= b.listPrice, { message: "Refund cap can't exceed the list price" });
 
 export async function POST(req: Request) {
+  let sellerId: string;
+  try {
+    sellerId = (await requireUser("seller")).sellerId!;
+  } catch (err) {
+    return errorResponse(err);
+  }
   const parsed = Body.safeParse(await req.json().catch(() => null));
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid listing" }, { status: 400 });
@@ -32,7 +39,7 @@ export async function POST(req: Request) {
   const [listing] = await db
     .insert(schema.listings)
     .values({
-      sellerId: b.sellerId,
+      sellerId,
       title: b.title,
       description: b.description,
       category: b.category,

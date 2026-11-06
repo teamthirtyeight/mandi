@@ -4,7 +4,9 @@
 import { NextResponse } from "next/server";
 import { asc, eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
-import { UUID } from "@/lib/api/errors";
+import { errorResponse, UUID } from "@/lib/api/errors";
+import { requireUser } from "@/lib/auth/session";
+import { assertOrderAccess } from "@/lib/auth/access";
 
 export const dynamic = "force-dynamic";
 
@@ -12,6 +14,11 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const { id } = await params;
   if (!UUID.test(id)) return NextResponse.json({ error: "Invalid order id" }, { status: 400 });
 
+  try {
+    await assertOrderAccess(await requireUser(), id, "either");
+  } catch (err) {
+    return errorResponse(err);
+  }
   const [order] = await db.select().from(schema.orders).where(eq(schema.orders.id, id));
   if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
 

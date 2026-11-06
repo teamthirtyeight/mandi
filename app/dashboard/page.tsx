@@ -81,8 +81,6 @@ const money = { valueFormatter: (p: { value: number | null }) => gbp(p.value), t
 const theme = themeQuartz.withParams({ fontSize: 15, headerFontSize: 14, rowHeight: 44 });
 
 export default function DashboardPage() {
-  const [sellers, setSellers] = useState<{ id: string; name: string; city: string }[]>([]);
-  const [sellerId, setSellerId] = useState<string>("");
   const [data, setData] = useState<Dashboard | null>(null);
   const [tab, setTab] = useState<"orders" | "negotiations" | "listings">("orders");
   const [selected, setSelected] = useState<Neg | null>(null);
@@ -96,20 +94,13 @@ export default function DashboardPage() {
       .catch(() => setDisputes(null));
   }, []);
 
-  useEffect(() => {
-    fetch("/api/sellers")
-      .then((r) => r.json())
-      .then((b) => {
-        setSellers(b.sellers);
-        if (b.sellers[0]) setSellerId(b.sellers[0].id);
-      });
-  }, []);
+  const [authError, setAuthError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    if (!sellerId) return;
-    const res = await fetch(`/api/dashboard?sellerId=${sellerId}`, { cache: "no-store" });
+    const res = await fetch("/api/dashboard", { cache: "no-store" });
     if (res.ok) setData(await res.json());
-  }, [sellerId]);
+    else if (res.status === 401 || res.status === 403) setAuthError((await res.json()).error);
+  }, []);
 
   useEffect(() => {
     load();
@@ -197,6 +188,15 @@ export default function DashboardPage() {
 
   const defaultColDef = useMemo<ColDef>(() => ({ sortable: true, resizable: true, enableCellChangeFlash: true }), []);
 
+  if (authError)
+    return (
+      <main className="p-8">
+        {authError}.{" "}
+        <Link href="/login?next=/dashboard" className="underline">
+          Log in as a seller
+        </Link>
+      </main>
+    );
   if (!data) return <main className="p-8 text-neutral-500">Loading dashboard…</main>;
 
   const deals = data.negotiations.filter((n) => n.agreed != null && n.marginAboveFloor != null);
@@ -223,24 +223,9 @@ export default function DashboardPage() {
             {data.seller.name} · {data.seller.city}
           </h1>
         </div>
-        <Link href={`/seller/${sellerId}`} className="text-sm underline">
+        <Link href="/seller" className="text-sm underline">
           Open {data.seller.name}&apos;s phone view
         </Link>
-        <select
-          className="rounded-lg border border-neutral-300 px-3 py-2"
-          value={sellerId}
-          onChange={(e) => {
-            setSellerId(e.target.value);
-            setSelected(null);
-          }}
-          aria-label="Seller"
-        >
-          {sellers.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.name} · {s.city}
-            </option>
-          ))}
-        </select>
       </header>
 
       <section className="grid gap-4 sm:grid-cols-3 lg:grid-cols-6">

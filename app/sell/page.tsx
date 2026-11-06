@@ -4,11 +4,11 @@
 // writes the listing, Channel3 suggests a price range, the seller sets a
 // private floor and publishes (PayPal catalog product via the Agent Toolkit).
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 
-interface Seller {
-  id: string;
+interface Me {
   name: string;
-  city: string;
+  role: "buyer" | "seller";
 }
 interface Draft {
   transcript: string | null;
@@ -27,8 +27,7 @@ interface Draft {
 const gbp = (n: number) => new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(n);
 
 export default function SellPage() {
-  const [sellers, setSellers] = useState<Seller[]>([]);
-  const [sellerId, setSellerId] = useState("");
+  const [me, setMe] = useState<Me | null | undefined>(undefined);
   const [photos, setPhotos] = useState<File[]>([]);
   const [audio, setAudio] = useState<Blob | null>(null);
   const [recording, setRecording] = useState(false);
@@ -43,12 +42,9 @@ export default function SellPage() {
   const recorder = useRef<MediaRecorder | null>(null);
 
   useEffect(() => {
-    fetch("/api/sellers")
+    fetch("/api/auth/me")
       .then((r) => r.json())
-      .then((b) => {
-        setSellers(b.sellers);
-        if (b.sellers[0]) setSellerId(b.sellers[0].id);
-      });
+      .then((b) => setMe(b.user));
   }, []);
 
   async function toggleRecording() {
@@ -81,7 +77,6 @@ export default function SellPage() {
     setDraft(null);
     setPublished(null);
     const form = new FormData();
-    form.set("sellerId", sellerId);
     form.set("notes", notes);
     photos.forEach((p) => form.append("photos", p));
     if (audio) form.set("audio", new File([audio], "voice-note.webm", { type: audio.type }));
@@ -104,7 +99,6 @@ export default function SellPage() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        sellerId,
         title: draft.listing.title,
         description: draft.listing.description,
         category: draft.listing.category,
@@ -125,28 +119,28 @@ export default function SellPage() {
   const edit = (field: keyof Draft["listing"], value: string) =>
     setDraft((d) => (d ? { ...d, listing: { ...d.listing, [field]: value } } : d));
 
+  if (me === undefined) return <main className="p-8 text-neutral-500">Loading…</main>;
+  if (!me || me.role !== "seller") {
+    return (
+      <main className="mx-auto max-w-md space-y-4 p-8">
+        <h1 className="text-2xl font-semibold">Sell on Mandi</h1>
+        <p>Log in with a seller account, or create one in a minute.</p>
+        <div className="flex gap-3">
+          <Link href="/login?next=/sell" className="rounded-lg border border-neutral-300 px-4 py-2">Log in</Link>
+          <Link href="/signup" className="rounded-lg bg-neutral-900 px-4 py-2 text-white">Sign up as a seller</Link>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="mx-auto max-w-3xl space-y-6 p-8">
       <header>
-        <p className="text-sm uppercase tracking-wide text-neutral-500">Sell on Mandi</p>
+        <p className="text-sm uppercase tracking-wide text-neutral-500">Sell on Mandi · {me.name}</p>
         <h1 className="text-3xl font-semibold">Photos and a voice note. Your agent does the rest.</h1>
       </header>
 
       <form onSubmit={generate} className="space-y-4 rounded-xl border border-neutral-200 p-5">
-        <label className="block">
-          <span className="text-sm text-neutral-600">Seller</span>
-          <select
-            className="mt-1 block w-full rounded-lg border border-neutral-300 px-3 py-2"
-            value={sellerId}
-            onChange={(e) => setSellerId(e.target.value)}
-          >
-            {sellers.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name} · {s.city}
-              </option>
-            ))}
-          </select>
-        </label>
         <label className="block">
           <span className="text-sm text-neutral-600">Photos (1–3)</span>
           <input
@@ -182,7 +176,7 @@ export default function SellPage() {
           />
         </label>
         <button
-          disabled={busy || !sellerId || photos.length === 0}
+          disabled={busy || photos.length === 0}
           className="rounded-lg bg-neutral-900 px-5 py-3 text-white disabled:opacity-40"
         >
           {busy && !draft ? "Writing your listing…" : "Write my listing"}

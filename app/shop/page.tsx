@@ -1,7 +1,8 @@
 "use client";
 
 // Buyer request: one sentence → mandate card → confirm once → negotiation room.
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 interface Mandate {
@@ -23,6 +24,13 @@ export default function ShopPage() {
   const [mandate, setMandate] = useState<Mandate | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [me, setMe] = useState<{ name: string; role: string } | null | undefined>(undefined);
+
+  useEffect(() => {
+    fetch("/api/auth/me")
+      .then((r) => r.json())
+      .then((b) => setMe(b.user));
+  }, []);
 
   const money = (n: number, c: string) => new Intl.NumberFormat("en-GB", { style: "currency", currency: c }).format(n);
 
@@ -55,10 +63,24 @@ export default function ShopPage() {
     router.push(`/deal/${mandate.id}`);
   }
 
+  if (me === undefined) return <main className="p-8 text-neutral-500">Loading…</main>;
+  if (!me || me.role !== "buyer") {
+    return (
+      <main className="mx-auto max-w-md space-y-4 p-8">
+        <h1 className="text-2xl font-semibold">Send your shopping agent</h1>
+        <p>Log in with a buyer account, or try the one-click demo as Sarah from the home page.</p>
+        <div className="flex gap-3">
+          <Link href="/login?next=/shop" className="rounded-lg border border-neutral-300 px-4 py-2">Log in</Link>
+          <Link href="/signup" className="rounded-lg bg-neutral-900 px-4 py-2 text-white">Sign up</Link>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="mx-auto max-w-2xl space-y-6 p-8">
       <header>
-        <p className="text-sm uppercase tracking-wide text-neutral-500">Sarah · London</p>
+        <p className="text-sm uppercase tracking-wide text-neutral-500">{me?.name}</p>
         <h1 className="text-3xl font-semibold">What should your agent buy?</h1>
       </header>
 

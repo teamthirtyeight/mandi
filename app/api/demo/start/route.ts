@@ -4,6 +4,8 @@ import { NextResponse } from "next/server";
 import { eq, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { openNegotiations, runMandate } from "@/lib/negotiation/runner";
+import { getUser, startSession } from "@/lib/auth/session";
+import { DEMO_ACCOUNTS } from "@/lib/auth/demo";
 
 const DEMO_REQUEST = "Handwoven silk scarf for my mum, under £90, by Dec 20";
 const MAX_RUNNING = 5;
@@ -21,6 +23,18 @@ export async function POST(req: Request) {
   const hostile = mode === "1" || mode === "2";
   const compromised = mode === "2";
 
+  // Logged-out visitors (judges) run the demo as Sarah, the demo buyer.
+  let user = await getUser();
+  if (user && user.role !== "buyer") {
+    return NextResponse.json({ error: "Log out of the seller account to try the buyer demo." }, { status: 403 });
+  }
+  if (!user) {
+    if (process.env.DEMO_LOGINS === "0") return NextResponse.json({ error: "Please log in as a buyer" }, { status: 401 });
+    [user] = await db.select().from(schema.users).where(eq(schema.users.email, DEMO_ACCOUNTS.sarah.email));
+    if (!user) return NextResponse.json({ error: "Demo accounts aren't seeded. Run npm run db:seed." }, { status: 404 });
+    await startSession(user.id);
+  }
+
   const [{ running }] = await db
     .select({ running: sql<number>`count(*)::int` })
     .from(schema.mandates)
@@ -32,7 +46,8 @@ export async function POST(req: Request) {
   const [mandate] = await db
     .insert(schema.mandates)
     .values({
-      buyerName: "Sarah",
+      buyerName: user.name,
+      buyerUserId: user.id,
       requestText: DEMO_REQUEST,
       query: "handwoven silk scarf",
       maxPriceMinor: 9000,

@@ -2,7 +2,9 @@
 import { NextResponse } from "next/server";
 import { asc, eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
-import { UUID } from "@/lib/api/errors";
+import { errorResponse, UUID } from "@/lib/api/errors";
+import { requireUser } from "@/lib/auth/session";
+import { assertNegotiationAccess } from "@/lib/auth/access";
 import { toMajor } from "@/lib/engine/negotiation";
 
 export const dynamic = "force-dynamic";
@@ -10,6 +12,11 @@ export const dynamic = "force-dynamic";
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   if (!UUID.test(id)) return NextResponse.json({ error: "Invalid negotiation id" }, { status: 400 });
+  try {
+    await assertNegotiationAccess(await requireUser(), id, "either");
+  } catch (err) {
+    return errorResponse(err);
+  }
   const turns = await db
     .select()
     .from(schema.negotiationTurns)

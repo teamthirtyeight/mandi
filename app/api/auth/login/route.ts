@@ -1,0 +1,21 @@
+import { NextResponse } from "next/server";
+import { z } from "zod";
+import { eq } from "drizzle-orm";
+import { db, schema } from "@/lib/db";
+import { verifyPassword } from "@/lib/auth/password";
+import { publicUser, startSession } from "@/lib/auth/session";
+
+const Body = z.object({ email: z.string().trim().toLowerCase().email(), password: z.string().min(1).max(200) });
+
+export async function POST(req: Request) {
+  const parsed = Body.safeParse(await req.json().catch(() => null));
+  if (!parsed.success) return NextResponse.json({ error: "Enter your email and password" }, { status: 400 });
+
+  const [user] = await db.select().from(schema.users).where(eq(schema.users.email, parsed.data.email));
+  // Same message either way, so the form doesn't reveal which emails exist.
+  if (!user || !(await verifyPassword(parsed.data.password, user.passwordHash))) {
+    return NextResponse.json({ error: "Wrong email or password" }, { status: 401 });
+  }
+  await startSession(user.id);
+  return NextResponse.json({ user: publicUser(user) });
+}

@@ -5,13 +5,15 @@
 import "dotenv/config";
 import { db, schema } from "./index";
 import { sql } from "drizzle-orm";
+import { hashPassword } from "../auth/password";
+import { DEFAULT_DEMO_PASSWORD, DEMO_ACCOUNTS } from "../auth/demo";
 
 const gbp = (pounds: number) => Math.round(pounds * 100);
 
 async function main() {
   await db.execute(sql`
     TRUNCATE paypal_events, orders, negotiation_turns, negotiations,
-             mandates, listings, sellers RESTART IDENTITY CASCADE
+             mandates, listings, users, sellers RESTART IDENTITY CASCADE
   `);
 
   const [meera, arjun, fatima] = await db
@@ -177,6 +179,21 @@ async function main() {
     });
   }
 
+  // Demo logins: Sarah (buyer) and the three sellers, sharing DEMO_PASSWORD.
+  const password = await hashPassword(process.env.DEMO_PASSWORD || DEFAULT_DEMO_PASSWORD);
+  const sellerIds = { meera: meera.id, arjun: arjun.id, fatima: fatima.id };
+  await db.insert(schema.users).values(
+    Object.entries(DEMO_ACCOUNTS).map(([key, a]) => ({
+      email: a.email,
+      passwordHash: password,
+      role: a.role,
+      name: a.name,
+      sellerId: a.role === "seller" ? sellerIds[key as keyof typeof sellerIds] : null,
+      shipToCountry: "GB",
+    })),
+  );
+
+  console.log("Seeded 4 demo logins (see lib/auth/demo.ts).");
   console.log("Seeded 3 sellers, 8 listings, 2 historical orders.");
   process.exit(0);
 }

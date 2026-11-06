@@ -3,7 +3,8 @@
 // Meera's phone: a phone-sized seller view in her language with rupee amounts.
 // "Sold — please ship", enter tracking (captures the payment), "Payment received",
 // and refund approvals above her cap. Polls so it updates live on camera.
-import { use, useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import type { Dashboard } from "@/lib/dashboard/data";
 import { inr } from "@/lib/fx";
 
@@ -42,8 +43,8 @@ const T = {
 
 const gbp = (n: number) => new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(n);
 
-export default function SellerPhone({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params);
+export default function SellerPhone() {
+  const [authError, setAuthError] = useState<string | null>(null);
   const [data, setData] = useState<Dashboard | null>(null);
   const [tracking, setTracking] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<string | null>(null);
@@ -51,9 +52,10 @@ export default function SellerPhone({ params }: { params: Promise<{ id: string }
   const keys = useRef(new Map<string, string>());
 
   const load = useCallback(async () => {
-    const res = await fetch(`/api/dashboard?sellerId=${id}`, { cache: "no-store" });
+    const res = await fetch("/api/dashboard", { cache: "no-store" });
     if (res.ok) setData(await res.json());
-  }, [id]);
+    else if (res.status === 401 || res.status === 403) setAuthError((await res.json()).error);
+  }, []);
 
   useEffect(() => {
     load();
@@ -75,6 +77,15 @@ export default function SellerPhone({ params }: { params: Promise<{ id: string }
     await load();
   }
 
+  if (authError)
+    return (
+      <main className="p-8">
+        {authError}.{" "}
+        <Link href="/login?next=/seller" className="underline">
+          Log in as a seller
+        </Link>
+      </main>
+    );
   if (!data) return <main className="p-6 text-neutral-500">…</main>;
   const t = data.seller.language === "hi" ? T.hi : T.en;
   const date = (iso: string) =>

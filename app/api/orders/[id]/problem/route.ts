@@ -4,6 +4,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { errorResponse, UUID } from "@/lib/api/errors";
+import { requireUser } from "@/lib/auth/session";
+import { assertOrderAccess } from "@/lib/auth/access";
 import { reportProblem } from "@/lib/orders/problem";
 import type { PhotoInput } from "@/lib/agents/listing";
 
@@ -20,6 +22,11 @@ const Body = z.object({
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   if (!UUID.test(id)) return NextResponse.json({ error: "Invalid order id" }, { status: 400 });
+  try {
+    await assertOrderAccess(await requireUser(), id, "buyer");
+  } catch (err) {
+    return errorResponse(err);
+  }
   const parsed = Body.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Describe the problem in a sentence" }, { status: 400 });
 

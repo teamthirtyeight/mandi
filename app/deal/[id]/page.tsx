@@ -67,8 +67,25 @@ export default function DealPage({ params }: { params: Promise<{ id: string }> }
   // Replay re-streams the stored turns at reading speed (for recording takes).
   const [replay, setReplay] = useState<{ index: number; speed: number } | null>(null);
 
+  const [denied, setDenied] = useState<string | null>(null);
+
   useEffect(() => {
-    const es = new EventSource(`/api/mandates/${id}/stream`);
+    let es: EventSource | null = null;
+    let cancelled = false;
+    (async () => {
+      const res = await fetch(`/api/mandates/${id}`, { cache: "no-store" });
+      if (cancelled) return;
+      if (res.status === 401 || res.status === 403) return setDenied((await res.json()).error);
+      es = new EventSource(`/api/mandates/${id}/stream`);
+      listen(es);
+    })();
+    return () => {
+      cancelled = true;
+      es?.close();
+    };
+  }, [id]);
+
+  function listen(es: EventSource) {
     const addTurn = (t: Turn) => {
       if (seen.current.has(t.id)) return;
       seen.current.add(t.id);
@@ -94,8 +111,7 @@ export default function DealPage({ params }: { params: Promise<{ id: string }> }
       setStatus(JSON.parse((e as MessageEvent).data).status);
       es.close();
     });
-    return () => es.close();
-  }, [id]);
+  }
 
   useEffect(() => {
     if (!replay) return;
@@ -115,6 +131,15 @@ export default function DealPage({ params }: { params: Promise<{ id: string }> }
     return m;
   }, [shown]);
 
+  if (denied)
+    return (
+      <main className="p-8">
+        {denied}.{" "}
+        <Link href={`/login?next=/deal/${id}`} className="underline">
+          Log in as the buyer
+        </Link>
+      </main>
+    );
   if (!snap)
     return (
       <main className="mx-auto max-w-7xl space-y-6 p-6">

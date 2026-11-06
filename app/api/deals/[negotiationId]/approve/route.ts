@@ -6,12 +6,15 @@ import { and, eq, inArray } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { errorResponse, UUID } from "@/lib/api/errors";
 import { createAuthorizeOrder } from "@/lib/paypal/rest";
+import { requireUser } from "@/lib/auth/session";
+import { assertNegotiationAccess } from "@/lib/auth/access";
 
 export async function POST(_req: Request, { params }: { params: Promise<{ negotiationId: string }> }) {
   const { negotiationId } = await params;
   if (!UUID.test(negotiationId)) return NextResponse.json({ error: "Invalid deal id" }, { status: 400 });
 
   try {
+    await assertNegotiationAccess(await requireUser("buyer"), negotiationId, "buyer");
     const [row] = await db
       .select({ n: schema.negotiations, mandate: schema.mandates, listing: schema.listings, seller: schema.sellers })
       .from(schema.negotiations)

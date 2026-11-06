@@ -2,6 +2,8 @@
 // (money held, not taken) and stores the authorization id.
 import { NextResponse } from "next/server";
 import { authorizeOrder, PaypalError } from "@/lib/paypal/rest";
+import { AuthError, requireUser } from "@/lib/auth/session";
+import { assertPaypalOrderAccess } from "@/lib/auth/access";
 
 export async function POST(_req: Request, { params }: { params: Promise<{ paypalOrderId: string }> }) {
   const { paypalOrderId } = await params;
@@ -10,6 +12,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ paypal
   }
 
   try {
+    await assertPaypalOrderAccess(await requireUser(), paypalOrderId, "buyer");
     let orderRowId: string | null = null;
     if (process.env.DATABASE_URL) {
       const { db, schema } = await import("@/lib/db");
@@ -51,7 +54,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ paypal
       orderId: orderRowId,
     });
   } catch (err) {
-    const status = err instanceof PaypalError ? err.status : 500;
+    const status = err instanceof PaypalError || err instanceof AuthError ? err.status : 500;
     return NextResponse.json({ error: (err as Error).message }, { status });
   }
 }

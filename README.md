@@ -31,6 +31,12 @@ AI shopping agents buy from merchants that have structured catalogs. Artisans, h
 
 Meera follows all of this on a phone-sized view in Hindi with rupee amounts (`/seller/[id]`): "बिक गया! … कृपया भेजें", then "भुगतान मिल गया".
 
+## Accounts
+
+Sellers and buyers sign up at `/signup`. A seller account also creates the seller profile: city, the story their agent tells, the PayPal account they're paid into, language, ship-by days, delivery time and refund cap. Logins use email and password (scrypt-hashed) with a signed, HTTP-only session cookie. Every API route checks the session and ownership: a buyer only sees their own requests and orders, and a seller only their own listings, orders and floors.
+
+For judges, `/login` has one-click demo accounts (Sarah the buyer; Meera, Arjun and Fatima the sellers), and **Try the demo** signs in as Sarah automatically. The demo logins can be turned off with `DEMO_LOGINS=0`.
+
 ## Safety design
 
 | Rule | How it's enforced |
@@ -113,7 +119,7 @@ Every call is written to `paypal_events`, which feeds the docked "PayPal API cal
    npm run dev
    ```
 
-**Pages:** `/` (Try the demo), `/shop`, `/deal/[id]`, `/order/[id]`, `/sell`, `/dashboard`, `/seller/[id]` (the seller's phone view), and `/paypal-test` (a bare sandbox check).
+**Pages:** `/` (Try the demo), `/login`, `/signup`, `/shop`, `/orders`, `/deal/[id]`, `/order/[id]`, `/sell`, `/dashboard`, `/seller` (the seller's phone view), and `/paypal-test` (a bare sandbox check).
 
 ## Tests
 
@@ -164,7 +170,7 @@ docs/             architecture, Postman collection, Devpost draft, launch checkl
 - Real carrier tracking; delivery is simulated.
 - Platform fees, marketplace payouts and seller KYC.
 - Mobile apps; the web app is responsive.
-- Login. The demo has none, so the dashboard shows a seller's floor prices to anyone with the link.
+- Password reset, email verification and rate limiting on logins.
 
 ## What's next
 

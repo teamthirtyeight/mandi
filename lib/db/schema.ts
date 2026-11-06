@@ -35,6 +35,7 @@ export const orderStatus = pgEnum("order_status", [
 ]);
 
 export const turnActor = pgEnum("turn_actor", ["buyer", "seller", "engine"]);
+export const userRole = pgEnum("user_role", ["buyer", "seller"]);
 export const eventDirection = pgEnum("event_direction", ["call", "webhook"]);
 
 export const sellers = pgTable("sellers", {
@@ -51,6 +52,19 @@ export const sellers = pgTable("sellers", {
   transitDays: integer("transit_days").notNull().default(7),
   // Partial refunds above this need the seller's tap.
   refundCapMinor: integer("refund_cap_minor").notNull().default(1000),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const users = pgTable("users", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  email: text("email").notNull().unique(),
+  passwordHash: text("password_hash").notNull(),
+  role: userRole("role").notNull(),
+  name: text("name").notNull(),
+  // Sellers: the seller profile this login manages.
+  sellerId: uuid("seller_id").references(() => sellers.id),
+  // Buyers: default ship-to country for new mandates.
+  shipToCountry: text("ship_to_country").notNull().default("GB"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -79,6 +93,7 @@ export const listings = pgTable("listings", {
 
 export const mandates = pgTable("mandates", {
   id: uuid("id").primaryKey().defaultRandom(),
+  buyerUserId: uuid("buyer_user_id").references(() => users.id),
   buyerName: text("buyer_name").notNull(),
   requestText: text("request_text").notNull(),
   maxPriceMinor: integer("max_price_minor").notNull(),

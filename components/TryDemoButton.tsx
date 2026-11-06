@@ -21,6 +21,7 @@ export function TryDemoButton({ hostile = false, label = "Try the demo" }: { hos
             return setError(body.error);
           }
           router.push(`/deal/${body.mandateId}`);
+          router.refresh(); // the nav picks up the demo sign-in
         }}
         className={
           hostile

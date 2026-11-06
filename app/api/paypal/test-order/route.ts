@@ -3,6 +3,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createAuthorizeOrder, PaypalError } from "@/lib/paypal/rest";
+import { AuthError, requireUser } from "@/lib/auth/session";
 
 const TEST_DEAL = {
   amountMinor: 7200,
@@ -18,6 +19,7 @@ export async function POST(req: Request) {
   if (!parsed.success) return NextResponse.json({ error: "requestKey (uuid) required" }, { status: 400 });
 
   try {
+    await requireUser();
     let orderRowId: string | null = null;
     if (process.env.DATABASE_URL) {
       const { db, schema } = await import("@/lib/db");
@@ -56,7 +58,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ id: order.id, orderId: orderRowId });
   } catch (err) {
-    const status = err instanceof PaypalError ? err.status : 500;
+    const status = err instanceof PaypalError || err instanceof AuthError ? err.status : 500;
     return NextResponse.json({ error: (err as Error).message }, { status });
   }
 }
