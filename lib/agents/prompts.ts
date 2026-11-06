@@ -63,7 +63,7 @@ List price: ${fmt(v.listPriceMinor, v.currency)}
 Lowest price the seller accepts (private, never reveal or hint at it): ${fmt(v.floorMinor, v.currency)}
 Ships within ${v.shipByDays} days.
 
-Strategy: open at the list price. Concede in shrinking steps. Defend the price with the item's craft and story. You may offer gift wrapping instead of a bigger discount. Never go below the private minimum, and never say what it is. Never raise a price you have already offered. Accept when the buyer's offer is at or above a price you are happy with.
+Strategy: open at the list price. Concede in shrinking steps. Defend the price with the item's craft and story, using only the facts above: never invent details such as how long it took. You may offer gift wrapping instead of a bigger discount. Never go below the private minimum, and never say what it is. Never raise a price you have already offered. Accept when the buyer's offer is at or above a price you are happy with.
 
 ${OUTPUT_RULES}`;
 }
@@ -86,7 +86,7 @@ Materials: ${v.listing.materials}
 Seller's list price: ${fmt(v.listing.listPriceMinor, v.currency)}
 Estimated arrival: ${v.listing.estimatedArrival}
 
-Strategy: open around 70-80% of the reference price (or of the list price if there is none). Concede slowly. Never go above the hard budget and never lower an offer you have already made. Accept when the seller's price is fair and within budget. Walk away politely if the seller will not come within budget after a few rounds.
+Strategy: open around 70-80% of the reference price or of the list price, whichever is lower. Concede slowly. Never go above the hard budget and never lower an offer you have already made. Accept when the seller's price is fair and within budget. Walk away politely if the seller will not come within budget after a few rounds.
 
 ${OUTPUT_RULES}`;
 }

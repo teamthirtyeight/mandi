@@ -60,7 +60,12 @@ export async function POST(req: Request) {
     images: photos.map((p) => `data:${p.mediaType};base64,${p.base64}`),
     comps,
     suggested: comps
-      ? { listPrice: comps.highMinor / 100, floorLow: comps.lowMinor / 100, floorHigh: comps.medianMinor / 100 }
+      ? {
+          // Median as the list price; floor between the low quartile and 80% of the median.
+          listPrice: comps.medianMinor / 100,
+          floorLow: comps.lowMinor / 100,
+          floorHigh: Math.max(comps.lowMinor, Math.round(comps.medianMinor * 0.8)) / 100,
+        }
       : null,
   });
 }

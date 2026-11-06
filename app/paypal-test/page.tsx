@@ -70,10 +70,15 @@ export default function PaypalTestPage() {
               setResult({ kind: "held", authorizationId: body.authorizationId, orderId: body.orderId });
             }}
             onCancel={() => {
+              // The popup was closed: the next click should start a new order.
+              requestKey.current = crypto.randomUUID();
               setResult({ kind: "cancelled" });
               refresh();
             }}
-            onError={(err) => setResult({ kind: "error", message: String(err) })}
+            onError={(err) => {
+              requestKey.current = crypto.randomUUID();
+              setResult({ kind: "error", message: String(err) });
+            }}
           />
         </PayPalScriptProvider>
 

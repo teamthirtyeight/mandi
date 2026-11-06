@@ -39,7 +39,19 @@ export async function POST(req: Request) {
     if (orderRowId) {
       const { db, schema } = await import("@/lib/db");
       const { eq } = await import("drizzle-orm");
-      await db.update(schema.orders).set({ paypalOrderId: order.id }).where(eq(schema.orders.id, orderRowId));
+      // A repeated click with the same requestKey gets the same PayPal order back
+      // (idempotency). Keep the row that already holds it and drop the new one.
+      const [existing] = await db
+        .select({ id: schema.orders.id })
+        .from(schema.orders)
+        .where(eq(schema.orders.paypalOrderId, order.id));
+      if (existing) {
+        await db.update(schema.paypalEvents).set({ orderId: existing.id }).where(eq(schema.paypalEvents.orderId, orderRowId));
+        await db.delete(schema.orders).where(eq(schema.orders.id, orderRowId));
+        orderRowId = existing.id;
+      } else {
+        await db.update(schema.orders).set({ paypalOrderId: order.id }).where(eq(schema.orders.id, orderRowId));
+      }
     }
 
     return NextResponse.json({ id: order.id, orderId: orderRowId });

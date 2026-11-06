@@ -4,7 +4,7 @@ This is what's left before submitting, and who does it. The code side is built; 
 
 ## 1. Keys and accounts (Moaaz)
 
-- [ ] PayPal Developer: a sandbox REST app → `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, and `NEXT_PUBLIC_PAYPAL_CLIENT_ID` (the same id).
+- [x] PayPal Developer: a sandbox REST app → `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, and `NEXT_PUBLIC_PAYPAL_CLIENT_ID` (the same id). The app must be linked to a **UK** business sandbox account: the default India one can't receive GBP and the checkout fails with `UNSUPPORTED_PAYEE_CURRENCY`. The working app is "Mandi UK".
 - [ ] Sandbox accounts:
   - three business accounts (Meera, Arjun, Fatima) → `SELLER_*_EMAIL`;
   - one personal account (Sarah) → `NEXT_PUBLIC_DEMO_BUYER_EMAIL` / `_PASSWORD`. These are test money only and are shown to judges.
