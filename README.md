@@ -24,6 +24,7 @@ AI shopping agents buy from merchants that have structured catalogs. Artisans, h
    - She sets a private floor price, and the listing becomes a PayPal catalog product through the Agent Toolkit.
 2. **One sentence from the buyer.** Sarah in London types "Handwoven silk scarf for my mum, under £90, by Dec 20". Her agent turns it into a mandate: budget, deadline and ship-to country. She confirms it once.
 3. **Parallel negotiation, visible.** Sarah's agent negotiates with up to three sellers at once. The negotiation room streams every turn with a price chart per seller. It shows both the price an agent proposed and the price the engine allowed.
+   After a deal is agreed, the seller agent may offer one more of the seller's items as a bundle. The engine checks that the item clears its own floor and that the order total stays within the buyer's budget; the buyer agent accepts only if it fits the request.
 4. **One tap.** The buyer agent recommends one deal with its reasons. Sarah approves it, and PayPal authorizes the amount and holds it.
 5. **Ship, then get paid.** The seller adds tracking, Mandi captures the payment, and the tracking is attached to the PayPal order.
 6. **Problems handled.** Sarah reports a problem, optionally with a photo. The seller's agent proposes a refund; anything within the seller's cap is refunded through PayPal at once, and anything above it waits for the seller's approval. For a formal PayPal dispute, the order page downloads an evidence pack: listing, chat log, tracking and photo.
@@ -42,6 +43,7 @@ Meera follows all of this on a phone-sized view in Hindi with rupee amounts (`/s
 | Prompt injection | Counterparty messages reach the other agent as `<counterparty_message>` data. Injection attempts are labelled. The attack test (landing page) also simulates a seller agent that falls for it: its £1 offer is blocked and its leaked floor is withheld |
 | AI never touches money | Authorize, capture, refund and void live in `lib/paypal/rest.ts` and `lib/orders/service.ts`. No agent can call them. The Agent Toolkit gets only products and shipment tracking |
 | Human approval | No PayPal order exists without the buyer's tap; refunds above the seller's per-listing cap need the seller's tap |
+| Bundles | A bundle add-on must clear its own floor, and main price plus add-on must stay within the buyer's ceiling. The PayPal order lists both items |
 | Holds expire | A hold the seller hasn't shipped within their ship-by window is voided automatically, so the buyer is never charged |
 | Idempotent money calls | Every POST carries a `PayPal-Request-Id`. Each action claims the order row first, so a double click can't capture or refund twice |
 | Integer money | Prices are stored as minor units (pence) |

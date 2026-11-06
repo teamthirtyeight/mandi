@@ -28,6 +28,14 @@ export async function getMandateSnapshot(mandateId: string) {
     : [];
 
   const byId = new Map(negs.map((r) => [r.n.id, r]));
+  const addonIds = negs.map((r) => r.n.addonListingId).filter((x): x is string => x != null);
+  const addonTitles = new Map(
+    addonIds.length
+      ? (await db.select({ id: schema.listings.id, title: schema.listings.title }).from(schema.listings).where(inArray(schema.listings.id, addonIds))).map(
+          (l) => [l.id, l.title] as const,
+        )
+      : [],
+  );
   return {
     mandate: {
       id: mandate.id,
@@ -49,6 +57,10 @@ export async function getMandateSnapshot(mandateId: string) {
       state: r.n.state,
       rounds: r.n.rounds,
       agreedPrice: r.n.agreedPriceMinor != null ? toMajor(r.n.agreedPriceMinor) : null,
+      addon:
+        r.n.addonListingId && r.n.addonPriceMinor != null
+          ? { title: addonTitles.get(r.n.addonListingId) ?? "second item", price: toMajor(r.n.addonPriceMinor) }
+          : null,
       outcomeReason: r.n.outcomeReason,
       listing: {
         id: r.listing.id,

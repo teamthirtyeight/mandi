@@ -19,6 +19,7 @@ interface ScoredDeal {
   agreedMinor: number;
   currency: string;
   reasons: string[];
+  addon?: { title: string; priceMinor: number } | null;
 }
 interface Recommendation {
   best: ScoredDeal | null;
@@ -128,6 +129,7 @@ export default function DealPage({ params }: { params: Promise<{ id: string }> }
   const currency = snap.mandate.currency;
   const clientId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID;
   const best = rec?.best ?? null;
+  const bestTotal = best ? best.agreedMinor + (best.addon?.priceMinor ?? 0) : 0;
 
   const lastPrice = (ts: Turn[], who: "buyer" | "seller") =>
     [...ts].reverse().find((t) => t.from === who && t.final_price != null)?.final_price ?? null;
@@ -171,9 +173,14 @@ export default function DealPage({ params }: { params: Promise<{ id: string }> }
         <section className="rounded-xl border-2 border-green-300 bg-green-50 p-5">
           <p className="text-sm uppercase tracking-wide text-green-800">Recommended deal</p>
           <p className="text-[28px] font-semibold text-green-950">
-            {best.sellerName} · {money(best.agreedMinor / 100, best.currency)}
+            {best.sellerName} · {money(bestTotal / 100, best.currency)}
           </p>
           <p className="text-green-900">{best.title}</p>
+          {best.addon && (
+            <p className="text-green-900">
+              + {best.addon.title} (bundle, {money(best.addon.priceMinor / 100, best.currency)})
+            </p>
+          )}
           <ul className="mt-2 list-disc pl-5 text-green-900">
             {best.reasons.map((r) => (
               <li key={r}>{r}</li>
@@ -202,7 +209,7 @@ export default function DealPage({ params }: { params: Promise<{ id: string }> }
                     const res = await fetch(`/api/paypal/orders/${data.orderID}/authorize`, { method: "POST" });
                     const body = await res.json();
                     if (!res.ok) return setError(body.error ?? "Authorize failed");
-                    setHeld({ orderId: body.orderId, amount: best.agreedMinor / 100 });
+                    setHeld({ orderId: body.orderId, amount: bestTotal / 100 });
                   }}
                   onError={(err) => setError(String(err))}
                 />
@@ -251,7 +258,12 @@ export default function DealPage({ params }: { params: Promise<{ id: string }> }
                   </span>
                   <span className="text-neutral-400">list {money(n.listing.listPrice, currency)}</span>
                 </div>
-                <OffersChart turns={ts} budget={snap.mandate.maxPrice} />
+                {n.addon && (
+                  <p className="mt-1 rounded bg-green-50 px-2 py-1 text-sm text-green-900">
+                    Bundle accepted: + {n.addon.title} for {money(n.addon.price, currency)}
+                  </p>
+                )}
+                <OffersChart turns={ts.filter((t) => !t.guardrail_result.startsWith("ADDON"))} budget={snap.mandate.maxPrice} />
               </header>
               <ol className="flex-1 space-y-3 p-4">
                 {ts.map((t) => (

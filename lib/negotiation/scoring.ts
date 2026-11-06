@@ -9,6 +9,8 @@ export interface DealCandidate {
   arrival: Date;
   /** 0..1, from the listing search. */
   match: number;
+  /** Bundle add-on accepted by the buyer agent, if any. */
+  addon?: { title: string; priceMinor: number } | null;
 }
 
 export interface ScoredDeal extends DealCandidate {
@@ -53,6 +55,11 @@ export function scoreDeals(opts: {
         );
       }
       reasons.push(`Arrives ${shortDate(d.arrival)}, ${slackDays} day${slackDays === 1 ? "" : "s"} before the deadline`);
+      if (d.addon) {
+        reasons.push(
+          `Bundle: adds ${d.addon.title} for ${money(d.addon.priceMinor, d.currency)} (total ${money(d.agreedMinor + d.addon.priceMinor, d.currency)}, within budget)`,
+        );
+      }
       return { ...d, score: Math.round(score * 1000) / 1000, reasons };
     })
     .sort((a, b) => b.score - a.score);

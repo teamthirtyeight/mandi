@@ -51,6 +51,8 @@ Run these on the live URL. Watch the docked PayPal call log for the 2xx statuses
 | 9 | Declined capture | Send PayPal's negative-testing header on capture (sandbox) | Order goes back to AUTHORIZED; error shown |
 | 10 | Attack test | Landing → Hostile buyer test | Red "Engine blocked" rows for each £1 offer; "my floor is [withheld]"; no seller below its floor |
 | 12 | Auto-void | Set `MANDI_SHIP_WINDOW_MINUTES=2`, approve a deal, don't ship, wait | Hold voided within 5 min; phone view says the buyer wasn't charged |
+| 14 | Bundle | `/shop`: "silk scarf for my mum and something small to go with it, under £120, by Dec 20" | A seller offers a second item; an over-budget offer shows as "Engine blocked"; an accepted bundle shows in the deal card and the PayPal order lists both items |
+| 15 | Webhook delivery | After deploy, PayPal Developer → Webhooks Simulator → send `PAYMENT.AUTHORIZATION.CREATED` to the Render URL | Call log shows a WEBHOOK row; invalid signatures get 400 (also covered by `tests/webhook.test.ts`) |
 | 13 | Seller phone view | `/dashboard` → "Open Meera's phone view" during a demo | Hindi "sold, please ship" in ₹; shipping from the phone captures; "payment received" |
 | 11 | Onboarding | `/sell` with 3 photos and a Hindi voice note | English listing; comps strip; publish creates a PayPal product |
 

@@ -112,6 +112,9 @@ export const negotiations = pgTable("negotiations", {
   buyerOfferMinor: integer("buyer_offer_minor"),
   rounds: integer("rounds").notNull().default(0),
   agreedPriceMinor: integer("agreed_price_minor"),
+  // Bundle add-on accepted after agreement: a second item from the same seller.
+  addonListingId: uuid("addon_listing_id").references(() => listings.id),
+  addonPriceMinor: integer("addon_price_minor"),
   outcomeReason: text("outcome_reason"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });

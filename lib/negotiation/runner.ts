@@ -1,13 +1,21 @@
 // Runs a mandate end to end: finds 2-3 listings, negotiates with each seller in
 // parallel, and recommends one deal. Every agent turn goes through
 // applyGuardrails before it is saved, streamed or shown to the other agent.
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, ne, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
-import { buyerTurn, HOSTILE_MESSAGE, sellerTurn, type AgentReply } from "@/lib/agents/agents";
+import {
+  buyerAddonDecision,
+  buyerTurn,
+  HOSTILE_MESSAGE,
+  sellerAddonOffer,
+  sellerTurn,
+  type AgentReply,
+} from "@/lib/agents/agents";
 import type { BuyerView, SellerView, TranscriptTurn } from "@/lib/agents/prompts";
 import { getComps } from "@/lib/channel3/comps";
 import {
   applyGuardrails,
+  checkAddon,
   detectInjection,
   fallbackTurn,
   redactLimit,
@@ -325,6 +333,13 @@ async function runNegotiation(negotiationId: string, referenceMinor: number | nu
     if (!TERMINAL_STATES.has(state)) await sleep(turnDelay());
   }
 
+  if (state === "AGREED") {
+    const [agreedRow] = await db.select().from(schema.negotiations).where(eq(schema.negotiations.id, negotiationId));
+    if (agreedRow?.agreedPriceMinor != null) {
+      await offerAddon({ row, views: v, agreedMinor: agreedRow.agreedPriceMinor, round, mandateId, negotiationId });
+    }
+  }
+
   await db.update(schema.negotiations).set({ state }).where(eq(schema.negotiations.id, negotiationId));
   const [final] = await db.select().from(schema.negotiations).where(eq(schema.negotiations.id, negotiationId));
   publish(mandateId, {
@@ -334,6 +349,110 @@ async function runNegotiation(negotiationId: string, referenceMinor: number | nu
     agreed_price: final?.agreedPriceMinor != null ? toMajor(final.agreedPriceMinor) : null,
     reason: final?.outcomeReason ?? null,
   });
+}
+
+/** After agreement, the seller agent may offer one more item as a bundle. The
+ *  engine checks the add-on's floor and the order total against the budget
+ *  before the buyer agent sees it; the buyer agent then accepts or declines. */
+async function offerAddon(opts: {
+  row: { listing: Listing; seller: Seller; mandate: Mandate };
+  views: { seller: SellerView; buyer: BuyerView };
+  agreedMinor: number;
+  round: number;
+  mandateId: string;
+  negotiationId: string;
+}) {
+  const { row, views: v, agreedMinor, round, mandateId, negotiationId } = opts;
+  const others = await db
+    .select()
+    .from(schema.listings)
+    .where(
+      and(
+        eq(schema.listings.sellerId, row.seller.id),
+        eq(schema.listings.status, "active"),
+        eq(schema.listings.currency, row.listing.currency),
+        ne(schema.listings.id, row.listing.id),
+      ),
+    )
+    .orderBy(asc(schema.listings.listPriceMinor))
+    .limit(3);
+  const candidates = others.map((l) => ({ title: l.title, listPriceMinor: l.listPriceMinor, floorMinor: l.floorPriceMinor }));
+
+  const offer = await sellerAddonOffer({ view: v.seller, agreedMinor, candidates });
+  if (!offer) return;
+  const addon = others[offer.index];
+  const base = { negotiationId, mandateId, seller: row.seller.name, round, state: "AGREED" as NegotiationState };
+  const outcome = (guardrailResult: string): GuardrailOutcome =>
+    ({
+      proposedMinor: offer.priceMinor,
+      finalMinor: guardrailResult.startsWith("REJECTED") ? null : offer.priceMinor,
+      guardrailResult,
+      state: "AGREED",
+      agreedMinor,
+      lastSellerOfferMinor: null,
+      lastBuyerOfferMinor: null,
+      retryable: false,
+    }) as GuardrailOutcome;
+
+  const check = checkAddon({
+    priceMinor: offer.priceMinor,
+    addonFloorMinor: addon.floorPriceMinor,
+    agreedMinor,
+    ceilingMinor: row.mandate.maxPriceMinor,
+  });
+  if (check !== "OK") {
+    const why =
+      check === "REJECTED_BELOW_FLOOR"
+        ? "below that item's private floor"
+        : check === "REJECTED_OVER_BUDGET"
+          ? "the order total would exceed the buyer's budget"
+          : "invalid price";
+    await saveTurn({
+      ...base,
+      actor: "engine",
+      message: `Blocked a bundle offer (${addon.title}, £${(offer.priceMinor / 100).toFixed(2)}): ${why}. Not delivered.`,
+      out: outcome(check),
+      injection: false,
+      source: "agent",
+    });
+    return;
+  }
+
+  // Leak filter: neither floor may appear in the seller's bundle message.
+  let message = redactLimit(offer.message, addon.floorPriceMinor, offer.priceMinor);
+  const main = redactLimit(message.message, row.listing.floorPriceMinor, null);
+  message = { message: main.message, redacted: message.redacted || main.redacted };
+  await saveTurn({
+    ...base,
+    actor: "seller",
+    message: message.message,
+    out: outcome("ADDON_OFFERED"),
+    injection: false,
+    limitRedacted: message.redacted,
+    source: "agent",
+  });
+
+  const decision = await buyerAddonDecision({
+    view: v.buyer,
+    agreedMinor,
+    addonTitle: addon.title,
+    addonPriceMinor: offer.priceMinor,
+    sellerMessage: message.message,
+  });
+  await saveTurn({
+    ...base,
+    actor: "buyer",
+    message: decision.message,
+    out: outcome(decision.accept ? "ADDON_ACCEPTED" : "ADDON_DECLINED"),
+    injection: false,
+    source: decision.source,
+  });
+  if (decision.accept) {
+    await db
+      .update(schema.negotiations)
+      .set({ addonListingId: addon.id, addonPriceMinor: offer.priceMinor })
+      .where(eq(schema.negotiations.id, negotiationId));
+  }
 }
 
 async function saveTurn(t: {
@@ -429,6 +548,14 @@ async function recommend(mandate: Mandate, referenceMinor: number | null) {
     .innerJoin(schema.sellers, eq(schema.sellers.id, schema.listings.sellerId))
     .where(and(eq(schema.negotiations.mandateId, mandate.id), eq(schema.negotiations.state, "AGREED")));
 
+  const addonIds = rows.map((r) => r.n.addonListingId).filter((x): x is string => x != null);
+  const addonTitles = new Map(
+    addonIds.length
+      ? (await db.select({ id: schema.listings.id, title: schema.listings.title }).from(schema.listings).where(inArray(schema.listings.id, addonIds))).map(
+          (l) => [l.id, l.title] as const,
+        )
+      : [],
+  );
   const deals: DealCandidate[] = rows
     .filter((r) => r.n.agreedPriceMinor != null && r.n.agreedPriceMinor <= mandate.maxPriceMinor)
     .map((r) => ({
@@ -439,6 +566,7 @@ async function recommend(mandate: Mandate, referenceMinor: number | null) {
       currency: r.listing.currency,
       arrival: arrivalFor(r.seller),
       match: 1,
+      addon: r.n.addonListingId && r.n.addonPriceMinor != null ? { title: addonTitles.get(r.n.addonListingId) ?? "second item", priceMinor: r.n.addonPriceMinor } : null,
     }));
 
   const rec = scoreDeals({

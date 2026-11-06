@@ -3,6 +3,7 @@ import {
   applyGuardrails,
   checkRefund,
   fallbackTurn,
+  checkAddon,
   meetsDeadline,
   redactLimit,
   type NegotiationContext,
@@ -182,5 +183,18 @@ describe("refund limits", () => {
   });
   it("rejects more than was captured", () => {
     expect(checkRefund({ ...base, alreadyRefundedMinor: 7000, amountMinor: 500 })).toBe("REJECTED");
+  });
+});
+
+describe("bundle add-on", () => {
+  const base = { addonFloorMinor: 1800, agreedMinor: 7200, ceilingMinor: 9000 };
+  it("allows an add-on that clears its floor and keeps the total within budget", () => {
+    expect(checkAddon({ ...base, priceMinor: 1800 })).toBe("OK");
+  });
+  it("blocks an add-on below its floor", () => {
+    expect(checkAddon({ ...base, priceMinor: 1500 })).toBe("REJECTED_BELOW_FLOOR");
+  });
+  it("blocks an add-on that pushes the order over the buyer's budget", () => {
+    expect(checkAddon({ ...base, priceMinor: 1900 })).toBe("REJECTED_OVER_BUDGET");
   });
 });

@@ -113,6 +113,8 @@ export interface CreateOrderInput {
   amountMinor: number;
   currency: string;
   itemName: string;
+  /** Line items when the order has more than one (e.g. a bundle). Must sum to amountMinor. */
+  items?: { name: string; amountMinor: number }[];
   description?: string;
   /** Seller's sandbox business account. Omit to pay the Mandi merchant itself. */
   payeeEmail?: string;
@@ -123,6 +125,10 @@ export interface CreateOrderInput {
 
 export async function createAuthorizeOrder(input: CreateOrderInput) {
   const value = toValue(input.amountMinor);
+  const lines = input.items ?? [{ name: input.itemName, amountMinor: input.amountMinor }];
+  if (lines.reduce((sum, l) => sum + l.amountMinor, 0) !== input.amountMinor) {
+    throw new Error("Order items don't add up to the order amount");
+  }
   return paypalRequest<{ id: string; status: string }>({
     method: "POST",
     path: "/v2/checkout/orders",
@@ -139,14 +145,12 @@ export async function createAuthorizeOrder(input: CreateOrderInput) {
             value,
             breakdown: { item_total: { currency_code: input.currency, value } },
           },
-          items: [
-            {
-              name: input.itemName.slice(0, 127),
-              quantity: "1",
-              unit_amount: { currency_code: input.currency, value },
-              category: "PHYSICAL_GOODS",
-            },
-          ],
+          items: lines.map((l) => ({
+            name: l.name.slice(0, 127),
+            quantity: "1",
+            unit_amount: { currency_code: input.currency, value: toValue(l.amountMinor) },
+            category: "PHYSICAL_GOODS",
+          })),
           ...(input.payeeEmail ? { payee: { email_address: input.payeeEmail } } : {}),
         },
       ],

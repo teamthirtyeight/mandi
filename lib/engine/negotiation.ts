@@ -242,6 +242,27 @@ export function fallbackTurn(ctx: NegotiationContext, listPriceMinor: number): A
   return { message: "Could you meet me here?", offer_price: toMajor(rounded), action: "offer" };
 }
 
+export type AddonCheck = "OK" | "REJECTED_BELOW_FLOOR" | "REJECTED_OVER_BUDGET" | "REJECTED_INVALID";
+
+/**
+ * Bundle add-on, offered by the seller after the main item is agreed. The
+ * second item must clear its own floor, and the main price plus the add-on
+ * must stay within the buyer's ceiling: the mandate's budget covers the whole
+ * order. The buyer still approves the final total with one tap.
+ */
+export function checkAddon(opts: {
+  priceMinor: number;
+  addonFloorMinor: number;
+  agreedMinor: number;
+  ceilingMinor: number;
+}): AddonCheck {
+  const { priceMinor, addonFloorMinor, agreedMinor, ceilingMinor } = opts;
+  if (!Number.isInteger(priceMinor) || priceMinor <= 0) return "REJECTED_INVALID";
+  if (priceMinor < addonFloorMinor) return "REJECTED_BELOW_FLOOR";
+  if (agreedMinor + priceMinor > ceilingMinor) return "REJECTED_OVER_BUDGET";
+  return "OK";
+}
+
 /**
  * Leak filter: removes the sender's own private limit (floor for the seller,
  * ceiling for the buyer) from a message before the other side can read it.

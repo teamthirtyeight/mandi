@@ -21,12 +21,23 @@ export async function POST(_req: Request, { params }: { params: Promise<{ negoti
       .where(eq(schema.negotiations.id, negotiationId));
     if (!row) return NextResponse.json({ error: "Deal not found" }, { status: 404 });
 
-    const amountMinor = row.n.agreedPriceMinor;
-    if (!["AGREED", "AWAITING_BUYER_APPROVAL"].includes(row.n.state) || amountMinor == null) {
+    const mainMinor = row.n.agreedPriceMinor;
+    if (!["AGREED", "AWAITING_BUYER_APPROVAL"].includes(row.n.state) || mainMinor == null) {
       return NextResponse.json({ error: `Deal is ${row.n.state}` }, { status: 409 });
     }
+    // Bundle add-on, if the buyer agent accepted one.
+    let addon: { title: string; priceMinor: number; floorMinor: number } | null = null;
+    if (row.n.addonListingId && row.n.addonPriceMinor != null) {
+      const [l] = await db.select().from(schema.listings).where(eq(schema.listings.id, row.n.addonListingId));
+      if (l) addon = { title: l.title, priceMinor: row.n.addonPriceMinor, floorMinor: l.floorPriceMinor };
+    }
+    const amountMinor = mainMinor + (addon?.priceMinor ?? 0);
     // Approval gate re-checks the guardrails before any money moves.
-    if (amountMinor > row.mandate.maxPriceMinor || amountMinor < row.listing.floorPriceMinor) {
+    if (
+      amountMinor > row.mandate.maxPriceMinor ||
+      mainMinor < row.listing.floorPriceMinor ||
+      (addon && addon.priceMinor < addon.floorMinor)
+    ) {
       return NextResponse.json({ error: "Agreed price is outside the limits" }, { status: 422 });
     }
 
@@ -46,6 +57,12 @@ export async function POST(_req: Request, { params }: { params: Promise<{ negoti
       amountMinor,
       currency: row.listing.currency,
       itemName: row.listing.title,
+      items: addon
+        ? [
+            { name: row.listing.title, amountMinor: mainMinor },
+            { name: `${addon.title} (bundle)`, amountMinor: addon.priceMinor },
+          ]
+        : undefined,
       description: `Mandi deal with ${row.seller.name}, ${row.seller.city}`,
       payeeEmail: row.seller.paypalMerchantEmail.endsWith("@example.com") ? undefined : row.seller.paypalMerchantEmail,
       referenceId: order.id,
