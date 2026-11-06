@@ -6,7 +6,8 @@
 import { use, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { PayPalButtons, PayPalScriptProvider } from "@paypal/react-paypal-js";
-import { PayPalCallLog } from "@/components/PayPalCallLog";
+import { DemoLogin } from "@/components/DemoLogin";
+import { OffersChart } from "@/components/OffersChart";
 import type { MandateSnapshot } from "@/lib/negotiation/snapshot";
 
 type Turn = MandateSnapshot["turns"][number];
@@ -68,8 +69,9 @@ export default function DealPage({ params }: { params: Promise<{ id: string }> }
   const [status, setStatus] = useState<string>("negotiating");
   const [held, setHeld] = useState<{ orderId: string; amount: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [logKey, setLogKey] = useState(0);
   const seen = useRef(new Set<string>());
+  // Replay re-streams the stored turns at reading speed (for recording takes).
+  const [replay, setReplay] = useState<{ index: number; speed: number } | null>(null);
 
   useEffect(() => {
     const es = new EventSource(`/api/mandates/${id}/stream`);
@@ -101,13 +103,35 @@ export default function DealPage({ params }: { params: Promise<{ id: string }> }
     return () => es.close();
   }, [id]);
 
+  useEffect(() => {
+    if (!replay) return;
+    if (replay.index >= turns.length) {
+      setReplay(null);
+      return;
+    }
+    const t = setTimeout(() => setReplay((r) => (r ? { ...r, index: r.index + 1 } : r)), 900 / replay.speed);
+    return () => clearTimeout(t);
+  }, [replay, turns.length]);
+
+  const shown = replay ? turns.slice(0, replay.index) : turns;
+
   const bySeller = useMemo(() => {
     const m = new Map<string, Turn[]>();
-    for (const t of turns) m.set(t.negotiation_id, [...(m.get(t.negotiation_id) ?? []), t]);
+    for (const t of shown) m.set(t.negotiation_id, [...(m.get(t.negotiation_id) ?? []), t]);
     return m;
-  }, [turns]);
+  }, [shown]);
 
-  if (!snap) return <main className="p-8 text-neutral-500">Opening the negotiation room…</main>;
+  if (!snap)
+    return (
+      <main className="mx-auto max-w-7xl space-y-6 p-6">
+        <div className="h-16 w-2/3 animate-pulse rounded-xl bg-neutral-100" />
+        <div className="grid gap-4 lg:grid-cols-3">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="h-96 animate-pulse rounded-xl bg-neutral-100" />
+          ))}
+        </div>
+      </main>
+    );
   const currency = snap.mandate.currency;
   const clientId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID;
   const best = rec?.best ?? null;
@@ -126,9 +150,27 @@ export default function DealPage({ params }: { params: Promise<{ id: string }> }
           Budget <span className="font-semibold">{money(snap.mandate.maxPrice, currency)}</span> · by {snap.mandate.deadline}
           {snap.mandate.hostile && <span className="ml-2 rounded bg-amber-100 px-2 py-0.5 text-sm text-amber-900">Hostile buyer test</span>}
         </p>
+        {FINAL.has(status) && turns.length > 0 && (
+          <div className="flex items-center gap-2 text-sm">
+            {replay ? (
+              <>
+                <button onClick={() => setReplay(null)} className="rounded-lg border border-neutral-300 px-3 py-1">
+                  Stop replay
+                </button>
+                <button onClick={() => setReplay((r) => (r ? { ...r, speed: r.speed === 1 ? 2 : 1 } : r))} className="rounded-lg border border-neutral-300 px-3 py-1">
+                  {replay.speed}×
+                </button>
+              </>
+            ) : (
+              <button onClick={() => setReplay({ index: 0, speed: 1 })} className="rounded-lg border border-neutral-300 px-3 py-1">
+                Replay negotiation
+              </button>
+            )}
+          </div>
+        )}
       </header>
 
-      {best && (
+      {best && !replay && (
         <section className="rounded-xl border-2 border-green-300 bg-green-50 p-5">
           <p className="text-sm uppercase tracking-wide text-green-800">Recommended deal</p>
           <p className="text-[28px] font-semibold text-green-950">
@@ -156,14 +198,12 @@ export default function DealPage({ params }: { params: Promise<{ id: string }> }
                     setError(null);
                     const res = await fetch(`/api/deals/${best.negotiationId}/approve`, { method: "POST" });
                     const body = await res.json();
-                    setLogKey((k) => k + 1);
                     if (!res.ok) throw new Error(body.error ?? "Could not create the order");
                     return body.id;
                   }}
                   onApprove={async (data) => {
                     const res = await fetch(`/api/paypal/orders/${data.orderID}/authorize`, { method: "POST" });
                     const body = await res.json();
-                    setLogKey((k) => k + 1);
                     if (!res.ok) return setError(body.error ?? "Authorize failed");
                     setHeld({ orderId: body.orderId, amount: best.agreedMinor / 100 });
                   }}
@@ -172,6 +212,11 @@ export default function DealPage({ params }: { params: Promise<{ id: string }> }
               </PayPalScriptProvider>
             ) : (
               <p className="text-sm text-green-900">Set NEXT_PUBLIC_PAYPAL_CLIENT_ID to approve with PayPal.</p>
+            )}
+            {!held && clientId && (
+              <div className="mt-3">
+                <DemoLogin />
+              </div>
             )}
             {error && <p className="mt-2 text-red-700">{error}</p>}
           </div>
@@ -186,7 +231,10 @@ export default function DealPage({ params }: { params: Promise<{ id: string }> }
       <div className="grid gap-4 lg:grid-cols-3">
         {snap.negotiations.map((n: Neg) => {
           const ts = bySeller.get(n.id) ?? [];
-          const st = states[n.id]?.state ?? n.state;
+          const finalState = states[n.id]?.state ?? n.state;
+          // During replay, show the final state only once that thread's last turn is back on screen.
+          const total = turns.filter((t) => t.negotiation_id === n.id).length;
+          const st = replay && ts.length < total ? (ts.length ? "COUNTERED" : "OPEN") : finalState;
           return (
             <section key={n.id} className="flex flex-col rounded-xl border border-neutral-200">
               <header className="border-b border-neutral-100 p-4">
@@ -206,6 +254,7 @@ export default function DealPage({ params }: { params: Promise<{ id: string }> }
                   </span>
                   <span className="text-neutral-400">list {money(n.listing.listPrice, currency)}</span>
                 </div>
+                <OffersChart turns={ts} budget={snap.mandate.maxPrice} />
               </header>
               <ol className="flex-1 space-y-3 p-4">
                 {ts.map((t) => (
@@ -234,7 +283,6 @@ export default function DealPage({ params }: { params: Promise<{ id: string }> }
         })}
       </div>
 
-      <PayPalCallLog refreshKey={logKey} />
     </main>
   );
 }

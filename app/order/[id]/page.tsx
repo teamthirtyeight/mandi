@@ -17,6 +17,9 @@ interface Order {
   status: "CREATED" | "APPROVED" | "AUTHORIZED" | "SHIPPED" | "CAPTURED" | "REFUNDED" | "VOIDED";
   trackingNumber: string | null;
   carrier: string | null;
+  problemNote: string | null;
+  agentRefundMessage: string | null;
+  pendingRefundMinor: number | null;
 }
 
 const money = (minor: number, currency: string) =>
@@ -45,6 +48,9 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
   const [tracking, setTracking] = useState("");
   const [refundPounds, setRefundPounds] = useState("10.00");
   const refundKey = useRef<string>(crypto.randomUUID());
+  const problemKey = useRef<string>(crypto.randomUUID());
+  const [problem, setProblem] = useState("A thread has pulled near the border.");
+  const [problemPhoto, setProblemPhoto] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/orders/${id}`, { cache: "no-store" });
@@ -72,7 +78,7 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
       else {
         if (json.order) setOrder(json.order);
         if (json.trackingWarning) setNotice(`Captured, but tracking was not attached: ${json.trackingWarning}`);
-        if (json.outcome === "NEEDS_SELLER_APPROVAL") setNotice("Above the seller's refund cap — needs the seller's tap.");
+        if (json.outcome === "NEEDS_SELLER_APPROVAL") setNotice("Above the seller's refund cap — waiting for the seller's tap.");
       }
       return res.ok;
     } finally {
@@ -154,9 +160,83 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
           </p>
         )}
 
+        {order.problemNote && (
+          <div className="rounded-xl border border-neutral-200 p-5">
+            <p className="text-sm text-neutral-500">Buyer reported</p>
+            <p>{order.problemNote}</p>
+            {order.agentRefundMessage && (
+              <>
+                <p className="mt-3 text-sm text-neutral-500">Seller&apos;s agent replied</p>
+                <p>{order.agentRefundMessage}</p>
+              </>
+            )}
+            {order.pendingRefundMinor != null && (
+              <button
+                disabled={busy}
+                onClick={async () => {
+                  const ok = await act("refund", {
+                    amountMinor: order.pendingRefundMinor,
+                    requestKey: refundKey.current,
+                    approvedBy: "seller",
+                  });
+                  if (ok) refundKey.current = crypto.randomUUID();
+                }}
+                className="mt-3 rounded-lg bg-neutral-900 px-4 py-2 text-white disabled:opacity-40"
+              >
+                Seller: approve {money(order.pendingRefundMinor, order.currency)} refund
+              </button>
+            )}
+          </div>
+        )}
+
+        {order.status === "CAPTURED" && remaining > 0 && !order.problemNote && (
+          <div className="rounded-xl border border-neutral-200 p-5">
+            <p className="mb-3 font-medium">Buyer: something wrong with the item?</p>
+            <form
+              className="space-y-3"
+              onSubmit={async (e) => {
+                e.preventDefault();
+                const ok = await act("problem", {
+                  description: problem,
+                  requestKey: problemKey.current,
+                  ...(problemPhoto ? { photo: problemPhoto } : {}),
+                });
+                if (ok) problemKey.current = crypto.randomUUID();
+              }}
+            >
+              <textarea
+                className="w-full rounded-lg border border-neutral-300 p-3"
+                rows={2}
+                value={problem}
+                onChange={(e) => setProblem(e.target.value)}
+                aria-label="Describe the problem"
+              />
+              <div className="flex flex-wrap items-center gap-3">
+                <label className="text-sm text-neutral-600">
+                  Photo (optional){" "}
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (!f) return setProblemPhoto(null);
+                      const reader = new FileReader();
+                      reader.onload = () => setProblemPhoto(String(reader.result));
+                      reader.readAsDataURL(f);
+                    }}
+                  />
+                </label>
+                <button disabled={busy || problem.trim().length < 5} className="rounded-lg bg-neutral-900 px-4 py-2 text-white disabled:opacity-40">
+                  {busy ? "Asking the seller's agent…" : "Report a problem"}
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
         {order.status === "CAPTURED" && remaining > 0 && (
           <div className="rounded-xl border border-neutral-200 p-5">
-            <p className="mb-3 font-medium">Problem with the item? Refund up to {money(remaining, order.currency)}</p>
+            <p className="mb-3 font-medium">Seller: refund up to {money(remaining, order.currency)}</p>
             <form
               className="flex flex-wrap gap-3"
               onSubmit={async (e) => {

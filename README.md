@@ -2,36 +2,81 @@
 
 **Your AI shops. Their AI sells. PayPal makes it safe.**
 
-Mandi is an agent-to-agent marketplace for the PayPal AI Hackathon. A small seller's AI agent negotiates with a shopper's AI agent. PayPal holds the buyer's money (authorize) and takes it only once the seller adds tracking (capture).
+Mandi is an agent-to-agent marketplace built for the PayPal AI Hackathon. Every small seller gets an AI sales agent, and every shopper can send an AI buying agent. The two agents haggle within limits that code enforces. PayPal holds the buyer's money until the seller ships.
+
+*Mandi* is the Hindi word for a traditional market where buyers and sellers haggle face to face.
+
+- **Live demo:** _add the Render URL_
+- **Video:** _add the YouTube link_
+- **Try it:** open the live demo and click **Try the demo**. Approve the deal with the sandbox buyer login shown next to the PayPal button.
+
+![Mandi architecture](docs/architecture.svg)
+
+## The problem
+
+AI shopping agents buy from merchants that have structured catalogs. Artisans, home businesses and micro-exporters have no catalog, no website and no time to answer buyers. As shopping moves to agents, they become invisible.
+
+## What Mandi does
+
+1. **Seller onboarding in a minute.** Meera, a handloom weaver in Varanasi, uploads photos and records a voice note, in Hindi if she likes.
+   - Her agent writes an English listing.
+   - Channel3 comparable products suggest a price range.
+   - She sets a private floor price, and the listing becomes a PayPal catalog product through the Agent Toolkit.
+2. **One sentence from the buyer.** Sarah in London types "Handwoven silk scarf for my mum, under £90, by Dec 20". Her agent turns it into a mandate: budget, deadline and ship-to country. She confirms it once.
+3. **Parallel negotiation, visible.** Sarah's agent negotiates with up to three sellers at once. The negotiation room streams every turn with a price chart per seller. It shows both the price an agent proposed and the price the engine allowed.
+4. **One tap.** The buyer agent recommends one deal with its reasons. Sarah approves it, and PayPal authorizes the amount and holds it.
+5. **Ship, then get paid.** The seller adds tracking, Mandi captures the payment, and the tracking is attached to the PayPal order.
+6. **Problems handled.** Sarah reports a problem, optionally with a photo. The seller's agent proposes a refund; anything within the seller's cap is refunded through PayPal at once, and anything above it waits for the seller's approval.
 
 ## Safety design
 
-- **The LLM proposes and code decides.** Every agent turn passes through `lib/engine/negotiation.ts`. That code enforces the seller floor, the buyer ceiling, no backtracking, a 6-round limit, the agreement rule and refund caps.
-- **Agents never touch money.** Authorize, capture, refund and void live in `lib/paypal/rest.ts`. No agent imports it.
-- **Every money POST carries a `PayPal-Request-Id`**, so a retry or a double click can't double-charge.
-- **Prices are stored as integer minor units** (pence/paise).
-
-## Status
-
-Days 1–3 of the build plan:
-
-| Area | State |
+| Rule | How it's enforced |
 | --- | --- |
-| Next.js 15 + Tailwind scaffold | done |
-| Drizzle schema (7 tables) + seed | done |
-| Negotiation engine + guardrail tests | done (`npm test`) |
-| PayPal REST: OAuth, create (AUTHORIZE), authorize | done |
-| Order service: ship (capture + tracking), partial/full refund, void | done, tested against Postgres with PayPal mocked |
-| Webhook listener with signature verification | done; needs `PAYPAL_WEBHOOK_ID` and a public URL to test |
-| `/paypal-test` page and `/order/[id]` tracker with the PayPal call log | done |
-| Live sandbox run (real PayPal popup) | waiting on sandbox keys |
-| Seller and buyer agents (Claude, structured output, untrusted-message wrapping, rule-based fallback) | done; real-model run needs `ANTHROPIC_API_KEY` |
-| Mandate parsing, listing search, parallel negotiation, SSE stream, deal scoring | done, tested with the model off |
-| `/shop` → `/deal/[id]` negotiation room → Approve → PayPal authorize | done; PayPal step needs sandbox keys |
-| Seller onboarding `/sell`: photos + voice → listing, Channel3 comps, floor, publish (Agent Toolkit `create_product`) | done; needs Anthropic, OpenAI, Channel3 and PayPal keys for the full path |
-| Hostile-buyer test | done |
-| `/dashboard` seller dashboard (AG Grid Community + AG Charts): tiles for money held vs captured, orders / negotiations / listings grids with status pills and live cell flashes, negotiation turns panel, weekly revenue chart | done |
-| Camera polish, Render deploy, freeze gate | not started (Day 4) |
+| The LLM proposes, code decides | Every agent turn passes `applyGuardrails` (`lib/engine/negotiation.ts`) before it is saved, shown or sent to the other agent |
+| Seller floor, buyer ceiling | Offers past a limit are clamped and logged. The approval endpoint re-checks both limits before any PayPal call |
+| No backtracking, 6 rounds | A seller can't raise its own offer and a buyer can't lower its own; a negotiation expires after 6 rounds |
+| Information isolation | The floor never enters buyer prompts and the ceiling never enters seller prompts (`tests/agents.test.ts`) |
+| Prompt injection | Counterparty messages reach the other agent as `<counterparty_message>` data. Injection attempts are labelled; the hostile-buyer test shows the floor holding |
+| AI never touches money | Authorize, capture, refund and void live in `lib/paypal/rest.ts` and `lib/orders/service.ts`. No agent can call them. The Agent Toolkit gets only products and shipment tracking |
+| Human approval | No PayPal order exists without the buyer's tap; refunds above the seller's cap need the seller's tap |
+| Idempotent money calls | Every POST carries a `PayPal-Request-Id`. Each action claims the order row first, so a double click can't capture or refund twice |
+| Integer money | Prices are stored as minor units (pence) |
+
+## PayPal APIs used
+
+| Capability | Endpoint / tool | Triggered by |
+| --- | --- | --- |
+| OAuth token | `POST /v1/oauth2/token` | Server, cached until expiry |
+| Catalog product | Agent Toolkit `create_product` | Seller publishes a listing |
+| Create order (AUTHORIZE) | `POST /v2/checkout/orders` | Buyer taps Approve |
+| Authorize | `POST /v2/checkout/orders/{id}/authorize` | PayPal approval callback |
+| Capture | `POST /v2/payments/authorizations/{id}/capture` | Seller posts tracking |
+| Tracking | `POST /v2/checkout/orders/{id}/track` | Right after capture |
+| Refund | `POST /v2/payments/captures/{id}/refund` | Agent proposal within cap, or the seller's tap |
+| Void | `POST /v2/payments/authorizations/{id}/void` | Seller can't ship |
+| Show order | `GET /v2/checkout/orders/{id}` | Status sync |
+| Webhooks | `POST /v1/notifications/verify-webhook-signature` | PayPal events (order status only moves forward) |
+| Buyer UI | PayPal JS SDK buttons, `intent=authorize` | Negotiation room |
+
+Every call is written to `paypal_events`, which feeds the docked "PayPal API calls" panel.
+
+## Built with
+
+| Layer | Choice |
+| --- | --- |
+| App | Next.js 15 (App Router), TypeScript, Tailwind |
+| Agents | Claude (`claude-sonnet-5-5`, set with `MANDI_MODEL`) through the Anthropic TypeScript SDK, structured output with Zod; vision for listings and refund checks |
+| Speech-to-text | OpenAI `gpt-transcribe` |
+| Product data | Channel3 (`@channel3/sdk`) |
+| Payments | PayPal Orders v2 + Payments v2 (REST), PayPal Agent Toolkit, PayPal JS SDK |
+| Database | Postgres + Drizzle ORM |
+| Live updates | Server-Sent Events |
+| Dashboard | AG Grid Community + AG Charts |
+| Hosting | Render (`render.yaml`) |
+| API docs | Postman collection in `docs/` |
+| Built using | Claude Code |
+
+**If the model is unavailable** (no `ANTHROPIC_API_KEY`, a refusal, or invalid output twice), agents fall back to rule-based turns that still pass through the engine. The demo never stalls, and the room labels those turns "rule-based".
 
 ## Run locally
 
@@ -47,9 +92,9 @@ Days 1–3 of the build plan:
    cp .env.example .env.local
    ```
 
-   Fill in `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `NEXT_PUBLIC_PAYPAL_CLIENT_ID` (the same client id) and `DATABASE_URL`. Drizzle and the seed script read `.env`, so also copy `.env.local` to `.env`, or export `DATABASE_URL` in your shell.
+   PayPal needs a sandbox REST app plus sandbox accounts: three businesses (sellers) and one personal account (buyer). Drizzle and the seed script read `.env`, so copy `.env.local` to `.env` as well, or export `DATABASE_URL`.
 
-3. Create the tables and seed the demo data.
+3. Create the tables and seed the demo data (3 sellers, 8 listings, 2 past orders).
 
    ```bash
    npm run db:push
@@ -62,7 +107,7 @@ Days 1–3 of the build plan:
    npm run dev
    ```
 
-Then open `/paypal-test`, approve with the sandbox buyer (Sarah) login, and you should see "£72 held". The authorization ID is stored in `orders.authorization_id`.
+**Pages:** `/` (Try the demo), `/shop`, `/deal/[id]`, `/order/[id]`, `/sell`, `/dashboard`, and `/paypal-test` (a bare sandbox check).
 
 ## Tests
 
@@ -70,7 +115,9 @@ Then open `/paypal-test`, approve with the sandbox buyer (Sarah) login, and you 
 npm test
 ```
 
-This runs the guardrail, order-state, prompt-isolation, mandate and scoring tests. The money-flow and negotiation-run tests also need a Postgres with the schema pushed, and they truncate `orders` and `paypal_events`:
+This runs the unit tests: guardrails, order states, prompt isolation, mandate parsing and scoring.
+
+The money-flow and full-negotiation tests need a Postgres with the schema pushed. They empty that database's tables on each run:
 
 ```bash
 createdb mandi_test
@@ -78,29 +125,47 @@ DATABASE_URL=postgres://localhost:5432/mandi_test npx drizzle-kit push
 TEST_DATABASE_URL=postgres://localhost:5432/mandi_test npm test
 ```
 
-## Agents without keys
+The manual sandbox test matrix is in [docs/LAUNCH.md](docs/LAUNCH.md).
 
-Without `ANTHROPIC_API_KEY` (or with `MANDI_FAKE_AI=1`), both agents use the engine's rule-based turns. The flow still runs end to end, and the room labels those turns "rule-based".
+## Deploy
+
+`render.yaml` defines the web service and a Postgres database, with a health check at `/api/health`.
+
+1. Set the `sync: false` secrets in the Render dashboard, including the `NEXT_PUBLIC_*` values, which are read at build time.
+2. Run `npm run db:seed` once from the Render shell.
+3. Register a PayPal webhook pointing at `/api/paypal/webhook`.
 
 ## Layout
 
 ```
 app/              pages and /api routes
-lib/engine/       negotiation state machine and guardrails (pure functions)
-lib/paypal/       rest.ts (money calls), log.ts (paypal_events)
-lib/orders/       state.ts (status machine), service.ts (ship, refund, void)
-lib/agents/       prompts, seller/buyer agents, mandate parser, listing writer
-lib/negotiation/  runner (parallel negotiations), bus + snapshot (SSE), scoring
-lib/ai/           claude.ts (structured calls), transcribe.ts
+components/       PayPal call log, offers chart, demo button, nav
+lib/engine/       negotiation guardrails (pure functions)
+lib/agents/       prompts, seller/buyer agents, mandate parser, listing writer, refund agent
+lib/negotiation/  runner (parallel negotiations), SSE bus + snapshot, scoring
+lib/orders/       order state machine, payment service, problem reports
+lib/paypal/       REST money calls, Agent Toolkit, call log
 lib/channel3/     comparable prices
-components/       PayPalCallLog
-lib/db/           schema.ts (Drizzle), seed.ts
-tests/            guardrails, order-state, paypal-flow, agents, negotiation-run
+lib/dashboard/    seller dashboard data
+lib/db/           Drizzle schema and seed
+tests/            unit and Postgres-backed tests
+docs/             architecture, Postman collection, Devpost draft, launch checklist
 ```
 
-## Deploy
+## Out of scope
 
-`render.yaml` defines the web service and a Postgres database, with a health check at `/api/health`. Set the `sync: false` secrets in the Render dashboard.
+- Real money, live merchants, and PayPal Agent Ready / Store Sync. These need a PayPal access request.
+- Real carrier tracking; delivery is simulated.
+- Platform fees, marketplace payouts and seller KYC.
+- Mobile apps; the web app is responsive.
+- Login. The demo has none, so the dashboard shows a seller's floor prices to anyone with the link.
+
+## What's next
+
+- Connect Mandi sellers to PayPal's agentic commerce services, so they appear inside AI shopping assistants.
+- Reauthorize holds for sellers who need more than 3 days to ship.
+- Onboarding in more Indian languages.
+- Marketplace payouts.
 
 ## License
 

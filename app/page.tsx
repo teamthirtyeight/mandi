@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { TryDemoButton } from "@/components/TryDemoButton";
 
 export default function Home() {
   return (
@@ -14,10 +15,16 @@ export default function Home() {
         <li className="rounded-xl border border-neutral-200 p-4">2. A buyer&apos;s agent negotiates within hard limits.</li>
         <li className="rounded-xl border border-neutral-200 p-4">3. PayPal holds the money until the item ships.</li>
       </ol>
-      <div className="flex gap-3">
+      <div className="flex flex-wrap items-start gap-3">
+        <TryDemoButton />
         <Link href="/sell" className="rounded-lg bg-neutral-900 px-5 py-3 text-white">I&apos;m selling</Link>
         <Link href="/shop" className="rounded-lg border border-neutral-300 px-5 py-3">I&apos;m shopping</Link>
+        <TryDemoButton hostile label="Hostile buyer test" />
       </div>
+      <p className="text-neutral-500">
+        &ldquo;Try the demo&rdquo; sends Sarah&apos;s agent to haggle with three sellers for a silk scarf under £90. Approve the
+        deal in the PayPal sandbox, then ship, capture and refund from the order page.
+      </p>
     </main>
   );
 }

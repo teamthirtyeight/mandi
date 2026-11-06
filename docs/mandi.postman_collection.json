@@ -1,0 +1,537 @@
+{
+  "info": {
+    "name": "Mandi API",
+    "description": "Agent-to-agent marketplace on PayPal. Agents negotiate; only the payment service moves money. Set baseUrl to the live Render URL or http://localhost:3000.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000"
+    },
+    {
+      "key": "mandateId",
+      "value": ""
+    },
+    {
+      "key": "negotiationId",
+      "value": ""
+    },
+    {
+      "key": "orderId",
+      "value": ""
+    },
+    {
+      "key": "paypalOrderId",
+      "value": ""
+    },
+    {
+      "key": "sellerId",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Health check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "health"
+              ]
+            },
+            "description": "Database and PayPal configuration status."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Buyer",
+      "item": [
+        {
+          "name": "Create mandate from one sentence",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/mandates",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "mandates"
+              ]
+            },
+            "description": "Parses budget, deadline, ship-to and keywords. Returns a draft mandate.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"requestText\": \"Handwoven silk scarf for my mum, under £90, by Dec 20\",\n  \"hostile\": false\n}"
+            }
+          }
+        },
+        {
+          "name": "Get mandate snapshot",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/mandates/{{mandateId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "mandates",
+                "{{mandateId}}"
+              ]
+            },
+            "description": "Mandate, negotiations (public listing fields only) and all turns."
+          }
+        },
+        {
+          "name": "Confirm mandate and start agents",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/mandates/{{mandateId}}/confirm",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "mandates",
+                "{{mandateId}}",
+                "confirm"
+              ]
+            },
+            "description": "Finds up to 3 listings and negotiates with each seller in parallel."
+          }
+        },
+        {
+          "name": "Stream negotiation (SSE)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/mandates/{{mandateId}}/stream",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "mandates",
+                "{{mandateId}}",
+                "stream"
+              ]
+            },
+            "description": "Server-Sent Events: snapshot, turn, state, recommendation, done."
+          }
+        },
+        {
+          "name": "One-click demo",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/demo/start?hostile=0",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "demo",
+                "start"
+              ],
+              "query": [
+                {
+                  "key": "hostile",
+                  "value": "0"
+                }
+              ]
+            },
+            "description": "Creates and confirms Sarah's demo mandate. hostile=1 runs the prompt-injection test."
+          }
+        },
+        {
+          "name": "Approve deal (create PayPal order)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/deals/{{negotiationId}}/approve",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "deals",
+                "{{negotiationId}}",
+                "approve"
+              ]
+            },
+            "description": "Buyer's one tap. Re-checks the limits, creates an AUTHORIZE order paid to the seller."
+          }
+        },
+        {
+          "name": "Authorize after PayPal approval",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/paypal/orders/{{paypalOrderId}}/authorize",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "paypal",
+                "orders",
+                "{{paypalOrderId}}",
+                "authorize"
+              ]
+            },
+            "description": "Money held, not taken."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Orders",
+      "item": [
+        {
+          "name": "Get order",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/orders/{{orderId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "orders",
+                "{{orderId}}"
+              ]
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "Ship (capture + tracking)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/orders/{{orderId}}/ship",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "orders",
+                "{{orderId}}",
+                "ship"
+              ]
+            },
+            "description": "Captures the authorization, then attaches tracking to the PayPal order.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"carrier\": \"India Post\",\n  \"trackingNumber\": \"EE123456789IN\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Report a problem (agent refund)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/orders/{{orderId}}/problem",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "orders",
+                "{{orderId}}",
+                "problem"
+              ]
+            },
+            "description": "Seller agent proposes a refund; within the seller's cap it is refunded, above it returns 202 and waits for the seller.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"A thread has pulled near the border.\",\n  \"requestKey\": \"6f1c2b9e-0d7a-4c51-9b7e-1a2b3c4d5e6f\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Refund (seller)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/orders/{{orderId}}/refund",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "orders",
+                "{{orderId}}",
+                "refund"
+              ]
+            },
+            "description": "Partial or full refund in minor units.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amountMinor\": 1000,\n  \"requestKey\": \"0b3a9c1e-7d2f-4e8a-a1b2-c3d4e5f60718\",\n  \"approvedBy\": \"seller\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Void (seller can't ship)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/orders/{{orderId}}/void",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "orders",
+                "{{orderId}}",
+                "void"
+              ]
+            },
+            "description": "Releases the hold."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Seller",
+      "item": [
+        {
+          "name": "List sellers",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/sellers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "sellers"
+              ]
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "Draft listing from photos + voice",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/sell/draft",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "sell",
+                "draft"
+              ]
+            },
+            "description": "Returns a listing draft and Channel3 price range. Nothing is saved.",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "sellerId",
+                  "value": "{{sellerId}}",
+                  "type": "text"
+                },
+                {
+                  "key": "photos",
+                  "type": "file",
+                  "src": []
+                },
+                {
+                  "key": "audio",
+                  "type": "file",
+                  "src": []
+                },
+                {
+                  "key": "notes",
+                  "value": "Pure silk, zari border, four days on the loom",
+                  "type": "text"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Publish listing",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/sell/publish",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "sell",
+                "publish"
+              ]
+            },
+            "description": "Saves the listing with its private floor and creates a PayPal catalog product via the Agent Toolkit.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sellerId\": \"{{sellerId}}\",\n  \"title\": \"Handwoven Banarasi silk scarf\",\n  \"description\": \"Pure mulberry silk with a zari border, four days on the loom.\",\n  \"category\": \"scarf\",\n  \"materials\": \"silk, zari\",\n  \"images\": [],\n  \"listPrice\": 95,\n  \"floorPrice\": 68\n}"
+            }
+          }
+        },
+        {
+          "name": "Seller dashboard data",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/dashboard?sellerId={{sellerId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "dashboard"
+              ],
+              "query": [
+                {
+                  "key": "sellerId",
+                  "value": "{{sellerId}}"
+                }
+              ]
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "Negotiation turns",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/negotiations/{{negotiationId}}/turns",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "negotiations",
+                "{{negotiationId}}",
+                "turns"
+              ]
+            },
+            "description": ""
+          }
+        }
+      ]
+    },
+    {
+      "name": "PayPal",
+      "item": [
+        {
+          "name": "PayPal call log",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/paypal/events",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "paypal",
+                "events"
+              ]
+            },
+            "description": "Every PayPal call and webhook, newest first. ?orderId= narrows to one order."
+          }
+        },
+        {
+          "name": "Webhook listener",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/paypal/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "paypal",
+                "webhook"
+              ]
+            },
+            "description": "Called by PayPal. Verifies the signature before acting; unsigned requests get 400.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"event_type\": \"PAYMENT.CAPTURE.COMPLETED\",\n  \"resource\": {}\n}"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

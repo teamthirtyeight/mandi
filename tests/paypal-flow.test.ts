@@ -18,6 +18,7 @@ describe.skipIf(!TEST_DB)("PayPal money flow", () => {
     process.env.DATABASE_URL = TEST_DB;
     process.env.PAYPAL_CLIENT_ID = "test-id";
     process.env.PAYPAL_CLIENT_SECRET = "test-secret";
+    process.env.MANDI_FAKE_AI = "1";
     dbmod = await import("@/lib/db");
     svc = await import("@/lib/orders/service");
   });
@@ -157,5 +158,20 @@ describe.skipIf(!TEST_DB)("PayPal money flow", () => {
     expect(events.map((e) => e.endpoint)).toEqual(
       expect.arrayContaining(["/v2/payments/authorizations/AUTH-1/capture", "/v2/checkout/orders/ORDER1234567890/track"]),
     );
+  });
+
+  it("buyer reports a problem: the agent's refund within the cap goes straight through", async () => {
+    const { reportProblem } = await import("@/lib/orders/problem");
+    const order = await authorizedOrder();
+    await svc.shipOrder(order.id, { carrier: "DHL", trackingNumber: "1234567890" });
+
+    const res = await reportProblem(order.id, { description: "A thread has pulled.", photo: null, requestKey: "p1" });
+    expect(res.outcome).toBe("REFUNDED");
+    expect(res.amountMinor).toBe(1000); // 15% of £72 = £11, capped at the £10 default
+    expect(res.order.refundedMinor).toBe(1000);
+    expect(res.order.problemNote).toBe("A thread has pulled.");
+    expect(res.order.pendingRefundMinor).toBeNull();
+
+    await expect(reportProblem(order.id, { description: "Again", photo: null, requestKey: "p2" })).resolves.toBeTruthy();
   });
 });

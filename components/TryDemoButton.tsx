@@ -1,0 +1,36 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+
+export function TryDemoButton({ hostile = false, label = "Try the demo" }: { hostile?: boolean; label?: string }) {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  return (
+    <div>
+      <button
+        disabled={busy}
+        onClick={async () => {
+          setBusy(true);
+          setError(null);
+          const res = await fetch(`/api/demo/start${hostile ? "?hostile=1" : ""}`, { method: "POST" });
+          const body = await res.json();
+          if (!res.ok) {
+            setBusy(false);
+            return setError(body.error);
+          }
+          router.push(`/deal/${body.mandateId}`);
+        }}
+        className={
+          hostile
+            ? "rounded-lg border border-amber-400 px-5 py-3 text-amber-900 disabled:opacity-40"
+            : "rounded-lg bg-green-700 px-5 py-3 font-medium text-white disabled:opacity-40"
+        }
+      >
+        {busy ? "Starting the agents…" : label}
+      </button>
+      {error && <p className="mt-2 text-sm text-red-700">{error}</p>}
+    </div>
+  );
+}

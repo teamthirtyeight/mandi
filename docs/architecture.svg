@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 560" font-family="Inter, Helvetica, Arial, sans-serif">
+  <title>Mandi architecture: agents negotiate, only deterministic code moves money</title>
+  <rect width="960" height="560" fill="#ffffff"/>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10z" fill="#737373"/>
+    </marker>
+  </defs>
+
+  <text x="40" y="40" font-size="20" font-weight="600" fill="#171717">Agents negotiate; only deterministic code moves money</text>
+
+  <!-- Apps -->
+  <rect x="40" y="70" width="380" height="64" rx="10" fill="#fff" stroke="#d4d4d4"/>
+  <text x="58" y="98" font-size="15" font-weight="600" fill="#171717">Seller app</text>
+  <text x="58" y="120" font-size="13" fill="#525252">/sell onboarding · /dashboard (AG Grid) · /order</text>
+  <rect x="540" y="70" width="380" height="64" rx="10" fill="#fff" stroke="#d4d4d4"/>
+  <text x="558" y="98" font-size="15" font-weight="600" fill="#171717">Buyer app</text>
+  <text x="558" y="120" font-size="13" fill="#525252">/shop one sentence · /deal live negotiation room</text>
+
+  <!-- Server -->
+  <rect x="40" y="170" width="880" height="230" rx="12" fill="#f5f5f4" stroke="#d6d3d1"/>
+  <text x="480" y="194" font-size="14" font-weight="600" fill="#44403c" text-anchor="middle">Mandi server · Next.js + Postgres on Render</text>
+
+  <rect x="64" y="214" width="220" height="80" rx="10" fill="#fff" stroke="#d4d4d4"/>
+  <text x="80" y="240" font-size="14" font-weight="600" fill="#171717">Seller agent</text>
+  <text x="80" y="260" font-size="12" fill="#525252">Listing from photos + voice</text>
+  <text x="80" y="278" font-size="12" fill="#525252">Haggling · refund proposals</text>
+
+  <rect x="370" y="214" width="220" height="80" rx="10" fill="#e0ecff" stroke="#2563eb" stroke-width="1.5"/>
+  <text x="386" y="240" font-size="14" font-weight="600" fill="#1e3a8a">Negotiation engine</text>
+  <text x="386" y="260" font-size="12" fill="#1e3a8a">Floor + ceiling enforced in code</text>
+  <text x="386" y="278" font-size="12" fill="#1e3a8a">No backtracking · 6 rounds</text>
+
+  <rect x="676" y="214" width="220" height="80" rx="10" fill="#fff" stroke="#d4d4d4"/>
+  <text x="692" y="240" font-size="14" font-weight="600" fill="#171717">Buyer agent</text>
+  <text x="692" y="260" font-size="12" fill="#525252">Mandate · search · haggling</text>
+  <text x="692" y="278" font-size="12" fill="#525252">Scores deals for one approval</text>
+
+  <rect x="350" y="318" width="260" height="66" rx="10" fill="#fff" stroke="#d4d4d4"/>
+  <text x="366" y="342" font-size="14" font-weight="600" fill="#171717">Payment service (no LLM)</text>
+  <text x="366" y="362" font-size="12" fill="#525252">Authorize · capture · refund · void</text>
+
+  <!-- Arrows inside -->
+  <line x1="284" y1="254" x2="368" y2="254" stroke="#737373" stroke-width="1.5" marker-end="url(#a)" marker-start="url(#a)"/>
+  <line x1="676" y1="254" x2="592" y2="254" stroke="#737373" stroke-width="1.5" marker-end="url(#a)" marker-start="url(#a)"/>
+  <line x1="480" y1="294" x2="480" y2="316" stroke="#737373" stroke-width="1.5" marker-end="url(#a)"/>
+  <text x="490" y="310" font-size="11" fill="#525252">agreed deal + buyer's tap</text>
+
+  <!-- App to server -->
+  <line x1="174" y1="134" x2="174" y2="212" stroke="#737373" stroke-width="1.5" marker-end="url(#a)"/>
+  <text x="182" y="160" font-size="11" fill="#525252">photos + voice note</text>
+  <line x1="786" y1="134" x2="786" y2="212" stroke="#737373" stroke-width="1.5" marker-end="url(#a)"/>
+  <text x="794" y="160" font-size="11" fill="#525252">one sentence · SSE back</text>
+
+  <!-- External -->
+  <rect x="40" y="440" width="260" height="80" rx="10" fill="#fff" stroke="#d4d4d4"/>
+  <text x="56" y="466" font-size="14" font-weight="600" fill="#171717">Claude + transcription</text>
+  <text x="56" y="486" font-size="12" fill="#525252">Agent turns, vision listings,</text>
+  <text x="56" y="504" font-size="12" fill="#525252">refund checks · OpenAI speech-to-text</text>
+
+  <rect x="350" y="440" width="260" height="80" rx="10" fill="#fff" stroke="#d4d4d4"/>
+  <text x="366" y="466" font-size="14" font-weight="600" fill="#171717">PayPal sandbox</text>
+  <text x="366" y="486" font-size="12" fill="#525252">Orders v2 · Payments v2 · webhooks</text>
+  <text x="366" y="504" font-size="12" fill="#525252">Agent Toolkit: catalog products</text>
+
+  <rect x="660" y="440" width="260" height="80" rx="10" fill="#fff" stroke="#d4d4d4"/>
+  <text x="676" y="466" font-size="14" font-weight="600" fill="#171717">Channel3</text>
+  <text x="676" y="486" font-size="12" fill="#525252">Comparable products for</text>
+  <text x="676" y="504" font-size="12" fill="#525252">price ranges and reference prices</text>
+
+  <line x1="174" y1="294" x2="174" y2="438" stroke="#737373" stroke-width="1.5" marker-end="url(#a)"/>
+  <text x="182" y="420" font-size="11" fill="#525252">LLM calls</text>
+  <line x1="480" y1="384" x2="480" y2="438" stroke="#737373" stroke-width="1.5" marker-end="url(#a)"/>
+  <text x="490" y="420" font-size="11" fill="#525252">REST, PayPal-Request-Id</text>
+  <line x1="786" y1="294" x2="786" y2="438" stroke="#737373" stroke-width="1.5" marker-end="url(#a)"/>
+  <text x="794" y="420" font-size="11" fill="#525252">price comps</text>
+</svg>

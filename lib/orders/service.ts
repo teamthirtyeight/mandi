@@ -160,9 +160,10 @@ export async function refundOrder(orderId: string, input: RefundInput): Promise<
       note: input.note,
       orderId,
     });
-    if (reserved.refundedMinor >= reserved.amountMinor) {
-      await db.update(schema.orders).set({ status: "REFUNDED" }).where(eq(schema.orders.id, orderId));
-    }
+    await db
+      .update(schema.orders)
+      .set({ pendingRefundMinor: null, ...(reserved.refundedMinor >= reserved.amountMinor ? { status: "REFUNDED" as const } : {}) })
+      .where(eq(schema.orders.id, orderId));
     return { outcome: "REFUNDED", order: await getOrderRow(orderId), refundId };
   } catch (err) {
     await db

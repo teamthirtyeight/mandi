@@ -137,6 +137,11 @@ export const orders = pgTable("orders", {
   amountMinor: integer("amount_minor").notNull(),
   currency: text("currency").notNull().default("GBP"),
   refundedMinor: integer("refunded_minor").notNull().default(0),
+  // Buyer's problem report and the seller agent's refund proposal.
+  problemNote: text("problem_note"),
+  agentRefundMessage: text("agent_refund_message"),
+  // Set when the agent's proposal is above the seller's cap and needs their tap.
+  pendingRefundMinor: integer("pending_refund_minor"),
   status: orderStatus("status").notNull().default("CREATED"),
   trackingNumber: text("tracking_number"),
   carrier: text("carrier"),
