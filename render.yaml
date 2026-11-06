@@ -1,0 +1,42 @@
+services:
+  - type: web
+    name: mandi
+    runtime: node
+    plan: starter
+    buildCommand: npm ci && npm run build && npm run db:push
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: mandi-db
+          property: connectionString
+      - key: PAYPAL_ENV
+        value: sandbox
+      - key: PAYPAL_CLIENT_ID
+        sync: false
+      - key: PAYPAL_CLIENT_SECRET
+        sync: false
+      - key: NEXT_PUBLIC_PAYPAL_CLIENT_ID
+        sync: false
+      - key: PAYPAL_WEBHOOK_ID
+        sync: false
+      - key: SELLER_MEERA_EMAIL
+        sync: false
+      - key: SELLER_ARJUN_EMAIL
+        sync: false
+      - key: SELLER_FATIMA_EMAIL
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: CHANNEL3_API_KEY
+        sync: false
+
+databases:
+  - name: mandi-db
+    plan: basic-256mb
+    databaseName: mandi

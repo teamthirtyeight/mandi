@@ -1,0 +1,147 @@
+// Seven tables cover the whole flow. All prices are integer minor units
+// (pence/paise) so guardrail comparisons never hit rounding bugs.
+import {
+  pgTable,
+  pgEnum,
+  text,
+  integer,
+  timestamp,
+  jsonb,
+  uuid,
+  date,
+} from "drizzle-orm/pg-core";
+
+export const negotiationState = pgEnum("negotiation_state", [
+  "OPEN",
+  "OFFERED",
+  "COUNTERED",
+  "AGREED",
+  "AWAITING_BUYER_APPROVAL",
+  "ORDERED",
+  "WALKED_AWAY",
+  "EXPIRED",
+  "BLOCKED_BY_GUARDRAIL",
+]);
+
+export const orderStatus = pgEnum("order_status", [
+  "CREATED",
+  "APPROVED",
+  "AUTHORIZED",
+  "SHIPPED",
+  "CAPTURED",
+  "REFUNDED",
+  "VOIDED",
+]);
+
+export const turnActor = pgEnum("turn_actor", ["buyer", "seller", "engine"]);
+export const eventDirection = pgEnum("event_direction", ["call", "webhook"]);
+
+export const sellers = pgTable("sellers", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+  city: text("city").notNull(),
+  country: text("country").notNull(),
+  story: text("story").notNull(),
+  // Payee for orders: the seller's PayPal sandbox business account.
+  paypalMerchantEmail: text("paypal_merchant_email").notNull(),
+  language: text("language").notNull().default("en"),
+  // Shipping promise used by the deadline guardrail.
+  shipByDays: integer("ship_by_days").notNull().default(3),
+  transitDays: integer("transit_days").notNull().default(7),
+  // Partial refunds above this need the seller's tap.
+  refundCapMinor: integer("refund_cap_minor").notNull().default(1000),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const listings = pgTable("listings", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  sellerId: uuid("seller_id")
+    .notNull()
+    .references(() => sellers.id),
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  category: text("category").notNull(),
+  materials: text("materials").notNull(),
+  images: jsonb("images").$type<string[]>().notNull().default([]),
+  listPriceMinor: integer("list_price_minor").notNull(),
+  // Never sent to any buyer-side prompt.
+  floorPriceMinor: integer("floor_price_minor").notNull(),
+  currency: text("currency").notNull().default("GBP"),
+  stock: integer("stock").notNull().default(1),
+  paypalProductId: text("paypal_product_id"),
+  compsJson: jsonb("comps_json"),
+  status: text("status").notNull().default("active"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const mandates = pgTable("mandates", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  buyerName: text("buyer_name").notNull(),
+  requestText: text("request_text").notNull(),
+  maxPriceMinor: integer("max_price_minor").notNull(),
+  currency: text("currency").notNull().default("GBP"),
+  deadline: date("deadline").notNull(),
+  shipToCountry: text("ship_to_country").notNull(),
+  approvalRule: text("approval_rule").notNull().default("human_approves_final_deal"),
+  status: text("status").notNull().default("draft"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const negotiations = pgTable("negotiations", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  mandateId: uuid("mandate_id")
+    .notNull()
+    .references(() => mandates.id),
+  listingId: uuid("listing_id")
+    .notNull()
+    .references(() => listings.id),
+  state: negotiationState("state").notNull().default("OPEN"),
+  sellerOfferMinor: integer("seller_offer_minor"),
+  buyerOfferMinor: integer("buyer_offer_minor"),
+  rounds: integer("rounds").notNull().default(0),
+  agreedPriceMinor: integer("agreed_price_minor"),
+  outcomeReason: text("outcome_reason"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const negotiationTurns = pgTable("negotiation_turns", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  negotiationId: uuid("negotiation_id")
+    .notNull()
+    .references(() => negotiations.id),
+  actor: turnActor("actor").notNull(),
+  message: text("message").notNull(),
+  proposedPriceMinor: integer("proposed_price_minor"),
+  finalPriceMinor: integer("final_price_minor"),
+  guardrailResult: text("guardrail_result").notNull(),
+  round: integer("round").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const orders = pgTable("orders", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  negotiationId: uuid("negotiation_id").references(() => negotiations.id),
+  paypalOrderId: text("paypal_order_id").unique(),
+  authorizationId: text("authorization_id"),
+  captureId: text("capture_id"),
+  amountMinor: integer("amount_minor").notNull(),
+  currency: text("currency").notNull().default("GBP"),
+  refundedMinor: integer("refunded_minor").notNull().default(0),
+  status: orderStatus("status").notNull().default("CREATED"),
+  trackingNumber: text("tracking_number"),
+  carrier: text("carrier"),
+  authorizedAt: timestamp("authorized_at"),
+  capturedAt: timestamp("captured_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const paypalEvents = pgTable("paypal_events", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  orderId: uuid("order_id").references(() => orders.id),
+  direction: eventDirection("direction").notNull(),
+  method: text("method"),
+  endpoint: text("endpoint").notNull(),
+  httpStatus: integer("http_status"),
+  summary: text("summary").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
