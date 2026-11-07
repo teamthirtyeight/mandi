@@ -70,6 +70,7 @@ export async function createCatalogProduct(listing: {
       httpStatus: 500,
       summary: `create_product failed: ${(err as Error).message}`.slice(0, 200),
     });
+    toolkit = null; // next call starts with a fresh access token
     return null;
   }
 }
@@ -88,7 +89,9 @@ export async function listDisputes(): Promise<DisputeSummary[] | null> {
   if (!tk) return null;
   try {
     const result: unknown = await tk.getTools()["list_disputes"].execute!({ page_size: 20 }, { toolCallId: "dashboard-disputes", messages: [] });
-    const body = (typeof result === "string" ? JSON.parse(result) : result) as { items?: Record<string, unknown>[] };
+    const body = (typeof result === "string" ? JSON.parse(result) : result) as { items?: Record<string, unknown>[]; ok?: boolean; message?: string };
+    // A refused call comes back as { ok: false }, not an exception: don't report it as "0 disputes".
+    if (body.ok === false) throw new Error(body.message ?? "PayPal refused list_disputes");
     return (body.items ?? []).map((d) => {
       const amount = d.dispute_amount as { value?: string; currency_code?: string } | undefined;
       const tx = (d.disputed_transactions as { seller_transaction_id?: string }[] | undefined)?.[0];
@@ -102,6 +105,7 @@ export async function listDisputes(): Promise<DisputeSummary[] | null> {
     });
   } catch (err) {
     console.error("[toolkit] list_disputes failed", err);
+    toolkit = null; // next call starts with a fresh access token
     return null;
   }
 }
@@ -174,24 +178,33 @@ export async function runPlatformTool<T = Record<string, unknown>>(
   args: Record<string, unknown>,
   opts: { label: string; orderId?: string | null },
 ): Promise<T> {
-  const tk = getPlatformToolkit();
-  if (!tk) throw new ToolkitError("PayPal is not configured");
-  const tool = tk.getTools()[name];
-  if (!tool?.execute) throw new ToolkitError(`Toolkit tool ${name} is not available`);
-  let body: Record<string, unknown> | null = null;
-  let failure: string | null = null;
-  try {
-    const raw: unknown = await tool.execute(args, { toolCallId: `${opts.label}`.slice(0, 60), messages: [] });
-    body = (typeof raw === "string" ? JSON.parse(raw) : raw) as Record<string, unknown>;
-    // The toolkit reports failures as { ok: false, code, message } or { error: { message } }.
-    const err = body?.error as { message?: string } | undefined;
-    if (err) failure = err.message ?? JSON.stringify(err).slice(0, 300);
-    else if (body?.ok === false) failure = String(body.message ?? body.code ?? "PayPal refused the request");
-    else if (body == null || (typeof body === "object" && Object.keys(body).length === 0 && name !== "cancel_subscription")) {
-      failure = "PayPal returned nothing";
+  if (!getPlatformToolkit()) throw new ToolkitError("PayPal is not configured");
+  const attempt = async () => {
+    const tool = getPlatformToolkit()!.getTools()[name];
+    if (!tool?.execute) throw new ToolkitError(`Toolkit tool ${name} is not available`);
+    let body: Record<string, unknown> | null = null;
+    let failure: string | null = null;
+    try {
+      const raw: unknown = await tool.execute(args, { toolCallId: `${opts.label}`.slice(0, 60), messages: [] });
+      body = (typeof raw === "string" ? JSON.parse(raw) : raw) as Record<string, unknown>;
+      // The toolkit reports failures as { ok: false, code, message } or { error: { message } }.
+      const err = body?.error as { message?: string } | undefined;
+      if (err) failure = err.message ?? JSON.stringify(err).slice(0, 300);
+      else if (body?.ok === false) failure = String(body.message ?? body.code ?? "PayPal refused the request");
+      else if (body == null || (typeof body === "object" && Object.keys(body).length === 0 && name !== "cancel_subscription")) {
+        failure = "PayPal returned nothing";
+      }
+    } catch (err) {
+      failure = (err as Error).message;
     }
-  } catch (err) {
-    failure = (err as Error).message;
+    return { body, failure };
+  };
+  let { body, failure } = await attempt();
+  // The toolkit keeps its own access token. If PayPal refuses it (revoked, expired,
+  // or issued before a feature was switched on), start a fresh toolkit and retry once.
+  if (failure && /401|invalid_token|expired|unauthori[sz]ed|authentication|insufficient permissions/i.test(failure)) {
+    platform = null;
+    ({ body, failure } = await attempt());
   }
   await logPaypalEvent({
     direction: "call",

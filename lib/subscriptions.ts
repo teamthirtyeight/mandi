@@ -66,7 +66,7 @@ export async function monthArtisan(now = new Date()) {
     .select()
     .from(schema.sellers)
     .where(and(isNotNull(schema.sellers.photoUrl), isNotNull(schema.sellers.craft)))
-    .orderBy(asc(schema.sellers.createdAt));
+    .orderBy(asc(schema.sellers.createdAt), asc(schema.sellers.name), asc(schema.sellers.id)); // fixed order: seeded makers share a createdAt
   if (makers.length === 0) return null;
   const monthIndex = now.getUTCFullYear() * 12 + now.getUTCMonth();
   return makers[monthIndex % makers.length];

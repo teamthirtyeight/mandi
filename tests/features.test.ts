@@ -309,3 +309,32 @@ describe.skipIf(!TEST_DB)("features on the database", () => {
     });
   });
 });
+
+describe("PayPal access token", () => {
+  it("a refused token is replaced and the request sent once more", async () => {
+    process.env.PAYPAL_CLIENT_ID = "test-id";
+    process.env.PAYPAL_CLIENT_SECRET = "test-secret";
+    let tokens = 0;
+    const seen: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init: RequestInit = {}) => {
+        const path = new URL(url).pathname;
+        const json = (status: number, data: unknown) => new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json" } });
+        if (path === "/v1/oauth2/token") return json(200, { access_token: `tok-${++tokens}`, expires_in: 3600 });
+        const auth = (init.headers as Record<string, string>).Authorization;
+        seen.push(auth);
+        // Anything but the newest token is refused, like a revoked one.
+        return auth !== `Bearer tok-${tokens}` || tokens < 2
+          ? json(401, { error: "invalid_token" })
+          : json(200, { batch_header: { batch_status: "SUCCESS" }, items: [{ transaction_status: "SUCCESS" }] });
+      }),
+    );
+    const { getPayout } = await import("@/lib/paypal/rest");
+    // First a token is issued and refused, then a fresh one works.
+    await expect(getPayout("B-1")).rejects.toThrow();
+    expect((await getPayout("B-1")).status).toBe("SUCCESS");
+    expect(seen.at(-1)).toBe("Bearer tok-2");
+    vi.unstubAllGlobals();
+  });
+});

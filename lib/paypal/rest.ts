@@ -74,20 +74,29 @@ interface RequestOpts {
 }
 
 async function paypalRequest<T = PaypalBody>(opts: RequestOpts): Promise<T> {
-  const token = await getAccessToken();
-  const headers: Record<string, string> = {
-    Authorization: `Bearer ${token}`,
-    "Content-Type": "application/json",
-    Prefer: "return=representation",
+  const requestId = opts.method === "POST" ? (opts.requestId ?? randomUUID()) : null;
+  const send = async () => {
+    const headers: Record<string, string> = {
+      Authorization: `Bearer ${await getAccessToken()}`,
+      "Content-Type": "application/json",
+      Prefer: "return=representation",
+    };
+    if (requestId) headers["PayPal-Request-Id"] = requestId;
+    return fetch(`${BASE_URL}${opts.path}`, {
+      method: opts.method,
+      headers,
+      body: opts.method === "POST" ? JSON.stringify(opts.body ?? {}) : undefined,
+      cache: "no-store",
+    });
   };
-  if (opts.method === "POST") headers["PayPal-Request-Id"] = opts.requestId ?? randomUUID();
 
-  const res = await fetch(`${BASE_URL}${opts.path}`, {
-    method: opts.method,
-    headers,
-    body: opts.method === "POST" ? JSON.stringify(opts.body ?? {}) : undefined,
-    cache: "no-store",
-  });
+  let res = await send();
+  // A revoked or expired token: get a new one and try once more (same request id,
+  // so it's still safe for POSTs; PayPal didn't process the refused request).
+  if (res.status === 401) {
+    cachedToken = null;
+    res = await send();
+  }
   const text = await res.text();
   const body = text ? JSON.parse(text) : null;
 
