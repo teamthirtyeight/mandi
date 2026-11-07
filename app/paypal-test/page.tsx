@@ -42,45 +42,47 @@ export default function PaypalTestPage() {
           <p className="money mt-2 text-3xl">£72.00</p>
         </div>
 
-        <PayPalScriptProvider options={{ clientId, intent: "authorize", currency: "GBP" }}>
-          <PayPalButtons
-            style={{ layout: "vertical", label: "pay" }}
-            createOrder={async () => {
-              setResult({ kind: "idle" });
-              const res = await fetch("/api/paypal/test-order", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ requestKey: requestKey.current }),
-              });
-              const body = await res.json();
-              refresh();
-              if (!res.ok) throw new Error(body.error ?? "Could not create order");
-              return body.id;
-            }}
-            onApprove={async (data) => {
-              const res = await fetch(`/api/paypal/orders/${data.orderID}/authorize`, { method: "POST" });
-              const body = await res.json();
-              // Fresh key so the next test creates a new order.
-              requestKey.current = crypto.randomUUID();
-              refresh();
-              if (!res.ok) {
-                setResult({ kind: "error", message: body.error ?? "Authorize failed" });
-                return;
-              }
-              setResult({ kind: "held", authorizationId: body.authorizationId, orderId: body.orderId });
-            }}
-            onCancel={() => {
-              // The popup was closed: the next click should start a new order.
-              requestKey.current = crypto.randomUUID();
-              setResult({ kind: "cancelled" });
-              refresh();
-            }}
-            onError={(err) => {
-              requestKey.current = crypto.randomUUID();
-              setResult({ kind: "error", message: String(err) });
-            }}
-          />
-        </PayPalScriptProvider>
+        <div className="relative isolate">
+          <PayPalScriptProvider options={{ clientId, intent: "authorize", currency: "GBP" }}>
+            <PayPalButtons
+              style={{ layout: "vertical", label: "pay" }}
+              createOrder={async () => {
+                setResult({ kind: "idle" });
+                const res = await fetch("/api/paypal/test-order", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ requestKey: requestKey.current }),
+                });
+                const body = await res.json();
+                refresh();
+                if (!res.ok) throw new Error(body.error ?? "Could not create order");
+                return body.id;
+              }}
+              onApprove={async (data) => {
+                const res = await fetch(`/api/paypal/orders/${data.orderID}/authorize`, { method: "POST" });
+                const body = await res.json();
+                // Fresh key so the next test creates a new order.
+                requestKey.current = crypto.randomUUID();
+                refresh();
+                if (!res.ok) {
+                  setResult({ kind: "error", message: body.error ?? "Authorize failed" });
+                  return;
+                }
+                setResult({ kind: "held", authorizationId: body.authorizationId, orderId: body.orderId });
+              }}
+              onCancel={() => {
+                // The popup was closed: the next click should start a new order.
+                requestKey.current = crypto.randomUUID();
+                setResult({ kind: "cancelled" });
+                refresh();
+              }}
+              onError={(err) => {
+                requestKey.current = crypto.randomUUID();
+                setResult({ kind: "error", message: String(err) });
+              }}
+            />
+          </PayPalScriptProvider>
+        </div>
 
         {result.kind === "held" && (
           <div className="notice notice-safe p-5" role="status">

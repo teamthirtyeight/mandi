@@ -325,7 +325,9 @@ export default function DealPage({ params }: { params: Promise<{ id: string }> }
                 them while the SDK is still closing its popup throws
                 paypal_js_sdk_v5_unhandled_exception. */}
             {clientId ? (
-              <div hidden={Boolean(held)}>
+              // "isolate" keeps PayPal's button frame (z-index 100) in its own layer,
+              // so menus like the notifications panel open over it, not under it.
+              <div hidden={Boolean(held)} className="relative isolate">
                 <PayPalScriptProvider options={{ clientId, intent: "authorize", currency: best.currency }}>
                   <PayPalButtons
                     key={best.negotiationId}
