@@ -1,5 +1,16 @@
 import type { Metadata } from "next";
-import { Anek_Devanagari, Anek_Latin } from "next/font/google";
+import {
+  Anek_Bangla,
+  Anek_Devanagari,
+  Anek_Gujarati,
+  Anek_Gurmukhi,
+  Anek_Kannada,
+  Anek_Latin,
+  Anek_Malayalam,
+  Anek_Odia,
+  Anek_Tamil,
+  Anek_Telugu,
+} from "next/font/google";
 import "./globals.css";
 import { SiteNav } from "@/components/SiteNav";
 import { DockedCallLog } from "@/components/DockedCallLog";
@@ -9,6 +20,17 @@ import { getUser } from "@/lib/auth/session";
 // axis used for the wide headlines.
 const anek = Anek_Latin({ variable: "--font-anek", subsets: ["latin", "latin-ext"], axes: ["wdth"] });
 const anekDev = Anek_Devanagari({ variable: "--font-anek-dev", subsets: ["devanagari"], axes: ["wdth"] });
+// Other Indian scripts for sellers' languages. Not preloaded: a page only
+// downloads the script it actually shows.
+const anekBn = Anek_Bangla({ variable: "--font-anek-bn", subsets: ["bengali"], preload: false });
+const anekTa = Anek_Tamil({ variable: "--font-anek-ta", subsets: ["tamil"], preload: false });
+const anekTe = Anek_Telugu({ variable: "--font-anek-te", subsets: ["telugu"], preload: false });
+const anekGu = Anek_Gujarati({ variable: "--font-anek-gu", subsets: ["gujarati"], preload: false });
+const anekKn = Anek_Kannada({ variable: "--font-anek-kn", subsets: ["kannada"], preload: false });
+const anekMl = Anek_Malayalam({ variable: "--font-anek-ml", subsets: ["malayalam"], preload: false });
+const anekPa = Anek_Gurmukhi({ variable: "--font-anek-pa", subsets: ["gurmukhi"], preload: false });
+const anekOr = Anek_Odia({ variable: "--font-anek-or", subsets: ["oriya"], preload: false });
+const scripts = [anekBn, anekTa, anekTe, anekGu, anekKn, anekMl, anekPa, anekOr];
 
 export const metadata: Metadata = {
   title: "Mandi",
@@ -23,7 +45,7 @@ export default async function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${anek.variable} ${anekDev.variable} min-h-screen antialiased`}
+        className={`${anek.variable} ${anekDev.variable} ${scripts.map((f) => f.variable).join(" ")} min-h-screen antialiased`}
       >
         <SiteNav />
         {children}

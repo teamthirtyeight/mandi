@@ -46,7 +46,10 @@ export const sellers = pgTable("sellers", {
   story: text("story").notNull(),
   // Payee for orders: the seller's PayPal sandbox business account.
   paypalMerchantEmail: text("paypal_merchant_email").notNull(),
-  language: text("language").notNull().default("en"),
+  language: text("language").notNull().default("en"), // lib/i18n/seller.ts SELLER_LANGUAGES
+  // WhatsApp alerts (lib/whatsapp.ts): E.164 number and explicit opt-in.
+  whatsappNumber: text("whatsapp_number"),
+  whatsappOptIn: boolean("whatsapp_opt_in").notNull().default(false),
   // Shipping promise used by the deadline guardrail.
   shipByDays: integer("ship_by_days").notNull().default(3),
   transitDays: integer("transit_days").notNull().default(7),
@@ -241,3 +244,19 @@ export const passwordResets = pgTable("password_resets", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+// Every WhatsApp message Mandi sends (or would send, without Twilio keys), so
+// sellers and judges can see exactly what went out.
+export const whatsappMessages = pgTable("whatsapp_messages", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  sellerId: uuid("seller_id")
+    .notNull()
+    .references(() => sellers.id, { onDelete: "cascade" }),
+  orderId: uuid("order_id"),
+  to: text("to").notNull(),
+  body: text("body").notNull(),
+  mediaUrl: text("media_url"), // banner card attached to the message, if any
+  status: text("status").notNull(), // sent | logged | failed
+  providerId: text("provider_id"),
+  error: text("error"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});

@@ -4,8 +4,9 @@
 // how firmly it holds the price, what it may offer, and the profile it argues
 // from; buyers set how hard it haggles, how many sellers it talks to, and what
 // matters most when it recommends a deal.
-import { useEffect, useId, useState } from "react";
+import { useCallback, useEffect, useId, useState } from "react";
 import Link from "next/link";
+import { LANGUAGE_INFO, SELLER_LANGUAGES, type SellerLanguage } from "@/lib/i18n/seller";
 
 type SellerSettings = {
   agentStyle: "firm" | "balanced" | "flexible";
@@ -14,7 +15,15 @@ type SellerSettings = {
   maxBundleDiscountPct: number;
   agentNote: string | null;
 };
-type SellerProfile = { story: string; language: "en" | "hi"; shipByDays: number; transitDays: number; refundCap: number };
+type SellerProfile = {
+  story: string;
+  language: SellerLanguage;
+  shipByDays: number;
+  transitDays: number;
+  refundCap: number;
+  whatsappNumber: string;
+  whatsappOptIn: boolean;
+};
 type BuyerSettings = {
   agentStyle: "patient" | "balanced" | "quick";
   maxSellers: number;
@@ -121,6 +130,91 @@ function Section({ title, body, children }: { title: string; body: string; child
       <p className="mt-1 text-ink-2">{body}</p>
       <div className="mt-5 space-y-5">{children}</div>
     </section>
+  );
+}
+
+interface WaMessage {
+  id: string;
+  to: string;
+  body: string;
+  status: "sent" | "logged" | "failed";
+  error: string | null;
+  createdAt: string;
+}
+
+// Test button and the last few messages, so a seller (or a judge) can see
+// exactly what their agent sent.
+function WhatsAppPanel({ unsaved }: { unsaved: boolean }) {
+  const [state, setState] = useState<{ live: boolean; messages: WaMessage[] } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    const res = await fetch("/api/whatsapp/test", { cache: "no-store" });
+    if (res.ok) setState(await res.json());
+  }, []);
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const STATUS: Record<WaMessage["status"], { label: string; cls: string }> = {
+    sent: { label: "Sent", cls: "chip-safe" },
+    logged: { label: "Recorded, not sent", cls: "" },
+    failed: { label: "Failed", cls: "chip-bad" },
+  };
+
+  return (
+    <div className="well space-y-3 p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-ink-2">
+          {state?.live
+            ? "Messages are sent through Twilio's WhatsApp service."
+            : "WhatsApp isn't connected on this server yet, so messages are recorded here instead of sent."}
+        </p>
+        <button
+          type="button"
+          className="btn btn-secondary btn-sm"
+          disabled={busy || unsaved}
+          title={unsaved ? "Save your changes first" : undefined}
+          onClick={async () => {
+            setBusy(true);
+            setError(null);
+            const res = await fetch("/api/whatsapp/test", { method: "POST" });
+            const body = await res.json().catch(() => ({}));
+            if (!res.ok) setError(body.error ?? body.message?.error ?? "Couldn't send the test message");
+            setBusy(false);
+            load();
+          }}
+        >
+          {busy ? "Sending…" : "Send a test message"}
+        </button>
+      </div>
+      {unsaved && <p className="hint">Save your changes before sending a test message.</p>}
+      {error && (
+        <p role="alert" className="notice notice-bad text-sm">
+          {error}
+        </p>
+      )}
+      {state && state.messages.length > 0 && (
+        <ul className="space-y-2" aria-label="Recent WhatsApp messages">
+          {state.messages.map((m) => (
+            <li key={m.id} className="rounded-xl bg-raised p-3 text-sm">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="money text-ink-3">{m.to}</span>
+                <span className="flex items-center gap-2">
+                  <span className={`chip ${STATUS[m.status].cls}`}>{STATUS[m.status].label}</span>
+                  <time className="text-ink-3" dateTime={m.createdAt}>
+                    {new Date(m.createdAt).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                  </time>
+                </span>
+              </div>
+              <p className="mt-2 whitespace-pre-line text-ink">{m.body.replace(/\*/g, "")}</p>
+              {m.error && <p className="mt-1 text-madder">{m.error}</p>}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }
 
@@ -271,10 +365,14 @@ export default function AgentPage() {
                   <label htmlFor="language" className="label">
                     Language for your alerts
                   </label>
-                  <select id="language" className="field" value={data.profile.language} onChange={(e) => setProfile({ language: e.target.value as "en" | "hi" })}>
-                    <option value="hi">हिन्दी (Hindi)</option>
-                    <option value="en">English</option>
+                  <select id="language" className="field" value={data.profile.language} onChange={(e) => setProfile({ language: e.target.value as SellerLanguage })}>
+                    {SELLER_LANGUAGES.map((code) => (
+                      <option key={code} value={code}>
+                        {code === "en" ? "English" : `${LANGUAGE_INFO[code].native} (${LANGUAGE_INFO[code].name})`}
+                      </option>
+                    ))}
                   </select>
+                  <p className="hint mt-1">Your phone view, alerts and WhatsApp messages use this language.</p>
                 </div>
                 <div>
                   <label htmlFor="refund-cap" className="label">
@@ -312,6 +410,38 @@ export default function AgentPage() {
                 </Link>
                 .
               </p>
+            </Section>
+
+            <Section
+              title="Alerts on WhatsApp"
+              body="Your agent messages you on WhatsApp when something sells, when money arrives, and when a buyer needs a refund approved. In your language, with amounts in rupees."
+            >
+              <div>
+                <label htmlFor="whatsapp" className="label">
+                  WhatsApp number
+                </label>
+                <input
+                  id="whatsapp"
+                  className="field money"
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="tel"
+                  placeholder="+91 98765 43210"
+                  value={data.profile.whatsappNumber}
+                  onChange={(e) => setProfile({ whatsappNumber: e.target.value })}
+                  aria-describedby="whatsapp-hint"
+                />
+                <p id="whatsapp-hint" className="hint mt-1">
+                  With the country code. A 10-digit Indian mobile number works too.
+                </p>
+              </div>
+              <Toggle
+                checked={data.profile.whatsappOptIn}
+                onChange={(v) => setProfile({ whatsappOptIn: v })}
+                label="Send my alerts on WhatsApp"
+                hint="You can turn this off at any time. Alerts still appear in Mandi."
+              />
+              <WhatsAppPanel unsaved={dirty} />
             </Section>
           </>
         ) : (

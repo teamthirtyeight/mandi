@@ -6,6 +6,7 @@
 // ?role=seller or ?role=buyer preselects the account type.
 import { Suspense, useState } from "react";
 import Link from "next/link";
+import { LANGUAGE_INFO, SELLER_LANGUAGES } from "@/lib/i18n/seller";
 import { useRouter, useSearchParams } from "next/navigation";
 
 type Role = "buyer" | "seller";
@@ -167,9 +168,13 @@ function SignupForm() {
                   Language for alerts
                 </label>
                 <select id="su-language" className="field" value={f.language} onChange={set("language")}>
-                  <option value="hi">हिन्दी (Hindi)</option>
-                  <option value="en">English</option>
+                  {SELLER_LANGUAGES.map((code) => (
+                    <option key={code} value={code}>
+                      {code === "en" ? "English" : `${LANGUAGE_INFO[code].native} (${LANGUAGE_INFO[code].name})`}
+                    </option>
+                  ))}
                 </select>
+                <p className="hint mt-1">Sales alerts and your phone view use this language. You can add WhatsApp alerts later in My agent.</p>
               </div>
             </div>
 

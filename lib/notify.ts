@@ -1,10 +1,14 @@
 // In-app notifications for buyers and sellers, written at each step of an
-// order. Sellers get them in their language (Hindi for Meera) with rupees.
+// order. Sellers get them in their language (Hindi for Meera) with rupees, and
+// on WhatsApp too if they've opted in.
 // The bell in the nav shows them and, with permission, the browser raises a
 // system notification. Failures here never block the money flow.
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { gbpInr, inr } from "@/lib/fx";
+import { SELLER_STRINGS, sellerLanguage, type SellerLanguage } from "@/lib/i18n/seller";
+import { sendWhatsApp } from "@/lib/whatsapp";
+import { signBanner, type BannerData } from "@/lib/banner";
 
 export type OrderEvent = "held" | "captured" | "refunded" | "refund_pending" | "voided";
 
@@ -15,8 +19,12 @@ async function parties(orderId: string) {
     .select({
       order: schema.orders,
       title: schema.listings.title,
+      images: schema.listings.images,
       sellerId: schema.sellers.id,
+      sellerName: schema.sellers.name,
       language: schema.sellers.language,
+      whatsappNumber: schema.sellers.whatsappNumber,
+      whatsappOptIn: schema.sellers.whatsappOptIn,
       shipByDays: schema.sellers.shipByDays,
       buyerUserId: schema.mandates.buyerUserId,
     })
@@ -31,35 +39,59 @@ async function parties(orderId: string) {
   return { ...row, sellerUserIds: sellerUsers.map((u) => u.id) };
 }
 
-function sellerText(e: OrderEvent, hi: boolean, title: string, amountMinor: number, extraMinor: number, shipByDays: number, rate: number) {
+function sellerText(e: OrderEvent, lang: SellerLanguage, title: string, amountMinor: number, extraMinor: number, shipByDays: number, rate: number) {
+  const t = SELLER_STRINGS[lang];
   const money = `${inr(amountMinor / 100, rate)} (${gbp(amountMinor)})`;
   const extra = `${inr(extraMinor / 100, rate)} (${gbp(extraMinor)})`;
-  if (hi) {
-    switch (e) {
-      case "held":
-        return { title: `बिक गया! ${money}`, body: `${title} — कृपया ${shipByDays} दिन में भेजें। पैसा PayPal में सुरक्षित है।` };
-      case "captured":
-        return { title: `भुगतान मिल गया: ${money}`, body: title };
-      case "refund_pending":
-        return { title: `${extra} रिफंड की मंज़ूरी चाहिए`, body: `${title} — खरीदार ने शिकायत की है।` };
-      case "refunded":
-        return { title: `रिफंड किया: ${extra}`, body: title };
-      case "voided":
-        return { title: "होल्ड रद्द हुआ", body: `${title} — समय पर नहीं भेजा गया; खरीदार से पैसा नहीं लिया गया।` };
-    }
-  }
   switch (e) {
     case "held":
-      return { title: `Sold for ${money}!`, body: `${title}. Please ship within ${shipByDays} days; the money is held by PayPal.` };
+      return { title: t.soldTitle(money), body: `${title}: ${t.shipWithin(shipByDays)}` };
     case "captured":
-      return { title: `Payment received: ${money}`, body: title };
+      return { title: t.paid(money), body: title };
     case "refund_pending":
-      return { title: `Approve a ${extra} refund?`, body: `${title}: the buyer reported a problem.` };
+      return { title: t.refundTitle(extra), body: `${title}: ${t.complained}` };
     case "refunded":
-      return { title: `Refunded ${extra}`, body: title };
+      return { title: t.refunded(extra), body: title };
     case "voided":
-      return { title: "Hold released", body: `${title}: not shipped in time, so the buyer wasn't charged.` };
+      return { title: t.voidedTitle, body: `${title}: ${t.voidedBody}` };
   }
+}
+
+/** The image card for a seller alert (lib/banner.ts), from the same facts as its text. */
+export async function sellerBanner(orderId: string, event: OrderEvent, extraMinor = 0): Promise<BannerData | null> {
+  const p = await parties(orderId);
+  if (!p) return null;
+  const { rate } = await gbpInr();
+  const lang = sellerLanguage(p.language);
+  const t = SELLER_STRINGS[lang];
+  const rupees = (minor: number) => inr(minor / 100, rate);
+  const base = { lang, listingTitle: p.title, image: p.images[0] ?? null, sellerName: p.sellerName };
+  switch (event) {
+    case "held":
+      return { ...base, tone: "agreed", chip: t.toShip, headline: t.soldTitle(rupees(p.order.amountMinor)), sub: gbp(p.order.amountMinor), body: t.shipWithin(p.shipByDays) };
+    case "captured":
+      return { ...base, tone: "safe", chip: t.done, headline: t.paid(rupees(p.order.amountMinor)), sub: gbp(p.order.amountMinor), body: null };
+    case "refund_pending":
+      return { ...base, tone: "bad", chip: t.problem, headline: t.refundTitle(rupees(extraMinor)), sub: gbp(extraMinor), body: t.complained };
+    case "refunded":
+      return { ...base, tone: "progress", chip: null, headline: t.refunded(rupees(extraMinor)), sub: gbp(extraMinor), body: null };
+    case "voided":
+      return { ...base, tone: "plain", chip: null, headline: t.voidedTitle, sub: null, body: t.voidedBody };
+  }
+}
+
+/** Signed link Twilio downloads the card from; null when Mandi isn't publicly reachable. */
+export function bannerUrl(kind: string, id: string, extraMinor = 0): string | null {
+  const base = appUrl();
+  if (!base.startsWith("https://")) return null; // Twilio can't download from localhost
+  const parts = [kind, id, String(extraMinor)];
+  const q = new URLSearchParams({ k: kind, id, x: String(extraMinor), s: signBanner(parts) });
+  return `${base}/api/whatsapp/banner?${q}`;
+}
+
+/** Public address for links in WhatsApp messages. */
+export function appUrl(): string {
+  return (process.env.APP_URL ?? process.env.RENDER_EXTERNAL_URL ?? "http://localhost:3000").replace(/\/$/, "");
 }
 
 function buyerText(e: OrderEvent, title: string, amountMinor: number, extraMinor: number, tracking: string | null) {
@@ -85,8 +117,21 @@ export async function notifyOrder(orderId: string, event: OrderEvent, extraMinor
     const link = `/order/${orderId}`;
     const rows: (typeof schema.notifications.$inferInsert)[] = [];
     const { rate } = await gbpInr();
-    const s = sellerText(event, p.language === "hi", p.title, p.order.amountMinor, extraMinor, p.shipByDays, rate);
-    for (const userId of p.sellerUserIds) rows.push({ userId, ...s, link: event === "held" ? "/seller" : link });
+    const lang = sellerLanguage(p.language);
+    const s = sellerText(event, lang, p.title, p.order.amountMinor, extraMinor, p.shipByDays, rate);
+    const sellerLink = event === "held" ? "/seller" : link;
+    for (const userId of p.sellerUserIds) rows.push({ userId, ...s, link: sellerLink });
+    // The seller's agent also messages them on WhatsApp, if they opted in.
+    // Not awaited: a slow or failed message never holds up the money flow.
+    if (p.whatsappOptIn && p.whatsappNumber) {
+      const body = `*${s.title}*\n${s.body}\n\n${SELLER_STRINGS[lang].open}: ${appUrl()}${sellerLink}`;
+      const to = p.whatsappNumber;
+      void (async () => {
+        const { preparedBannerUrl } = await import("@/lib/banner-data"); // lazy: avoids an import cycle
+        const mediaUrl = await preparedBannerUrl(event, orderId, extraMinor);
+        await sendWhatsApp({ sellerId: p.sellerId, orderId, to, body, mediaUrl });
+      })().catch((err) => console.error("[notify] whatsapp failed", err));
+    }
     const b = buyerText(event, p.title, p.order.amountMinor, extraMinor, p.order.trackingNumber);
     if (b && p.buyerUserId) rows.push({ userId: p.buyerUserId, ...b, link });
     if (rows.length) await db.insert(schema.notifications).values(rows);

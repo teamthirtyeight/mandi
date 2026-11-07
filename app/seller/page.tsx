@@ -8,49 +8,9 @@ import Link from "next/link";
 import type { Dashboard } from "@/lib/dashboard/data";
 import { inr } from "@/lib/fx";
 import { ShippingAddress } from "@/components/ShippingAddress";
+import { LANGUAGE_INFO, SELLER_STRINGS, sellerLanguage } from "@/lib/i18n/seller";
 
 type Order = Dashboard["orders"][number];
-
-const T = {
-  hi: {
-    title: "मेरी बिक्री",
-    sold: (amt: string, buyer: string) => `बिक गया! ${amt} में, ${buyer} को।`,
-    toShip: "भेजना है",
-    done: "पूरा हुआ",
-    problem: "शिकायत",
-    shipBy: (d: string) => `कृपया ${d} तक भेजें। पैसा PayPal में सुरक्षित है।`,
-    tracking: "ट्रैकिंग नंबर",
-    shipped: "भेज दिया",
-    paid: (amt: string) => `भुगतान मिल गया: ${amt}`,
-    refunded: (amt: string) => `रिफंड किया: ${amt}`,
-    refundAsk: (amt: string) => `खरीदार ने शिकायत की है। ${amt} रिफंड की मंज़ूरी दें?`,
-    approve: "मंज़ूरी दें",
-    voided: "होल्ड रद्द हुआ। खरीदार से कोई पैसा नहीं लिया गया।",
-    empty: "अभी कोई बिक्री नहीं। जब किसी खरीदार का एजेंट सौदा तय करेगा, वह यहाँ दिखेगी।",
-    sending: "भेजा जा रहा है…",
-    shipTo: "इस पते पर भेजें",
-    extend: "और समय चाहिए? होल्ड बढ़ाएँ",
-  },
-  en: {
-    title: "My sales",
-    sold: (amt: string, buyer: string) => `Sold for ${amt} to ${buyer}!`,
-    toShip: "To ship",
-    done: "Done",
-    problem: "Problem",
-    shipBy: (d: string) => `Please ship by ${d}. The money is held safely by PayPal.`,
-    tracking: "Tracking number",
-    shipped: "Shipped",
-    paid: (amt: string) => `Payment received: ${amt}`,
-    refunded: (amt: string) => `Refunded: ${amt}`,
-    refundAsk: (amt: string) => `The buyer reported a problem. Approve a ${amt} refund?`,
-    approve: "Approve",
-    voided: "Hold released. The buyer was not charged.",
-    empty: "No orders yet. When a buyer's agent agrees a deal, it appears here.",
-    sending: "Sending…",
-    shipTo: "Ship to",
-    extend: "Need more time? Extend the hold",
-  },
-};
 
 const gbp = (n: number) => new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(n);
 
@@ -116,9 +76,9 @@ export default function SellerPhone() {
         </p>
       </main>
     );
-  const hi = data.seller.language === "hi";
-  const t = hi ? T.hi : T.en;
-  const date = (iso: string) => new Date(iso).toLocaleDateString(hi ? "hi-IN" : "en-GB", { day: "numeric", month: "long" });
+  const lang = sellerLanguage(data.seller.language);
+  const t = SELLER_STRINGS[lang];
+  const date = (iso: string) => new Date(iso).toLocaleDateString(LANGUAGE_INFO[lang].locale, { day: "numeric", month: "long" });
   const money = (g: number) => `${inr(g, fx?.rate)} (${gbp(g)})`;
   // Unpaid orders (the buyer opened PayPal but never approved) need nothing from the seller.
   // Orders that need the seller (ship, approve a refund) come first.
@@ -128,7 +88,7 @@ export default function SellerPhone() {
     .sort((a: Order, b: Order) => Number(needsSeller(b)) - Number(needsSeller(a)));
 
   return (
-    <main className="flex min-h-[calc(100vh-65px)] justify-center bg-surface px-3 py-6 sm:py-10" lang={hi ? "hi" : "en"}>
+    <main className="flex min-h-[calc(100vh-65px)] justify-center bg-surface px-3 py-6 sm:py-10" lang={lang}>
       <div className="flex min-h-[640px] w-full max-w-sm flex-col overflow-hidden rounded-[2.5rem] border-[7px] border-ink bg-paper shadow-[0_30px_70px_-30px_rgb(21_25_53/0.55)]">
         <header className="bg-leaf px-5 pb-4 pt-5 text-paper">
           <p className="text-sm opacity-85">Mandi, {data.seller.name}</p>

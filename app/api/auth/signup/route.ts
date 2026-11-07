@@ -3,6 +3,7 @@
 // language, how fast they ship, and the refund cap their agent may grant.
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { SELLER_LANGUAGES } from "@/lib/i18n/seller";
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { hashPassword } from "@/lib/auth/password";
@@ -23,7 +24,7 @@ const Body = z.discriminatedUnion("role", [
     country: z.string().trim().length(2).toUpperCase().default("IN"),
     story: z.string().trim().min(10).max(600),
     paypalEmail: z.string().trim().toLowerCase().email().max(120),
-    language: z.enum(["en", "hi"]).default("en"),
+    language: z.enum(SELLER_LANGUAGES).default("en"),
     shipByDays: z.number().int().min(1).max(3).default(3),
     transitDays: z.number().int().min(1).max(30).default(7),
     refundCap: z.number().min(0).max(1000).default(10),

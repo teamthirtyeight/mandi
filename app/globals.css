@@ -92,10 +92,19 @@ body {
   font-variation-settings: "wdth" 100;
 }
 
-/* Hindi text uses the Devanagari cut of the same family. */
-:lang(hi) {
+/* Seller languages use the matching Anek script of the same family. */
+:lang(hi),
+:lang(mr) {
   font-family: var(--font-anek-dev), var(--font-anek), system-ui, sans-serif;
 }
+:lang(bn) { font-family: var(--font-anek-bn), var(--font-anek), system-ui, sans-serif; }
+:lang(ta) { font-family: var(--font-anek-ta), var(--font-anek), system-ui, sans-serif; }
+:lang(te) { font-family: var(--font-anek-te), var(--font-anek), system-ui, sans-serif; }
+:lang(gu) { font-family: var(--font-anek-gu), var(--font-anek), system-ui, sans-serif; }
+:lang(kn) { font-family: var(--font-anek-kn), var(--font-anek), system-ui, sans-serif; }
+:lang(ml) { font-family: var(--font-anek-ml), var(--font-anek), system-ui, sans-serif; }
+:lang(pa) { font-family: var(--font-anek-pa), var(--font-anek), system-ui, sans-serif; }
+:lang(or) { font-family: var(--font-anek-or), var(--font-anek), system-ui, sans-serif; }
 
 :focus-visible {
   outline: 2px solid var(--focus);

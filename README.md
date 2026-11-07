@@ -29,7 +29,7 @@ AI shopping agents buy from merchants that have structured catalogs. Artisans, h
 5. **Ship, then get paid.** The seller adds tracking, Mandi captures the payment, and the tracking is attached to the PayPal order.
 6. **Problems handled.** Sarah reports a problem, optionally with a photo. The seller's agent proposes a refund; anything within the seller's cap is refunded through PayPal at once, and anything above it waits for the seller's approval. For a formal PayPal dispute, the order page downloads an evidence pack: listing, chat log, tracking and photo.
 
-Meera follows all of this on a phone-sized view in Hindi with rupee amounts (`/seller/[id]`): "बिक गया! … कृपया भेजें", then "भुगतान मिल गया".
+Meera follows all of this on a phone-sized view in Hindi with rupee amounts (`/seller`): "बिक गया! … कृपया भेजें", then "भुगतान मिल गया". Sellers can pick any of 11 languages (English, Hindi, Marathi, Bengali, Tamil, Telugu, Gujarati, Kannada, Malayalam, Punjabi, Odia) for the phone view and alerts, and turn on WhatsApp alerts in My agent: their agent then messages them each sale, payment, refund request and released hold, in their language (`lib/whatsapp.ts`, Twilio; without Twilio keys messages are recorded in the app instead of sent).
 
 ## Accounts
 
@@ -194,7 +194,8 @@ docs/             architecture, Postman collection, Devpost draft, launch checkl
 - Platform fees, marketplace payouts and seller KYC.
 - Mobile apps; the web app is responsive.
 - Email verification. Password-reset links are emailed only if `RESEND_API_KEY` and `MAIL_FROM` are set; otherwise they're written to the server log.
-- SMS or WhatsApp alerts (they need a provider account); notifications are in-app and system notifications.
+- WhatsApp sends free-form messages, which WhatsApp only delivers within 24 hours of the seller's last message (and, on the Twilio sandbox, after the seller joins it). Production needs approved message templates per language.
+- The Indian-language strings (`lib/i18n/seller.ts`) should be checked by native speakers. The seller dashboard and listing flow are still in English; the voice note can be in any language.
 - Currencies other than GBP: buyers are asked for a budget in £.
 
 ## What's next

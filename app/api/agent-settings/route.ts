@@ -7,12 +7,27 @@ import { db, schema } from "@/lib/db";
 import { requireUser } from "@/lib/auth/session";
 import { errorResponse } from "@/lib/api/errors";
 import { BuyerAgentSettings, SellerAgentSettings } from "@/lib/agents/settings";
+import { SELLER_LANGUAGES } from "@/lib/i18n/seller";
+import { normalizeWhatsAppNumber } from "@/lib/phone";
 
 export const dynamic = "force-dynamic";
 
 const SellerProfile = z.object({
   story: z.string().trim().min(10).max(600),
-  language: z.enum(["en", "hi"]),
+  language: z.enum(SELLER_LANGUAGES),
+  // WhatsApp alerts: an international number (+91…) and the seller's opt-in.
+  whatsappNumber: z
+    .string()
+    .trim()
+    .max(24)
+    .transform((v, ctx) => {
+      if (!v) return null;
+      const n = normalizeWhatsAppNumber(v);
+      if (!n) ctx.addIssue({ code: "custom", message: "Enter the number with its country code, like +91 98765 43210" });
+      return n;
+    })
+    .default(""),
+  whatsappOptIn: z.boolean().default(false),
   shipByDays: z.number().int().min(1).max(3),
   transitDays: z.number().int().min(1).max(30),
   refundCap: z.number().min(0).max(1000),
@@ -42,6 +57,8 @@ export async function GET() {
         shipByDays: s.shipByDays,
         transitDays: s.transitDays,
         refundCap: s.refundCapMinor / 100,
+        whatsappNumber: s.whatsappNumber ?? "",
+        whatsappOptIn: s.whatsappOptIn,
       },
     });
   } catch (err) {
@@ -66,6 +83,9 @@ export async function PUT(req: Request) {
       return NextResponse.json({ error: issue ? `${issue.path.join(".")}: ${issue.message}` : "Invalid settings" }, { status: 400 });
     }
     const { refundCap, ...rest } = profile.data;
+    if (rest.whatsappOptIn && !rest.whatsappNumber) {
+      return NextResponse.json({ error: "Add your WhatsApp number to turn on WhatsApp alerts" }, { status: 400 });
+    }
     await db
       .update(schema.sellers)
       .set({ ...settings.data, agentNote: settings.data.agentNote || null, ...rest, refundCapMinor: Math.round(refundCap * 100) })
