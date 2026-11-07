@@ -37,7 +37,27 @@ test("a seller can't open a buyer's negotiation room", async ({ page }) => {
   await page.getByRole("button", { name: /Meera · seller/ }).click();
   await expect(page).toHaveURL(/\/dashboard/);
   await page.goto(dealUrl);
-  await expect(page.getByText("This needs a buyer account")).toBeVisible();
+  // Stopped on the server: sent to log in with a buyer account instead.
+  await expect(page).toHaveURL(/\/login\?next=.*needs=buyer/);
+  await expect(page.getByText("That page is for buyers")).toBeVisible();
+});
+
+test("signed-out visitors are asked to log in, then land on the page they wanted", async ({ page }) => {
+  await page.goto("/orders");
+  await expect(page).toHaveURL(/\/login\?next=%2Forders/);
+  await page.getByRole("button", { name: /Sarah · buyer/ }).click();
+  await expect(page).toHaveURL(/\/orders$/);
+  await expect(page.getByRole("heading", { name: "My orders" })).toBeVisible();
+});
+
+test("a buyer can't open seller pages, and a hostile next link stays on Mandi", async ({ page }) => {
+  await page.goto("/login?next=//evil.example");
+  await page.getByRole("button", { name: /Sarah · buyer/ }).click();
+  await expect(page).toHaveURL(/\/shop$/);
+  await page.goto("/dashboard");
+  await expect(page).toHaveURL(/needs=seller/);
+  await page.goto("/sell");
+  await expect(page).toHaveURL(/needs=seller/);
 });
 
 test("anyone can browse listings and open a product page", async ({ page }) => {

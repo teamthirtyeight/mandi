@@ -47,6 +47,10 @@ export async function confirmReset(token: string, password: string): Promise<str
     )
     .returning({ userId: schema.passwordResets.userId });
   if (!row) return null;
-  await db.update(schema.users).set({ passwordHash: await hashPassword(password) }).where(eq(schema.users.id, row.userId));
+  // New password: sessions started before now (on any device) stop working.
+  await db
+    .update(schema.users)
+    .set({ passwordHash: await hashPassword(password), sessionsValidAfter: new Date(Date.now() - 1000) })
+    .where(eq(schema.users.id, row.userId));
   return row.userId;
 }

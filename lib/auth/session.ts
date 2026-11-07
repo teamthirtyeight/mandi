@@ -3,7 +3,7 @@
 import { cookies } from "next/headers";
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
-import { createToken, readToken, SESSION_TTL_MS } from "./token";
+import { createToken, readSession, SESSION_TTL_MS } from "./token";
 
 export const SESSION_COOKIE = "mandi_session";
 
@@ -20,10 +20,16 @@ export class AuthError extends Error {
 
 export async function getUser(): Promise<SessionUser | null> {
   const store = await cookies();
-  const userId = readToken(store.get(SESSION_COOKIE)?.value);
-  if (!userId) return null;
-  const [user] = await db.select().from(schema.users).where(eq(schema.users.id, userId));
-  return user ?? null;
+  const session = readSession(store.get(SESSION_COOKIE)?.value);
+  if (!session) return null;
+  const [user] = await db.select().from(schema.users).where(eq(schema.users.id, session.userId));
+  if (!user) return null;
+  return sessionAccepted(session.issuedAt, user.sessionsValidAfter) ? user : null;
+}
+
+/** A password change ends every session that started before it. */
+export function sessionAccepted(issuedAt: number, validAfter: Date | null): boolean {
+  return !validAfter || issuedAt >= validAfter.getTime();
 }
 
 export async function requireUser(role?: "buyer" | "seller"): Promise<SessionUser> {

@@ -5,6 +5,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { safeNext } from "@/lib/auth/routes";
 
 const DEMOS = [
   { as: "sarah", label: "Sarah · buyer, London", note: "Shops for a scarf for her mum" },
@@ -12,8 +13,6 @@ const DEMOS = [
   { as: "arjun", label: "Arjun · seller, Jaipur", note: "Indigo block printer" },
   { as: "fatima", label: "Fatima · seller, Srinagar", note: "Sozni embroiderer" },
 ] as const;
-
-const home = (role: string) => (role === "seller" ? "/dashboard" : "/shop");
 
 export function LoginPanel({ next, compact = false }: { next?: string | null; compact?: boolean }) {
   const router = useRouter();
@@ -29,7 +28,7 @@ export function LoginPanel({ next, compact = false }: { next?: string | null; co
     const json = await res.json().catch(() => ({}));
     setBusy(false);
     if (!res.ok) return setError(json.error ?? "Couldn't log in");
-    router.push(next && next.startsWith("/") ? next : home(json.user.role));
+    router.push(safeNext(next, json.user.role));
     router.refresh();
   }
 

@@ -93,6 +93,8 @@ export const users = pgTable("users", {
   priority: text("priority").notNull().default("balanced"), // price | balanced | delivery
   // Buyers: key for the Mandi MCP server, so their own AI assistant can shop (app/api/mcp).
   apiKey: text("api_key"),
+  // Sessions issued before this moment are no longer accepted (set when the password changes).
+  sessionsValidAfter: timestamp("sessions_valid_after"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

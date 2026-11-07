@@ -21,6 +21,13 @@ export function createToken(userId: string, now = Date.now()): string {
   return `${payload}.${sign(payload)}`;
 }
 
+/** The user id and when the session started, if the token is authentic and unexpired. */
+export function readSession(token: string | undefined, now = Date.now()): { userId: string; issuedAt: number } | null {
+  const userId = readToken(token, now);
+  if (!userId) return null;
+  return { userId, issuedAt: Number(token!.split(".")[1]) - SESSION_TTL_MS };
+}
+
 /** Returns the user id if the token is authentic and unexpired. */
 export function readToken(token: string | undefined, now = Date.now()): string | null {
   if (!token) return null;
