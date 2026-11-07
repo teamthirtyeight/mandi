@@ -159,6 +159,30 @@ export async function createAuthorizeOrder(input: CreateOrderInput) {
   });
 }
 
+export interface ShippingAddress {
+  name: string | null;
+  lines: string[];
+  city: string | null;
+  region: string | null;
+  postalCode: string | null;
+  countryCode: string | null;
+}
+
+/** The buyer's shipping address from a PayPal order body (collected in the popup). */
+export function shippingFrom(body: PaypalBody): ShippingAddress | null {
+  const s = body?.purchase_units?.[0]?.shipping;
+  const a = s?.address;
+  if (!a) return null;
+  return {
+    name: s.name?.full_name ?? null,
+    lines: [a.address_line_1, a.address_line_2].filter(Boolean),
+    city: a.admin_area_2 ?? null,
+    region: a.admin_area_1 ?? null,
+    postalCode: a.postal_code ?? null,
+    countryCode: a.country_code ?? null,
+  };
+}
+
 export async function authorizeOrder(paypalOrderId: string, opts: { orderId?: string | null } = {}) {
   const body = await paypalRequest({
     method: "POST",
@@ -176,6 +200,7 @@ export async function authorizeOrder(paypalOrderId: string, opts: { orderId?: st
     authorizationId: auth.id as string,
     status: auth.status as string,
     expirationTime: auth.expiration_time as string | undefined,
+    shipping: shippingFrom(body),
     raw: body,
   };
 }
@@ -259,6 +284,68 @@ export async function voidAuthorization(authorizationId: string, opts: { orderId
     orderId: opts.orderId,
     summary: (ok) => (ok ? "Authorization voided — hold released" : "Void failed"),
   });
+}
+
+/**
+ * Renews a hold for a seller who needs more time. PayPal allows this once the
+ * 3-day honor period has passed and within 29 days of the original
+ * authorization; earlier or later, PayPal refuses and the message says why.
+ */
+export async function reauthorize(authorizationId: string, opts: { orderId?: string | null } = {}) {
+  const body = await paypalRequest({
+    method: "POST",
+    path: `/v2/payments/authorizations/${authorizationId}/reauthorize`,
+    requestId: `reauthorize-${authorizationId}`,
+    orderId: opts.orderId,
+    summary: (ok, b) => (ok ? `Hold renewed (${b.id})` : "Reauthorize failed"),
+  });
+  return { authorizationId: body.id as string, expirationTime: body.expiration_time as string | undefined };
+}
+
+// ---- Disputes ----
+
+/** Sends proof of shipment and notes to a PayPal dispute (multipart, JSON part only). */
+export async function provideDisputeEvidence(input: {
+  disputeId: string;
+  carrierName: string;
+  trackingNumber: string;
+  notes: string;
+  orderId?: string | null;
+}) {
+  const token = await getAccessToken();
+  const form = new FormData();
+  form.append(
+    "input",
+    new Blob(
+      [
+        JSON.stringify({
+          evidences: [
+            {
+              evidence_type: "PROOF_OF_FULFILLMENT",
+              evidence_info: { tracking_info: [{ carrier_name: input.carrierName, tracking_number: input.trackingNumber }] },
+              notes: input.notes.slice(0, 2000),
+            },
+          ],
+        }),
+      ],
+      { type: "application/json" },
+    ),
+  );
+  const path = `/v1/customer/disputes/${input.disputeId}/provide-evidence`;
+  const res = await fetch(`${BASE_URL}${path}`, { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: form, cache: "no-store" });
+  const text = await res.text();
+  await logPaypalEvent({
+    direction: "call",
+    method: "POST",
+    endpoint: path,
+    httpStatus: res.status,
+    orderId: input.orderId,
+    summary: res.ok ? "Dispute evidence sent" : "Dispute evidence failed",
+  });
+  if (!res.ok) {
+    const body = text ? JSON.parse(text) : null;
+    throw new PaypalError(`PayPal dispute evidence failed: ${body?.details?.[0]?.issue ?? body?.name ?? res.status}`, res.status, body);
+  }
 }
 
 // ---- Webhooks ----

@@ -11,6 +11,8 @@ type Call = { method: string; path: string; headers: Record<string, string>; bod
 describe.skipIf(!TEST_DB)("PayPal money flow", () => {
   let calls: Call[];
   let failCapture = false;
+  let rejectCarrierCodes = false;
+  const refundsByRequest = new Map<string, string>();
   let svc: typeof import("@/lib/orders/service");
   let dbmod: typeof import("@/lib/db");
 
@@ -26,6 +28,8 @@ describe.skipIf(!TEST_DB)("PayPal money flow", () => {
   beforeEach(async () => {
     calls = [];
     failCapture = false;
+    rejectCarrierCodes = false;
+    refundsByRequest.clear();
     const { sql } = await import("drizzle-orm");
     await dbmod.db.execute(sql`TRUNCATE paypal_events, orders RESTART IDENTITY CASCADE`);
 
@@ -44,8 +48,19 @@ describe.skipIf(!TEST_DB)("PayPal money flow", () => {
           if (failCapture) return json(422, { name: "UNPROCESSABLE_ENTITY", details: [{ issue: "INSTRUMENT_DECLINED" }] });
           return json(201, { id: "CAP-1", status: "COMPLETED", amount: { currency_code: "GBP", value: "72.00" } });
         }
-        if (path.endsWith("/track")) return json(201, { id: "ORDER-1" });
-        if (path.endsWith("/refund")) return json(201, { id: `REF-${calls.length}`, status: "COMPLETED" });
+        if (path.endsWith("/track")) {
+          const carrier = (JSON.parse(String(init.body)) as { carrier: string }).carrier;
+          if (rejectCarrierCodes && carrier !== "OTHER") return json(422, { name: "UNPROCESSABLE_ENTITY", details: [{ issue: "INVALID_CARRIER" }] });
+          return json(201, { id: "ORDER-1" });
+        }
+        if (path.endsWith("/refund")) {
+          // Like PayPal: the same PayPal-Request-Id returns the same refund (200), no new money.
+          const rid = headers["PayPal-Request-Id"];
+          if (rid && refundsByRequest.has(rid)) return json(200, { id: refundsByRequest.get(rid), status: "COMPLETED" });
+          const id = `REF-${calls.length}`;
+          if (rid) refundsByRequest.set(rid, id);
+          return json(201, { id, status: "COMPLETED" });
+        }
         if (path.endsWith("/void")) return new Response(null, { status: 204 });
         return json(404, { name: "NOT_FOUND" });
       }),
@@ -133,6 +148,15 @@ describe.skipIf(!TEST_DB)("PayPal money flow", () => {
     expect(refundBody.amount.value).toBe("10.00");
   });
 
+  it("a retried refund (same request key) is counted once", async () => {
+    const order = await authorizedOrder();
+    await svc.shipOrder(order.id, { carrier: "DHL", trackingNumber: "1234567890" });
+    await svc.refundOrder(order.id, { amountMinor: 500, requestKey: "retry-1", approvedBy: "seller" });
+    const again = await svc.refundOrder(order.id, { amountMinor: 500, requestKey: "retry-1", approvedBy: "seller" });
+    expect(again.order.refundedMinor).toBe(500);
+    expect(again.order.refundIds).toHaveLength(1);
+  });
+
   it("an agent refund above the seller's cap needs the seller's tap", async () => {
     const order = await authorizedOrder();
     await svc.shipOrder(order.id, { carrier: "DHL", trackingNumber: "1234567890" });
@@ -194,4 +218,20 @@ describe.skipIf(!TEST_DB)("PayPal money flow", () => {
     expect((await svc.getOrderRow(fresh.id)).status).toBe("AUTHORIZED");
     expect(calls.some((c) => c.path === "/v2/payments/authorizations/AUTH-1/void")).toBe(true);
   });
+
+  it("sends a known carrier's PayPal code, and falls back to OTHER if PayPal rejects it", async () => {
+    const order = await authorizedOrder();
+    rejectCarrierCodes = true;
+    const { trackingWarning } = await svc.shipOrder(order.id, { carrier: "India Post", trackingNumber: "EE123456789IN" });
+    expect(trackingWarning).toBeNull();
+    const tracks = calls.filter((c) => c.path.endsWith("/track")).map((c) => (c.body as { carrier: string }).carrier);
+    expect(tracks).toEqual(["INDIA_POST", "OTHER"]);
+  });
+
+  it("maps carrier names to codes", () => {
+    expect(svc.carrierCode("Royal Mail")).toBe("ROYAL_MAIL");
+    expect(svc.carrierCode("DHL Express")).toBe("DHL");
+    expect(svc.carrierCode("Blue Dart")).toBe("OTHER");
+  });
 });
+

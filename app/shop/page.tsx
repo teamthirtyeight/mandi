@@ -15,11 +15,15 @@ interface Mandate {
   hostile: boolean;
 }
 
-const EXAMPLE = "Handwoven silk scarf for my mum, under £90, by Dec 20";
+const EXAMPLES = [
+  "Handwoven silk scarf for my mum, under £90, by Dec 20",
+  "Embroidered wool shawl, under £200, by 4 December",
+  "Block-printed cotton tablecloth, under £60",
+];
 
 export default function ShopPage() {
   const router = useRouter();
-  const [text, setText] = useState(EXAMPLE);
+  const [text, setText] = useState("");
   const [hostile, setHostile] = useState(false);
   const [mandate, setMandate] = useState<Mandate | null>(null);
   const [busy, setBusy] = useState(false);
@@ -63,73 +67,120 @@ export default function ShopPage() {
     router.push(`/deal/${mandate.id}`);
   }
 
-  if (me === undefined) return <main className="p-8 text-neutral-500">Loading…</main>;
+  if (me === undefined)
+    return (
+      <main className="page-narrow" aria-busy="true">
+        <div className="h-12 w-2/3 animate-pulse rounded-lg bg-surface" />
+        <div className="mt-6 h-32 animate-pulse rounded-[1.25rem] bg-surface" />
+      </main>
+    );
   if (!me || me.role !== "buyer") {
     return (
-      <main className="mx-auto max-w-md space-y-4 p-8">
-        <h1 className="text-2xl font-semibold">Send your shopping agent</h1>
-        <p>Log in with a buyer account, or try the one-click demo as Sarah from the home page.</p>
-        <div className="flex gap-3">
-          <Link href="/login?next=/shop" className="rounded-lg border border-neutral-300 px-4 py-2">Log in</Link>
-          <Link href="/signup" className="rounded-lg bg-neutral-900 px-4 py-2 text-white">Sign up</Link>
+      <main className="page-narrow">
+        <div className="panel p-8">
+          <h1 className="title text-3xl">Send your shopping agent</h1>
+          <p className="mt-3 text-ink-2">
+            {me ? "This needs a buyer account. " : ""}Log in with a buyer account, or try the one-click demo as Sarah from the
+            home page.
+          </p>
+          <div className="mt-6 flex flex-wrap gap-3">
+            <Link href="/login?next=/shop" className="btn btn-primary">
+              Log in
+            </Link>
+            <Link href="/signup" className="btn btn-secondary">
+              Create an account
+            </Link>
+          </div>
         </div>
       </main>
     );
   }
 
+  const fmtDate = (d: string) => new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
+
   return (
-    <main className="mx-auto max-w-2xl space-y-6 p-8">
+    <main className="page-narrow space-y-8">
       <header>
-        <p className="text-sm uppercase tracking-wide text-neutral-500">{me?.name}</p>
-        <h1 className="text-3xl font-semibold">What should your agent buy?</h1>
+        <h1 className="display text-[clamp(2.25rem,5vw,3.25rem)]">What should your agent buy?</h1>
+        <p className="mt-3 text-lg text-ink-2">
+          Describe it in one sentence, with your budget and when it has to arrive. You&apos;ll check what your agent
+          understood before it starts.
+        </p>
       </header>
 
-      <form onSubmit={parse} className="space-y-3">
+      <form onSubmit={parse} className="panel space-y-4 p-5">
+        <label htmlFor="request" className="label">
+          Your request
+        </label>
         <textarea
-          className="w-full rounded-xl border border-neutral-300 p-4 text-lg"
+          id="request"
+          className="field text-lg leading-snug"
           rows={3}
           value={text}
           onChange={(e) => setText(e.target.value)}
-          aria-label="What you want"
+          placeholder="e.g. Handwoven silk scarf for my mum, under £90, by Dec 20"
         />
-        <div className="flex items-center justify-between">
-          <label className="flex items-center gap-2 text-sm text-neutral-600">
-            <input type="checkbox" checked={hostile} onChange={(e) => setHostile(e.target.checked)} />
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="hint">Try:</span>
+          {EXAMPLES.map((ex) => (
+            <button key={ex} type="button" onClick={() => setText(ex)} className="chip whitespace-normal text-left hover:bg-indigo-soft hover:text-indigo">
+              {ex}
+            </button>
+          ))}
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <label className="flex items-center gap-2 text-sm text-ink-2">
+            <input type="checkbox" className="h-4 w-4 accent-indigo" checked={hostile} onChange={(e) => setHostile(e.target.checked)} />
             Hostile buyer test
           </label>
-          <button disabled={busy} className="rounded-lg bg-neutral-900 px-5 py-3 text-white disabled:opacity-40">
-            {busy && !mandate ? "Reading…" : "Continue"}
+          <button disabled={busy || text.trim().length < 5} className="btn btn-primary">
+            {busy && !mandate ? "Reading your request…" : "Continue"}
           </button>
         </div>
       </form>
 
       {mandate && (
-        <section className="rounded-xl border border-neutral-200 p-5">
-          <p className="mb-3 font-medium">Your agent&apos;s mandate</p>
-          <dl className="grid grid-cols-2 gap-3 text-lg">
-            <dt className="text-neutral-500">Looking for</dt>
-            <dd>{mandate.query}</dd>
-            <dt className="text-neutral-500">Budget</dt>
-            <dd className="font-semibold">{money(mandate.maxPrice, mandate.currency)} max</dd>
-            <dt className="text-neutral-500">Arrives by</dt>
-            <dd>{new Date(mandate.deadline).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</dd>
-            <dt className="text-neutral-500">Ship to</dt>
-            <dd>{mandate.shipToCountry}</dd>
+        <section className="panel overflow-hidden" aria-labelledby="mandate-title">
+          <div className="border-b border-line p-5">
+            <h2 id="mandate-title" className="title text-xl">
+              Check your agent&apos;s instructions
+            </h2>
+            <p className="hint mt-1">Your agent will stick to these. Edit your sentence above if anything is wrong.</p>
+          </div>
+          <dl className="grid gap-x-6 gap-y-4 p-5 sm:grid-cols-2">
+            <div>
+              <dt className="text-sm text-ink-3">Looking for</dt>
+              <dd className="font-semibold">{mandate.query}</dd>
+            </div>
+            <div>
+              <dt className="text-sm text-ink-3">Most it will pay</dt>
+              <dd className="money text-xl">{money(mandate.maxPrice, mandate.currency)}</dd>
+            </div>
+            <div>
+              <dt className="text-sm text-ink-3">Must arrive by</dt>
+              <dd className="font-semibold">{fmtDate(mandate.deadline)}</dd>
+            </div>
+            <div>
+              <dt className="text-sm text-ink-3">Ship to</dt>
+              <dd className="font-semibold">{mandate.shipToCountry}</dd>
+            </div>
           </dl>
-          <p className="mt-4 text-sm text-neutral-500">
-            Your agent can&apos;t go over budget, and nothing is paid until you approve one deal.
-          </p>
-          <button
-            onClick={confirm}
-            disabled={busy}
-            className="mt-4 w-full rounded-lg bg-neutral-900 px-5 py-3 text-white disabled:opacity-40"
-          >
-            {busy ? "Finding sellers…" : "Confirm and start negotiating"}
-          </button>
+          <div className="space-y-3 border-t border-line bg-surface p-5">
+            <p className="text-sm text-ink-2">
+              Your agent can&apos;t go over budget or reveal it to sellers. Nothing is paid until you approve one deal.
+            </p>
+            <button onClick={confirm} disabled={busy} className="btn btn-primary btn-lg w-full">
+              {busy ? "Finding sellers…" : "Start negotiating"}
+            </button>
+          </div>
         </section>
       )}
 
-      {error && <p className="text-red-700">{error}</p>}
+      {error && (
+        <p role="alert" className="notice notice-bad">
+          {error}
+        </p>
+      )}
     </main>
   );
 }

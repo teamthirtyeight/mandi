@@ -6,6 +6,7 @@ import { db, schema } from "@/lib/db";
 import { proposeRefund } from "@/lib/agents/refund";
 import type { PhotoInput } from "@/lib/agents/listing";
 import { getOrderRow, OrderError, refundOrder } from "./service";
+import { notifyOrder } from "@/lib/notify";
 
 const DEFAULT_CAP_MINOR = 1000;
 
@@ -69,6 +70,7 @@ export async function reportProblem(
     })
     .where(eq(schema.orders.id, orderId));
 
+  if (pending) await notifyOrder(orderId, "refund_pending", proposal.amountMinor);
   return {
     outcome: result.outcome,
     amountMinor: proposal.amountMinor,

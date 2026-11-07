@@ -3,13 +3,22 @@
 // Sign-up. A seller account also creates the seller's profile: the story their
 // agent tells buyers, the PayPal account they're paid into, their language,
 // how fast they ship, and how much their agent may refund on its own.
-import { useState } from "react";
+// ?role=seller or ?role=buyer preselects the account type.
+import { Suspense, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
-export default function SignupPage() {
+type Role = "buyer" | "seller";
+
+const ROLES: { value: Role; title: string; body: string }[] = [
+  { value: "buyer", title: "I'm shopping", body: "Send an agent to haggle for you" },
+  { value: "seller", title: "I'm selling", body: "List your work, let an agent sell it" },
+];
+
+function SignupForm() {
   const router = useRouter();
-  const [role, setRole] = useState<"buyer" | "seller">("seller");
+  const preset = useSearchParams().get("role");
+  const [role, setRole] = useState<Role>(preset === "buyer" ? "buyer" : "seller");
   const [f, setF] = useState({
     name: "",
     email: "",
@@ -45,74 +54,203 @@ export default function SignupPage() {
     router.refresh();
   }
 
-  const input = "w-full rounded-lg border border-neutral-300 px-3 py-2";
-  return (
-    <main className="mx-auto max-w-lg space-y-6 p-8">
-      <h1 className="text-3xl font-semibold">Create an account</h1>
-      <div className="flex gap-2">
-        {(["seller", "buyer"] as const).map((r) => (
-          <button key={r} onClick={() => setRole(r)} className={`rounded-lg px-4 py-2 ${role === r ? "bg-neutral-900 text-white" : "border border-neutral-300"}`}>
-            {r === "seller" ? "I'm selling" : "I'm shopping"}
-          </button>
-        ))}
-      </div>
+  const passwordShort = f.password.length > 0 && f.password.length < 8;
 
-      <form onSubmit={submit} className="space-y-3">
-        <input className={input} placeholder="Your name" value={f.name} onChange={set("name")} />
-        <input className={input} type="email" placeholder="Email" autoComplete="email" value={f.email} onChange={set("email")} />
-        <input className={input} type="password" placeholder="Password (8+ characters)" autoComplete="new-password" value={f.password} onChange={set("password")} />
+  return (
+    <main className="page-narrow">
+      <h1 className="display text-4xl">Create an account</h1>
+      <p className="mt-2 text-ink-2">Free to join. You only pay when you approve a deal in PayPal.</p>
+
+      <fieldset className="mt-8">
+        <legend className="label">Account type</legend>
+        <div role="radiogroup" className="grid gap-2 sm:grid-cols-2">
+          {ROLES.map((r) => (
+            <button
+              key={r.value}
+              type="button"
+              role="radio"
+              aria-checked={role === r.value}
+              onClick={() => setRole(r.value)}
+              className={`rounded-xl border px-4 py-3 text-left ${
+                role === r.value ? "border-indigo bg-indigo-soft ring-1 ring-indigo" : "border-line-strong bg-raised hover:border-ink-3"
+              }`}
+            >
+              <span className={`block font-semibold ${role === r.value ? "text-indigo" : ""}`}>{r.title}</span>
+              <span className="block text-sm text-ink-2">{r.body}</span>
+            </button>
+          ))}
+        </div>
+      </fieldset>
+
+      <form onSubmit={submit} className="panel mt-6 space-y-6 p-6">
+        <div className="space-y-5">
+          <div>
+            <label htmlFor="su-name" className="label">
+              Your name
+            </label>
+            <input id="su-name" className="field" autoComplete="name" required value={f.name} onChange={set("name")} />
+          </div>
+          <div>
+            <label htmlFor="su-email" className="label">
+              Email
+            </label>
+            <input id="su-email" className="field" type="email" autoComplete="email" required value={f.email} onChange={set("email")} />
+          </div>
+          <div>
+            <label htmlFor="su-password" className="label">
+              Password
+            </label>
+            <input
+              id="su-password"
+              className="field"
+              type="password"
+              autoComplete="new-password"
+              required
+              minLength={8}
+              aria-describedby="su-password-hint"
+              aria-invalid={passwordShort}
+              value={f.password}
+              onChange={set("password")}
+            />
+            <p id="su-password-hint" className={`mt-1.5 text-sm ${passwordShort ? "text-madder" : "text-ink-3"}`}>
+              At least 8 characters.
+            </p>
+          </div>
+        </div>
 
         {role === "buyer" ? (
-          <label className="block text-sm text-neutral-600">
-            Ship to (country code)
-            <input className={input} maxLength={2} value={f.shipToCountry} onChange={set("shipToCountry")} />
-          </label>
+          <div>
+            <label htmlFor="su-ship" className="label">
+              Country you ship to
+            </label>
+            <input id="su-ship" className="field max-w-[8rem] uppercase" maxLength={2} value={f.shipToCountry} onChange={set("shipToCountry")} aria-describedby="su-ship-hint" />
+            <p id="su-ship-hint" className="hint mt-1.5">
+              Two-letter code, like GB or US. Your agent only buys what can arrive there in time.
+            </p>
+          </div>
         ) : (
           <>
-            <div className="grid grid-cols-2 gap-3">
-              <input className={input} placeholder="City" value={f.city} onChange={set("city")} />
-              <input className={input} placeholder="Country code" maxLength={2} value={f.country} onChange={set("country")} />
-            </div>
-            <textarea
-              className={input}
-              rows={3}
-              placeholder="Your story: your craft, how long a piece takes. Your agent uses this to defend your price."
-              value={f.story}
-              onChange={set("story")}
-            />
-            <input className={input} type="email" placeholder="PayPal email you're paid into" value={f.paypalEmail} onChange={set("paypalEmail")} />
-            <div className="grid grid-cols-2 gap-3 text-sm text-neutral-600">
-              <label>
-                Language
-                <select className={input} value={f.language} onChange={set("language")}>
+            <div className="space-y-5 border-t border-line pt-6">
+              <div>
+                <h2 className="title text-xl">Your shop</h2>
+                <p className="hint mt-1">Your agent uses this to tell buyers about you and to defend your price.</p>
+              </div>
+              <div className="grid grid-cols-[1fr_7rem] gap-3">
+                <div>
+                  <label htmlFor="su-city" className="label">
+                    City
+                  </label>
+                  <input id="su-city" className="field" value={f.city} onChange={set("city")} />
+                </div>
+                <div>
+                  <label htmlFor="su-country" className="label">
+                    Country
+                  </label>
+                  <input id="su-country" className="field uppercase" maxLength={2} value={f.country} onChange={set("country")} />
+                </div>
+              </div>
+              <div>
+                <label htmlFor="su-story" className="label">
+                  Your story
+                </label>
+                <textarea
+                  id="su-story"
+                  className="field"
+                  rows={3}
+                  placeholder="Your craft, who taught you, how long a piece takes."
+                  value={f.story}
+                  onChange={set("story")}
+                />
+              </div>
+              <div>
+                <label htmlFor="su-language" className="label">
+                  Language for alerts
+                </label>
+                <select id="su-language" className="field" value={f.language} onChange={set("language")}>
                   <option value="hi">हिन्दी (Hindi)</option>
                   <option value="en">English</option>
                 </select>
-              </label>
-              <label>
-                Ship within (days, max 3)
-                <input className={input} type="number" min={1} max={3} value={f.shipByDays} onChange={set("shipByDays")} />
-              </label>
-              <label>
-                Delivery time (days)
-                <input className={input} type="number" min={1} max={30} value={f.transitDays} onChange={set("transitDays")} />
-              </label>
-              <label>
-                Agent may refund up to (£)
-                <input className={input} type="number" min={0} value={f.refundCap} onChange={set("refundCap")} />
-              </label>
+              </div>
+            </div>
+
+            <div className="space-y-5 border-t border-line pt-6">
+              <div>
+                <h2 className="title text-xl">Getting paid</h2>
+              </div>
+              <div>
+                <label htmlFor="su-paypal" className="label">
+                  PayPal email
+                </label>
+                <input id="su-paypal" className="field" type="email" value={f.paypalEmail} onChange={set("paypalEmail")} aria-describedby="su-paypal-hint" />
+                <p id="su-paypal-hint" className="hint mt-1.5">
+                  In this demo, buyers pay Mandi&apos;s PayPal merchant account and sellers are paid out from it. Paying you
+                  directly is switched on once your account is verified.
+                </p>
+              </div>
+              <div>
+                <label htmlFor="su-refund" className="label">
+                  Your agent may refund up to
+                </label>
+                <div className="flex max-w-[10rem] items-center gap-2">
+                  <span className="text-ink-2">£</span>
+                  <input id="su-refund" className="field money" type="number" min={0} value={f.refundCap} onChange={set("refundCap")} aria-describedby="su-refund-hint" />
+                </div>
+                <p id="su-refund-hint" className="hint mt-1.5">
+                  For small problems, your agent refunds the buyer without asking you. Anything larger waits for your tap.
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-5 border-t border-line pt-6">
+              <h2 className="title text-xl">Shipping</h2>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="su-shipby" className="label">
+                    Ship within
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input id="su-shipby" className="field money" type="number" min={1} max={3} value={f.shipByDays} onChange={set("shipByDays")} />
+                    <span className="text-ink-2">days</span>
+                  </div>
+                  <p className="hint mt-1.5">Up to 3, while PayPal holds the money.</p>
+                </div>
+                <div>
+                  <label htmlFor="su-transit" className="label">
+                    Delivery takes
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input id="su-transit" className="field money" type="number" min={1} max={30} value={f.transitDays} onChange={set("transitDays")} />
+                    <span className="text-ink-2">days</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </>
         )}
 
-        <button disabled={busy} className="w-full rounded-lg bg-neutral-900 px-5 py-3 text-white disabled:opacity-40">
-          {busy ? "Creating…" : "Create account"}
+        {error && (
+          <p role="alert" className="notice notice-bad text-sm">
+            {error}
+          </p>
+        )}
+        <button disabled={busy} className="btn btn-primary btn-lg w-full">
+          {busy ? "Creating your account…" : role === "seller" ? "Create seller account" : "Create account"}
         </button>
-        <p className="text-sm text-neutral-600">
-          Have an account? <Link href="/login" className="underline">Log in</Link>
+        <p className="text-center text-sm text-ink-2">
+          Already have an account?{" "}
+          <Link href="/login" className="link">
+            Log in
+          </Link>
         </p>
       </form>
-      {error && <p className="text-red-700">{error}</p>}
     </main>
+  );
+}
+
+export default function SignupPage() {
+  return (
+    <Suspense>
+      <SignupForm />
+    </Suspense>
   );
 }

@@ -6,6 +6,7 @@ import { db, schema } from "@/lib/db";
 import { advance, statusForWebhook, type OrderStatus } from "@/lib/orders/state";
 import { verifyWebhookSignature } from "@/lib/paypal/rest";
 import { logPaypalEvent } from "@/lib/paypal/log";
+import { releaseStock } from "@/lib/orders/stock";
 
 export async function POST(req: Request) {
   const raw = await req.text();
@@ -50,6 +51,7 @@ export async function POST(req: Request) {
         patch.capturedAt = new Date();
       }
       await db.update(schema.orders).set(patch).where(eq(schema.orders.id, orderRow.id));
+      if (next === "VOIDED") await releaseStock(orderRow.id);
     }
   }
 

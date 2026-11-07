@@ -8,7 +8,7 @@ import { assertMandateOwner } from "@/lib/auth/access";
 
 export const dynamic = "force-dynamic";
 
-const FINAL = new Set(["recommended", "no_deal", "no_match", "failed"]);
+const FINAL = new Set(["recommended", "no_deal", "no_match", "failed", "interrupted", "cancelled"]);
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -72,6 +72,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       "Content-Type": "text/event-stream",
       "Cache-Control": "no-cache, no-transform",
       Connection: "keep-alive",
+      // Stops reverse proxies (nginx-style, as on many hosts) buffering the stream.
+      "X-Accel-Buffering": "no",
     },
   });
 }

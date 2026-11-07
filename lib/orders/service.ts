@@ -4,9 +4,13 @@
 import { and, eq, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { checkRefund, type RefundDecision } from "@/lib/engine/negotiation";
+import { releaseStock } from "./stock";
+import { notifyOrder } from "@/lib/notify";
 import {
   addTracking,
   captureAuthorization,
+  PaypalError,
+  reauthorize,
   refundCapture,
   voidAuthorization,
 } from "@/lib/paypal/rest";
@@ -61,21 +65,48 @@ export async function shipOrder(orderId: string, input: { carrier: string; track
     .where(eq(schema.orders.id, orderId));
 
   // Money is captured at this point; a tracking failure is reported, not rolled back.
+  // Known carriers go by PayPal's code; if PayPal rejects it, send OTHER + the name.
   let trackingWarning: string | null = null;
-  try {
-    await addTracking({
-      paypalOrderId: claimed.paypalOrderId,
+  const track = (carrier: string) =>
+    addTracking({
+      paypalOrderId: claimed.paypalOrderId!,
       captureId,
       trackingNumber: input.trackingNumber,
-      carrier: "OTHER",
+      carrier,
       carrierNameOther: input.carrier,
       orderId,
     });
+  const code = carrierCode(input.carrier);
+  try {
+    await track(code);
   } catch (err) {
-    trackingWarning = (err as Error).message;
+    if (code !== "OTHER" && err instanceof PaypalError && err.status < 500) {
+      try {
+        await track("OTHER");
+      } catch (retryErr) {
+        trackingWarning = (retryErr as Error).message;
+      }
+    } else {
+      trackingWarning = (err as Error).message;
+    }
   }
 
+  await notifyOrder(orderId, "captured");
   return { order: await getOrderRow(orderId), trackingWarning };
+}
+
+/** Seller needs more time: renew the hold. Resets the auto-void window. */
+export async function extendHold(orderId: string) {
+  const order = await getOrderRow(orderId);
+  if (order.status !== "AUTHORIZED" || !order.authorizationId) {
+    throw new OrderError(`Order is ${order.status}; only held orders can be extended`, 409);
+  }
+  const renewed = await reauthorize(order.authorizationId, { orderId });
+  await db
+    .update(schema.orders)
+    .set({ authorizationId: renewed.authorizationId, authorizedAt: new Date() })
+    .where(and(eq(schema.orders.id, orderId), eq(schema.orders.status, "AUTHORIZED")));
+  return getOrderRow(orderId);
 }
 
 /** Seller can't ship: release the hold. */
@@ -95,6 +126,8 @@ export async function voidOrder(orderId: string) {
     await db.update(schema.orders).set({ status: "AUTHORIZED" }).where(eq(schema.orders.id, orderId));
     throw err;
   }
+  await releaseStock(orderId);
+  await notifyOrder(orderId, "voided");
   return getOrderRow(orderId);
 }
 
@@ -160,10 +193,25 @@ export async function refundOrder(orderId: string, input: RefundInput): Promise<
       note: input.note,
       orderId,
     });
+    // Record the refund id. If it's already there, this was a retry that PayPal
+    // answered with the same refund: no new money moved, so give the amount back.
+    const [counted] = await db
+      .update(schema.orders)
+      .set({ refundIds: sql`${schema.orders.refundIds} || ${JSON.stringify([refundId])}::jsonb` })
+      .where(and(eq(schema.orders.id, orderId), sql`NOT (${schema.orders.refundIds} ? ${refundId})`))
+      .returning();
+    if (!counted) {
+      await db
+        .update(schema.orders)
+        .set({ refundedMinor: sql`${schema.orders.refundedMinor} - ${input.amountMinor}` })
+        .where(eq(schema.orders.id, orderId));
+      return { outcome: "REFUNDED", order: await getOrderRow(orderId), refundId };
+    }
     await db
       .update(schema.orders)
-      .set({ pendingRefundMinor: null, ...(reserved.refundedMinor >= reserved.amountMinor ? { status: "REFUNDED" as const } : {}) })
+      .set({ pendingRefundMinor: null, ...(counted.refundedMinor >= counted.amountMinor ? { status: "REFUNDED" as const } : {}) })
       .where(eq(schema.orders.id, orderId));
+    await notifyOrder(orderId, "refunded", input.amountMinor);
     return { outcome: "REFUNDED", order: await getOrderRow(orderId), refundId };
   } catch (err) {
     await db
@@ -173,3 +221,19 @@ export async function refundOrder(orderId: string, input: RefundInput): Promise<
     throw err;
   }
 }
+
+/** PayPal carrier codes for common carriers; anything else is sent as OTHER with its name. */
+export function carrierCode(name: string): string {
+  const n = name.trim().toLowerCase().replace(/[^a-z]/g, "");
+  const known: Record<string, string> = {
+    indiapost: "INDIA_POST",
+    royalmail: "ROYAL_MAIL",
+    dhl: "DHL",
+    dhlexpress: "DHL",
+    fedex: "FEDEX",
+    ups: "UPS",
+    usps: "USPS",
+  };
+  return known[n] ?? "OTHER";
+}
+

@@ -1,7 +1,7 @@
 // Runs a mandate end to end: finds 2-3 listings, negotiates with each seller in
 // parallel, and recommends one deal. Every agent turn goes through
 // applyGuardrails before it is saved, streamed or shown to the other agent.
-import { and, asc, eq, inArray, ne, sql } from "drizzle-orm";
+import { and, asc, eq, gt, inArray, ne, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import {
   buyerAddonDecision,
@@ -29,6 +29,7 @@ import {
   type NegotiationState,
 } from "@/lib/engine/negotiation";
 import { publish } from "./bus";
+import { notifyUser } from "@/lib/notify";
 import {
   BUYER_CONCESSION,
   DEFAULT_BUYER,
@@ -40,6 +41,9 @@ import { scoreDeals, type DealCandidate } from "./scoring";
 
 const DAY = 24 * 60 * 60 * 1000;
 const MAX_SELLERS = 3;
+// 6 rounds × 2 agents × up to 2 calls = 24 in the worst case, plus retries after
+// engine blocks; 30 leaves room for those without letting a run go unbounded.
+const MAX_MODEL_CALLS = Number(process.env.MANDI_MAX_MODEL_CALLS ?? 30);
 const turnDelay = () => Number(process.env.MANDI_TURN_DELAY_MS ?? 600);
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -76,6 +80,7 @@ export async function findListings(mandate: Mandate, now = new Date(), maxSeller
     .where(
       and(
         eq(schema.listings.status, "active"),
+        gt(schema.listings.stock, 0),
         eq(schema.listings.currency, mandate.currency),
         sql`${doc} @@ to_tsquery('english', ${tsquery})`,
       ),
@@ -93,6 +98,26 @@ export async function findListings(mandate: Mandate, now = new Date(), maxSeller
   return [...bestPerSeller.values()].slice(0, Math.min(MAX_SELLERS, maxSellers));
 }
 
+/** The one listing a buyer picked on its product page, if still for sale and in time. */
+async function targetListing(mandate: Mandate, now = new Date()): Promise<ListingMatch[]> {
+  const [r] = await db
+    .select({ listing: schema.listings, seller: schema.sellers })
+    .from(schema.listings)
+    .innerJoin(schema.sellers, eq(schema.sellers.id, schema.listings.sellerId))
+    .where(
+      and(
+        eq(schema.listings.id, mandate.targetListingId!),
+        eq(schema.listings.status, "active"),
+        gt(schema.listings.stock, 0),
+        eq(schema.listings.currency, mandate.currency),
+      ),
+    );
+  if (!r) return [];
+  const deadline = new Date(`${mandate.deadline}T23:59:59Z`);
+  if (!meetsDeadline(r.seller.shipByDays, r.seller.transitDays, deadline, now)) return [];
+  return [{ listing: r.listing, seller: r.seller, match: 1 }];
+}
+
 /** Confirms a draft mandate and opens one negotiation per matching listing. */
 export async function openNegotiations(mandateId: string) {
   const [mandate] = await db
@@ -103,7 +128,9 @@ export async function openNegotiations(mandateId: string) {
   if (!mandate) return null;
 
   const buyer = await buyerSettings(mandate);
-  const matches = await findListings(mandate, new Date(), buyer.maxSellers);
+  const matches = mandate.targetListingId
+    ? await targetListing(mandate)
+    : await findListings(mandate, new Date(), buyer.maxSellers);
   if (matches.length === 0) {
     await db.update(schema.mandates).set({ status: "no_match" }).where(eq(schema.mandates.id, mandateId));
     return [];
@@ -246,12 +273,22 @@ async function runNegotiation(negotiationId: string, referenceMinor: number | nu
     maxRounds: MAX_ROUNDS,
   });
 
-  const agentReply = (who: Actor, note?: string): Promise<AgentReply> =>
-    who === "seller"
+  // Hard cap on model calls per negotiation (each agent reply may use two:
+  // one retry on invalid output). Past the cap, turns are rule-based.
+  let modelBudget = MAX_MODEL_CALLS;
+  const agentReply = async (who: Actor, note?: string): Promise<AgentReply> => {
+    if (modelBudget < 2) {
+      return { turn: fallbackTurn(ctxFor(who), row.listing.listPriceMinor, rates), source: "fallback" };
+    }
+    modelBudget -= 2;
+    return who === "seller"
       ? sellerTurn({ view: v.seller, turns: transcript, ctx: ctxFor(who), engineNote: note, concession: rates.seller })
       : buyerTurn({ view: v.buyer, turns: transcript, ctx: ctxFor(who), engineNote: note, concession: rates.buyer });
+  };
 
   while (!TERMINAL_STATES.has(state)) {
+    // The buyer may cancel mid-run; stop at the next turn.
+    if (await closeIfCancelled(negotiationId, mandateId)) return;
     if (round > MAX_ROUNDS) {
       state = "EXPIRED";
       await saveTurn({
@@ -374,6 +411,8 @@ async function runNegotiation(negotiationId: string, referenceMinor: number | nu
     }
   }
 
+  // A cancel that landed during the last turn wins over the result.
+  if (await closeIfCancelled(negotiationId, mandateId)) return;
   await db.update(schema.negotiations).set({ state }).where(eq(schema.negotiations.id, negotiationId));
   const [final] = await db.select().from(schema.negotiations).where(eq(schema.negotiations.id, negotiationId));
   publish(mandateId, {
@@ -383,6 +422,18 @@ async function runNegotiation(negotiationId: string, referenceMinor: number | nu
     agreed_price: final?.agreedPriceMinor != null ? toMajor(final.agreedPriceMinor) : null,
     reason: final?.outcomeReason ?? null,
   });
+}
+
+/** If the buyer cancelled the request, close this negotiation and tell the room. */
+async function closeIfCancelled(negotiationId: string, mandateId: string): Promise<boolean> {
+  const [live] = await db.select({ status: schema.mandates.status }).from(schema.mandates).where(eq(schema.mandates.id, mandateId));
+  if (live?.status !== "cancelled") return false;
+  await db
+    .update(schema.negotiations)
+    .set({ state: "WALKED_AWAY", outcomeReason: "buyer cancelled", agreedPriceMinor: null })
+    .where(eq(schema.negotiations.id, negotiationId));
+  publish(mandateId, { type: "state", negotiation_id: negotiationId, state: "WALKED_AWAY", agreed_price: null, reason: "buyer cancelled" });
+  return true;
 }
 
 /** After agreement, the seller agent may offer one more item as a bundle. The
@@ -616,10 +667,18 @@ async function recommend(mandate: Mandate, referenceMinor: number | null) {
   const status = rec.best ? "recommended" : "no_deal";
   const recommendation = { ...rec, referenceMinor };
 
-  await db
+  const [updated] = await db
     .update(schema.mandates)
     .set({ status, recommendedNegotiationId: rec.best?.negotiationId ?? null, recommendation })
-    .where(eq(schema.mandates.id, mandate.id));
+    .where(and(eq(schema.mandates.id, mandate.id), eq(schema.mandates.status, "negotiating")))
+    .returning({ id: schema.mandates.id });
+  if (!updated) return; // cancelled or interrupted meanwhile
+  await notifyUser(
+    mandate.buyerUserId,
+    rec.best ? "Your agent found a deal" : "No deal this time",
+    rec.best ? `${rec.best.sellerName}: ${rec.best.reasons[0]}. Approve it with one tap.` : "No seller agreed within your budget. Nothing was charged.",
+    `/deal/${mandate.id}`,
+  );
   publish(mandate.id, { type: "recommendation", mandate_id: mandate.id, recommendation });
   publish(mandate.id, { type: "done", mandate_id: mandate.id, status });
 }

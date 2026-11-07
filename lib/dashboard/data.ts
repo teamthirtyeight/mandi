@@ -115,6 +115,7 @@ export async function getDashboard(sellerId: string, now = new Date()) {
       floor: toMajor(listing.floorPriceMinor),
       marginAboveFloor: toMajor(o.amountMinor - listing.floorPriceMinor),
       pendingRefund: major(o.pendingRefundMinor),
+      shipping: o.shipping,
       shipBy: o.authorizedAt ? new Date(o.authorizedAt.getTime() + seller.shipByDays * DAY).toISOString() : null,
       status: o.status,
       carrier: o.carrier,

@@ -123,7 +123,7 @@ Every call is written to `paypal_events`, which feeds the docked "PayPal API cal
    npm run dev
    ```
 
-**Pages:** `/` (Try the demo), `/login`, `/signup`, `/agent` (My agent), `/shop`, `/orders`, `/deal/[id]`, `/order/[id]`, `/sell`, `/dashboard`, `/seller` (the seller's phone view), and `/paypal-test` (a bare sandbox check).
+**Pages:** `/` (Try the demo), `/browse` and `/listing/[id]` (public catalog), `/login`, `/signup`, `/reset`, `/agent` (My agent), `/shop`, `/orders`, `/listings/[id]/edit`, `/deal/[id]`, `/order/[id]`, `/sell`, `/dashboard`, `/seller` (the seller's phone view), and `/paypal-test` (a bare sandbox check).
 
 ## Tests
 
@@ -139,6 +139,14 @@ The money-flow and full-negotiation tests need a Postgres with the schema pushed
 createdb mandi_test
 DATABASE_URL=postgres://localhost:5432/mandi_test npx drizzle-kit push
 TEST_DATABASE_URL=postgres://localhost:5432/mandi_test npm test
+```
+
+End-to-end UI tests run in your installed Chrome against a separate `mandi_e2e` database with the model off:
+
+```bash
+createdb mandi_e2e
+DATABASE_URL=postgres://localhost:5432/mandi_e2e npx drizzle-kit push
+npm run test:e2e
 ```
 
 The manual sandbox test matrix is in [docs/LAUNCH.md](docs/LAUNCH.md).
@@ -168,13 +176,26 @@ tests/            unit and Postgres-backed tests
 docs/             architecture, Postman collection, Devpost draft, launch checklist
 ```
 
+## Orders, stock and payouts
+
+- **Shipping address:** the address the buyer chooses in the PayPal popup is read at authorization and shown to the seller on the order page and the phone view.
+- **One-of-a-kind stock:** stock is taken just before PayPal authorizes, so two buyers can't both pay for the last piece. A sold-out listing drops out of search; a voided hold puts it back.
+- **Payouts:** by default PayPal pays the Mandi merchant, which pays sellers out (marketplace payouts are future work). `PAYPAL_PAY_SELLERS_DIRECTLY=1` pays each seller's PayPal account instead, falling back to Mandi if PayPal refuses a seller as payee.
+- **Holds:** the seller can renew a hold (PayPal reauthorize, allowed after the 3-day honor period); an unshipped hold is voided automatically.
+- **Interrupted runs:** negotiations run in the web server; after a restart, runs that were in flight are marked interrupted and the buyer is told nothing was charged.
+- **Buyer choice:** the buyer can approve any agreed deal, not only the recommended one, or cancel the request.
+- **Notifications:** sellers (in their language, with rupees at the ECB rate) and buyers get notified at each step: the bell in the nav, plus system notifications once allowed.
+- **Disputes:** the dashboard lists PayPal disputes and can send the tracking and deal record as evidence.
+
 ## Out of scope
 
 - Real money, live merchants, and PayPal Agent Ready / Store Sync. These need a PayPal access request.
 - Real carrier tracking; delivery is simulated.
 - Platform fees, marketplace payouts and seller KYC.
 - Mobile apps; the web app is responsive.
-- Password reset, email verification and rate limiting on logins.
+- Email verification. Password-reset links are emailed only if `RESEND_API_KEY` and `MAIL_FROM` are set; otherwise they're written to the server log.
+- SMS or WhatsApp alerts (they need a provider account); notifications are in-app and system notifications.
+- Currencies other than GBP: buyers are asked for a budget in £.
 
 ## What's next
 

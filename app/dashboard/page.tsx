@@ -43,54 +43,78 @@ interface TurnRow {
 }
 
 const gbp = (n: number | null | undefined) =>
-  n == null ? "—" : new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(n);
+  n == null ? "–" : new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(n);
 const when = (iso: string | null) =>
-  iso ? new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : "—";
+  iso ? new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : "–";
 
-const PILL: Record<string, string> = {
-  CREATED: "bg-neutral-100 text-neutral-700",
-  APPROVED: "bg-neutral-100 text-neutral-700",
-  AUTHORIZED: "bg-amber-100 text-amber-900",
-  SHIPPED: "bg-blue-100 text-blue-900",
-  CAPTURED: "bg-green-100 text-green-900",
-  REFUNDED: "bg-purple-100 text-purple-900",
-  VOIDED: "bg-neutral-200 text-neutral-600",
-  OPEN: "bg-neutral-100 text-neutral-700",
-  OFFERED: "bg-blue-100 text-blue-900",
-  COUNTERED: "bg-blue-100 text-blue-900",
-  AGREED: "bg-green-100 text-green-900",
-  AWAITING_BUYER_APPROVAL: "bg-amber-100 text-amber-900",
-  ORDERED: "bg-green-100 text-green-900",
-  WALKED_AWAY: "bg-neutral-200 text-neutral-600",
-  EXPIRED: "bg-neutral-200 text-neutral-600",
-  BLOCKED_BY_GUARDRAIL: "bg-red-100 text-red-900",
-  active: "bg-green-100 text-green-900",
+// Chip tone by meaning: progress (indigo), agreed (haldi), money safe/done (leaf),
+// blocked (madder), closed (plain).
+const TONE: Record<string, string> = {
+  AUTHORIZED: "chip-safe",
+  SHIPPED: "chip-progress",
+  CAPTURED: "chip-safe",
+  REFUNDED: "",
+  VOIDED: "",
+  OFFERED: "chip-progress",
+  COUNTERED: "chip-progress",
+  OPEN: "chip-progress",
+  AGREED: "chip-agreed",
+  AWAITING_BUYER_APPROVAL: "chip-agreed",
+  ORDERED: "chip-safe",
+  BLOCKED_BY_GUARDRAIL: "chip-bad",
+  active: "chip-safe",
+  sold: "chip-agreed",
 };
-const LABEL: Record<string, string> = { AUTHORIZED: "Held", AWAITING_BUYER_APPROVAL: "Awaiting buyer", WALKED_AWAY: "Walked away" };
+const LABEL: Record<string, string> = {
+  CREATED: "Unpaid",
+  APPROVED: "Unpaid",
+  AUTHORIZED: "Money held",
+  CAPTURED: "Paid",
+  VOIDED: "Cancelled",
+  AWAITING_BUYER_APPROVAL: "Awaiting buyer",
+  WALKED_AWAY: "Walked away",
+  BLOCKED_BY_GUARDRAIL: "Blocked",
+};
 
 function StatusPill(p: ICellRendererParams) {
   const v = String(p.value ?? "");
-  return (
-    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${PILL[v] ?? "bg-neutral-100"}`}>
-      {LABEL[v] ?? v.charAt(0) + v.slice(1).toLowerCase().replaceAll("_", " ")}
-    </span>
-  );
+  return <span className={`chip ${TONE[v] ?? ""}`}>{LABEL[v] ?? v.charAt(0).toUpperCase() + v.slice(1).toLowerCase().replaceAll("_", " ")}</span>;
 }
 
 const money = { valueFormatter: (p: { value: number | null }) => gbp(p.value), type: "rightAligned" as const, width: 110 };
-const theme = themeQuartz.withParams({ fontSize: 15, headerFontSize: 14, rowHeight: 44 });
+// The grid takes its colours from the design tokens, so it follows dark mode.
+const theme = themeQuartz.withParams({
+  fontFamily: "inherit",
+  fontSize: 15,
+  headerFontSize: 14,
+  rowHeight: 48,
+  headerHeight: 44,
+  backgroundColor: "var(--raised)",
+  foregroundColor: "var(--ink)",
+  headerBackgroundColor: "var(--surface)",
+  headerTextColor: "var(--ink-2)",
+  borderColor: "var(--line)",
+  rowHoverColor: "var(--surface)",
+  accentColor: "var(--indigo)",
+  wrapperBorderRadius: 14,
+});
 
 export default function DashboardPage() {
   const [data, setData] = useState<Dashboard | null>(null);
   const [tab, setTab] = useState<"orders" | "negotiations" | "listings">("orders");
   const [selected, setSelected] = useState<Neg | null>(null);
   const [turns, setTurns] = useState<TurnRow[]>([]);
-  const [disputes, setDisputes] = useState<{ available: boolean; count: number } | null>(null);
+  const [disputes, setDisputes] = useState<{
+    available: boolean;
+    count: number;
+    items: { id: string; status: string; reason: string; amount: string | null; transactionId: string | null }[];
+  } | null>(null);
+  const [disputeNote, setDisputeNote] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/disputes")
       .then((r) => r.json())
-      .then((b) => setDisputes({ available: b.available, count: b.disputes.length }))
+      .then((b) => setDisputes({ available: b.available, count: b.disputes.length, items: b.disputes }))
       .catch(() => setDisputes(null));
   }, []);
 
@@ -98,7 +122,11 @@ export default function DashboardPage() {
 
   const load = useCallback(async () => {
     const res = await fetch("/api/dashboard", { cache: "no-store" });
-    if (res.ok) setData(await res.json());
+    if (res.ok) {
+      const d = await res.json();
+      // Unpaid orders (PayPal opened, never approved) need nothing from the seller.
+      setData({ ...d, orders: d.orders.filter((o: Order) => o.status !== "CREATED" && o.status !== "APPROVED") });
+    }
     else if (res.status === 401 || res.status === 403) setAuthError((await res.json()).error);
   }, []);
 
@@ -123,7 +151,7 @@ export default function DashboardPage() {
       { field: "amount", ...money },
       { field: "marginAboveFloor", headerName: "Above floor", ...money, width: 120 },
       { field: "refunded", ...money },
-      { headerName: "Tracking", valueGetter: (p) => (p.data?.tracking ? `${p.data.carrier} ${p.data.tracking}` : "—"), flex: 1, minWidth: 160 },
+      { headerName: "Tracking", valueGetter: (p) => (p.data?.tracking ? `${p.data.carrier} ${p.data.tracking}` : "–"), flex: 1, minWidth: 160 },
       { field: "authorizedAt", headerName: "Held on", valueFormatter: (p) => when(p.value), width: 110 },
       { field: "capturedAt", headerName: "Captured", valueFormatter: (p) => when(p.value), width: 110 },
       {
@@ -131,7 +159,7 @@ export default function DashboardPage() {
         width: 90,
         sortable: false,
         cellRenderer: (p: ICellRendererParams<Order>) => (
-          <Link href={`/order/${p.data?.id}`} className="text-sm underline">
+          <Link href={`/order/${p.data?.id}`} className="link text-sm">
             Open
           </Link>
         ),
@@ -157,6 +185,16 @@ export default function DashboardPage() {
 
   const listingCols = useMemo<ColDef<Listing>[]>(
     () => [
+      {
+        headerName: "",
+        width: 80,
+        sortable: false,
+        cellRenderer: (p: ICellRendererParams<Listing>) => (
+          <Link href={`/listings/${p.data?.id}/edit`} className="link text-sm">
+            Edit
+          </Link>
+        ),
+      },
       { field: "status", cellRenderer: StatusPill, width: 110 },
       { field: "title", flex: 2, minWidth: 240 },
       { field: "category", width: 120 },
@@ -164,10 +202,19 @@ export default function DashboardPage() {
       { field: "floorPrice", headerName: "Floor (private)", ...money, width: 140 },
       { field: "negotiations", headerName: "Negotiations", width: 130, type: "rightAligned" },
       { field: "deals", width: 90, type: "rightAligned" },
-      { field: "paypalProductId", headerName: "PayPal product", valueFormatter: (p) => p.value ?? "—", width: 170 },
+      { field: "paypalProductId", headerName: "PayPal product", valueFormatter: (p) => p.value ?? "–", width: 170 },
+      { field: "stock", width: 90, type: "rightAligned" },
     ],
     [],
   );
+
+  // AG Charts draws on canvas, so read the token values once on the client.
+  const [ink, setInk] = useState({ leaf: "#1e7a4c", text: "#4a5072", line: "#e2e4ee" });
+  useEffect(() => {
+    const css = getComputedStyle(document.documentElement);
+    const v = (n: string, d: string) => css.getPropertyValue(n).trim() || d;
+    setInk({ leaf: v("--leaf", "#1e7a4c"), text: v("--ink-2", "#4a5072"), line: v("--line", "#e2e4ee") });
+  }, []);
 
   const chart = useMemo<AgCartesianChartOptions>(
     () => ({
@@ -175,149 +222,249 @@ export default function DashboardPage() {
         week: new Date(w.week).toLocaleDateString("en-GB", { day: "numeric", month: "short" }),
         captured: w.captured,
       })),
-      series: [{ type: "bar", xKey: "week", yKey: "captured", yName: "Captured", fill: "#15803d", cornerRadius: 4 }],
+      series: [{ type: "bar", xKey: "week", yKey: "captured", yName: "Paid", fill: ink.leaf, cornerRadius: 6 }],
       axes: {
-        x: { type: "category", position: "bottom" },
-        y: { type: "number", position: "left", label: { formatter: (p: { value: number }) => `£${p.value}` } },
+        x: { type: "category", position: "bottom", label: { color: ink.text }, line: { stroke: ink.line } },
+        y: {
+          type: "number",
+          position: "left",
+          label: { color: ink.text, formatter: (p: { value: number }) => `£${p.value}` },
+          gridLine: { style: [{ stroke: ink.line }] },
+        },
       },
       background: { visible: false },
       height: 220,
     }),
-    [data?.revenueByWeek],
+    [data?.revenueByWeek, ink],
   );
 
   const defaultColDef = useMemo<ColDef>(() => ({ sortable: true, resizable: true, enableCellChangeFlash: true }), []);
 
   if (authError)
     return (
-      <main className="p-8">
-        {authError}.{" "}
-        <Link href="/login?next=/dashboard" className="underline">
-          Log in as a seller
-        </Link>
+      <main className="page-narrow">
+        <div className="panel p-6 sm:p-8">
+          <h1 className="title text-2xl">{authError}</h1>
+          <p className="mt-2 text-ink-2">The dashboard shows a seller&apos;s orders, negotiations and listings.</p>
+          <Link href="/login?next=/dashboard" className="btn btn-primary mt-5">
+            Log in as a seller
+          </Link>
+        </div>
       </main>
     );
-  if (!data) return <main className="p-8 text-neutral-500">Loading dashboard…</main>;
+  if (!data)
+    return (
+      <main className="page">
+        <p className="text-ink-3" role="status">
+          Loading dashboard…
+        </p>
+      </main>
+    );
 
   const deals = data.negotiations.filter((n) => n.agreed != null && n.marginAboveFloor != null);
   const avgMargin = deals.length ? deals.reduce((a, n) => a + (n.marginAboveFloor ?? 0), 0) / deals.length : null;
-  const tiles = [
-    { label: "Money held", value: gbp(data.tiles.held), note: "Authorized, waiting for you to ship" },
-    { label: "Captured", value: gbp(data.tiles.captured), note: "Paid out after shipping, net of refunds" },
-    { label: "Refunded", value: gbp(data.tiles.refunded), note: "Returned to buyers" },
-    { label: "Live negotiations", value: String(data.tiles.activeNegotiations), note: "Your agent is talking to buyers" },
-    { label: "Avg. above floor", value: avgMargin == null ? "—" : gbp(avgMargin), note: "How far your agent sold above your floor" },
-    {
-      label: "PayPal disputes",
-      value: disputes?.available ? String(disputes.count) : "—",
-      note: disputes?.available ? "Open disputes via the Agent Toolkit" : "Needs PayPal keys",
-    },
+  const toShip = data.orders.filter((o) => o.status === "AUTHORIZED");
+  const stats = [
+    { label: "Money held", value: gbp(data.tiles.held), note: "Paid by buyers, released when you ship", tone: "text-leaf" },
+    { label: "Paid to you", value: gbp(data.tiles.captured), note: "After shipping, net of refunds", tone: "" },
+    { label: "Refunded", value: gbp(data.tiles.refunded), note: "Returned to buyers", tone: "" },
+    { label: "Live negotiations", value: String(data.tiles.activeNegotiations), note: "Your agent is talking to buyers", tone: "" },
+    { label: "Average above floor", value: avgMargin == null ? "–" : gbp(avgMargin), note: "How far above your floor your agent sold", tone: "" },
   ];
+  const TAB_LABEL = { orders: "Orders", negotiations: "Negotiations", listings: "Listings" } as const;
 
   return (
-    <main className="mx-auto max-w-7xl space-y-6 p-6">
+    <main className="page space-y-8">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-sm uppercase tracking-wide text-neutral-500">Seller dashboard</p>
-          <h1 className="text-3xl font-semibold">
-            {data.seller.name} · {data.seller.city}
+          <p className="text-ink-3">Seller dashboard</p>
+          <h1 className="title text-4xl">
+            {data.seller.name}, {data.seller.city}
           </h1>
         </div>
-        <Link href="/seller" className="text-sm underline">
-          Open {data.seller.name}&apos;s phone view
-        </Link>
+        <div className="flex flex-wrap gap-3">
+          <Link href="/seller" className="btn btn-secondary">
+            Phone view
+          </Link>
+          <Link href="/sell" className="btn btn-primary">
+            List a new piece
+          </Link>
+        </div>
       </header>
 
-      <section className="grid gap-4 sm:grid-cols-3 lg:grid-cols-6">
-        {tiles.map((t) => (
-          <div key={t.label} className="rounded-xl border border-neutral-200 p-4">
-            <p className="text-sm text-neutral-500">{t.label}</p>
-            <p className="text-[28px] font-semibold">{t.value}</p>
-            <p className="text-xs text-neutral-500">{t.note}</p>
+      {toShip.length > 0 && (
+        <section className="panel overflow-hidden" aria-labelledby="to-ship">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line bg-leaf-soft px-5 py-3">
+            <h2 id="to-ship" className="font-semibold text-leaf">
+              {toShip.length === 1 ? "1 order to ship" : `${toShip.length} orders to ship`}
+            </h2>
+            <p className="text-sm text-leaf">The buyer&apos;s money is held. You&apos;re paid when you add tracking.</p>
+          </div>
+          <ul className="divide-y divide-line">
+            {toShip.map((o) => (
+              <li key={o.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
+                <div className="min-w-0">
+                  <p className="truncate font-semibold">{o.listing}</p>
+                  <p className="text-sm text-ink-3">
+                    For {o.buyer}, held on {when(o.authorizedAt)}
+                  </p>
+                </div>
+                <div className="flex items-center gap-4">
+                  <span className="money text-lg">{gbp(o.amount)}</span>
+                  <Link href={`/order/${o.id}`} className="btn btn-primary btn-sm">
+                    Ship it
+                  </Link>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {disputes && disputes.items.length > 0 && (
+        <section className="panel border-madder/40 p-5" aria-labelledby="disputes">
+          <h2 id="disputes" className="font-semibold text-madder">
+            {disputes.items.length === 1 ? "1 PayPal dispute" : `${disputes.items.length} PayPal disputes`}
+          </h2>
+          <p className="hint mt-1">Send PayPal the tracking and the negotiation record. It&apos;s often enough to close a dispute.</p>
+          <ul className="mt-3 divide-y divide-line">
+            {disputes.items.map((d) => (
+              <li key={d.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
+                <div>
+                  <p className="font-semibold">{d.reason.charAt(0) + d.reason.slice(1).toLowerCase().replaceAll("_", " ")}</p>
+                  <p className="text-sm text-ink-3">
+                    {d.id}
+                    {d.amount ? `, ${d.amount}` : ""}, {d.status.toLowerCase().replaceAll("_", " ")}
+                  </p>
+                </div>
+                {d.transactionId && (
+                  <button
+                    onClick={async () => {
+                      const res = await fetch(`/api/disputes/${d.id}/evidence`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ transactionId: d.transactionId }),
+                      });
+                      setDisputeNote(res.ok ? `Evidence sent for ${d.id}.` : (await res.json()).error);
+                    }}
+                    className="btn btn-secondary btn-sm"
+                  >
+                    Send tracking and deal record
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+          {disputeNote && (
+            <p role="status" className="mt-2 text-sm">
+              {disputeNote}
+            </p>
+          )}
+        </section>
+      )}
+
+      <section className="panel grid grid-cols-2 divide-line sm:grid-cols-3 lg:grid-cols-5 lg:divide-x" aria-label="Summary">
+        {stats.map((t, i) => (
+          <div key={t.label} className={`p-4 sm:p-5 ${i === 0 ? "col-span-2 sm:col-span-1" : ""}`}>
+            <p className="text-sm text-ink-3">{t.label}</p>
+            <p className={`money mt-1 text-[1.75rem] leading-tight ${t.tone}`}>{t.value}</p>
+            <p className="hint mt-1">{t.note}</p>
           </div>
         ))}
       </section>
-
-      <section className="rounded-xl border border-neutral-200 p-4">
-        <p className="mb-2 font-medium">Captured revenue by week</p>
-        <AgCharts options={chart} />
-      </section>
+      <p className="hint -mt-5">
+        PayPal disputes:{" "}
+        {disputes?.available ? `${disputes.count} open, checked through the PayPal Agent Toolkit.` : "not checked (needs PayPal keys)."}
+      </p>
 
       <section>
-        <div className="mb-3 flex gap-2">
+        <div className="mb-3 flex gap-1 overflow-x-auto border-b border-line" role="tablist" aria-label="Seller records">
           {(["orders", "negotiations", "listings"] as const).map((t) => (
             <button
               key={t}
+              role="tab"
+              aria-selected={tab === t}
               onClick={() => setTab(t)}
-              className={`rounded-lg px-4 py-2 capitalize ${tab === t ? "bg-neutral-900 text-white" : "border border-neutral-300"}`}
+              className={`-mb-px whitespace-nowrap border-b-2 px-4 py-2.5 font-semibold ${
+                tab === t ? "border-indigo text-indigo" : "border-transparent text-ink-2 hover:text-ink"
+              }`}
             >
-              {t} ({data[t].length})
+              {TAB_LABEL[t]} <span className="money ml-1 text-sm text-ink-3">{data[t].length}</span>
             </button>
           ))}
         </div>
+        {tab === "negotiations" && !selected && <p className="hint mb-3">Select a negotiation to read what the agents said.</p>}
 
         <div className="grid gap-4 lg:grid-cols-[1fr_auto]">
-          <div style={{ height: 420 }}>
-            {tab === "orders" && (
-              <AgGridReact<Order> theme={theme} rowData={data.orders} columnDefs={orderCols} defaultColDef={defaultColDef} getRowId={(p) => p.data.id} />
-            )}
-            {tab === "negotiations" && (
-              <AgGridReact<Neg>
-                theme={theme}
-                rowData={data.negotiations}
-                columnDefs={negCols}
-                defaultColDef={defaultColDef}
-                getRowId={(p) => p.data.id}
-                onRowClicked={(e: RowClickedEvent<Neg>) => setSelected(e.data ?? null)}
-                rowClass="cursor-pointer"
-              />
-            )}
-            {tab === "listings" && (
-              <AgGridReact<Listing> theme={theme} rowData={data.listings} columnDefs={listingCols} defaultColDef={defaultColDef} getRowId={(p) => p.data.id} />
-            )}
+          <div className="min-w-0 overflow-x-auto">
+            <div style={{ minWidth: 640 }}>
+              {tab === "orders" && (
+                <AgGridReact<Order> theme={theme} rowData={data.orders} columnDefs={orderCols} defaultColDef={defaultColDef} domLayout="autoHeight" getRowId={(p) => p.data.id} />
+              )}
+              {tab === "negotiations" && (
+                <AgGridReact<Neg>
+                  theme={theme}
+                  rowData={data.negotiations}
+                  columnDefs={negCols}
+                  defaultColDef={defaultColDef}
+                  domLayout="autoHeight"
+                  getRowId={(p) => p.data.id}
+                  onRowClicked={(e: RowClickedEvent<Neg>) => setSelected(e.data ?? null)}
+                  rowClass="cursor-pointer"
+                />
+              )}
+              {tab === "listings" && (
+                <AgGridReact<Listing> theme={theme} rowData={data.listings} columnDefs={listingCols} defaultColDef={defaultColDef} domLayout="autoHeight" getRowId={(p) => p.data.id} />
+              )}
+            </div>
           </div>
 
           {tab === "negotiations" && selected && (
-            <aside className="max-h-[420px] w-full overflow-y-auto rounded-xl border border-neutral-200 p-4 lg:w-96">
+            <aside className="panel max-h-[440px] w-full overflow-y-auto p-4 lg:w-96" aria-label="Negotiation transcript">
               <div className="mb-3 flex items-start justify-between gap-2">
                 <div>
-                  <p className="font-semibold">{selected.buyer}&apos;s agent</p>
-                  <p className="text-sm text-neutral-600">{selected.listing}</p>
+                  <p className="font-semibold">With {selected.buyer}&apos;s agent</p>
+                  <p className="text-sm text-ink-3">{selected.listing}</p>
                 </div>
-                <button onClick={() => setSelected(null)} className="text-sm text-neutral-500" aria-label="Close">
-                  ✕
+                <button onClick={() => setSelected(null)} className="btn btn-quiet btn-sm" aria-label="Close transcript">
+                  Close
                 </button>
               </div>
               {turns.length === 0 ? (
-                <p className="text-sm text-neutral-500">No turns recorded.</p>
+                <p className="text-sm text-ink-3">No messages recorded.</p>
               ) : (
                 <ol className="space-y-2 text-sm">
                   {turns.map((t) => (
-                    <li key={t.id} className={`rounded-lg p-2 ${t.from === "buyer" ? "bg-blue-50" : t.from === "seller" ? "bg-neutral-100" : ""}`}>
-                      <p className="text-xs uppercase text-neutral-500">
-                        {t.from} · round {t.round}
-                        {t.source === "fallback" && " · rule-based"}
+                    <li key={t.id} className={`rounded-xl px-3 py-2 ${t.from === "buyer" ? "bg-indigo-soft" : t.from === "seller" ? "bg-surface" : "border border-line"}`}>
+                      <p className="text-xs text-ink-3">
+                        {t.from === "buyer" ? `${selected.buyer}'s agent` : t.from === "seller" ? "Your agent" : t.from}, round {t.round}
+                        {t.source === "fallback" && ", rule-based"}
                       </p>
-                      <p>{t.message}</p>
+                      <p className="mt-0.5">{t.message}</p>
                       {t.final != null && (
-                        <p className="font-semibold">
+                        <p className="money mt-1">
                           {gbp(t.final)}
                           {t.proposed != null && t.proposed !== t.final && (
-                            <span className="ml-2 text-xs font-normal text-amber-800">engine adjusted from {gbp(t.proposed)}</span>
+                            <span className="ml-2 text-xs font-normal text-haldi-ink">engine adjusted from {gbp(t.proposed)}</span>
                           )}
                         </p>
                       )}
-                      {t.injection && <p className="text-xs text-amber-800">Injection attempt ignored</p>}
+                      {t.injection && <p className="mt-1 text-xs font-semibold text-madder">Injection attempt ignored</p>}
                     </li>
                   ))}
                 </ol>
               )}
-              <Link href={`/deal/${selected.mandateId}`} className="mt-3 inline-block text-sm underline">
-                Open negotiation room →
+              <Link href={`/deal/${selected.mandateId}`} className="link mt-3 inline-block text-sm">
+                Open the negotiation room
               </Link>
             </aside>
           )}
         </div>
+      </section>
+
+      <section className="panel p-5">
+        <h2 className="font-semibold">Paid to you, by week</h2>
+        <AgCharts options={chart} />
       </section>
     </main>
   );

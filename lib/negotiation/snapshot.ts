@@ -1,7 +1,7 @@
 // Everything the negotiation room needs to render a mandate from scratch:
 // the mandate, one entry per negotiation (public listing fields only) and all
 // turns so far. Seller floors are never included.
-import { asc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { toMajor } from "@/lib/engine/negotiation";
 import { turnEvent } from "./runner";
@@ -36,7 +36,19 @@ export async function getMandateSnapshot(mandateId: string) {
         )
       : [],
   );
+  // A paid order on any of these negotiations, so a reload shows "held" instead
+  // of offering to pay again. Unpaid (CREATED) and voided orders don't count.
+  const [order] = ids.length
+    ? await db
+        .select({ id: schema.orders.id, negotiationId: schema.orders.negotiationId, amountMinor: schema.orders.amountMinor, status: schema.orders.status })
+        .from(schema.orders)
+        .where(and(inArray(schema.orders.negotiationId, ids), inArray(schema.orders.status, ["AUTHORIZED", "SHIPPED", "CAPTURED", "REFUNDED"])))
+        .orderBy(desc(schema.orders.createdAt))
+        .limit(1)
+    : [];
+
   return {
+    order: order ? { id: order.id, negotiationId: order.negotiationId!, amount: toMajor(order.amountMinor), status: order.status } : null,
     mandate: {
       id: mandate.id,
       buyerName: mandate.buyerName,

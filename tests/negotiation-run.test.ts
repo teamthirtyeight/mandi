@@ -127,4 +127,44 @@ describe.skipIf(!TEST_DB)("negotiation run", () => {
     const floors: Record<string, number> = { Meera: 68, Arjun: 98, Fatima: 84 };
     for (const t of delivered) expect(t.message).not.toContain(`£${floors[t.seller]}.`);
   });
+
+  it("a run stuck before a restart is marked interrupted and its open negotiations closed", async () => {
+    const { recoverStuckRuns } = await import("@/lib/negotiation/recovery");
+    const { eq } = await import("drizzle-orm");
+    const { db, schema } = dbmod;
+    const m = await mandate();
+    await runner.openNegotiations(m.id);
+    await db
+      .update(schema.mandates)
+      .set({ status: "negotiating", createdAt: new Date(Date.now() - 20 * 60 * 1000) })
+      .where(eq(schema.mandates.id, m.id));
+    const fresh = await mandate();
+    await db.update(schema.mandates).set({ status: "negotiating" }).where(eq(schema.mandates.id, fresh.id));
+
+    expect(await recoverStuckRuns()).toEqual([m.id]);
+    const snap = (await snapshot.getMandateSnapshot(m.id))!;
+    expect(snap.mandate.status).toBe("interrupted");
+    expect(snap.negotiations.every((n) => n.state === "EXPIRED")).toBe(true);
+    expect((await snapshot.getMandateSnapshot(fresh.id))!.mandate.status).toBe("negotiating");
+  });
+
+  it("a cancel mid-run closes every negotiation, even ones that were about to agree", async () => {
+    const { eq } = await import("drizzle-orm");
+    const { db, schema } = dbmod;
+    process.env.MANDI_TURN_DELAY_MS = "40";
+    try {
+      const m = await mandate();
+      await runner.openNegotiations(m.id);
+      const run = runner.runMandate(m.id);
+      await new Promise((r) => setTimeout(r, 120));
+      await db.update(schema.mandates).set({ status: "cancelled" }).where(eq(schema.mandates.id, m.id));
+      await run;
+      const snap = (await snapshot.getMandateSnapshot(m.id))!;
+      expect(snap.mandate.status).toBe("cancelled");
+      expect(snap.negotiations.every((n) => n.state === "WALKED_AWAY" && n.agreedPrice == null)).toBe(true);
+    } finally {
+      process.env.MANDI_TURN_DELAY_MS = "0";
+    }
+  });
 });
+

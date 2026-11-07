@@ -105,6 +105,8 @@ export const listings = pgTable("listings", {
 export const mandates = pgTable("mandates", {
   id: uuid("id").primaryKey().defaultRandom(),
   buyerUserId: uuid("buyer_user_id").references(() => users.id),
+  // Set when the buyer sent their agent after one specific listing.
+  targetListingId: uuid("target_listing_id").references(() => listings.id),
   buyerName: text("buyer_name").notNull(),
   requestText: text("request_text").notNull(),
   maxPriceMinor: integer("max_price_minor").notNull(),
@@ -173,6 +175,9 @@ export const orders = pgTable("orders", {
   amountMinor: integer("amount_minor").notNull(),
   currency: text("currency").notNull().default("GBP"),
   refundedMinor: integer("refunded_minor").notNull().default(0),
+  // PayPal refund ids already counted in refundedMinor, so a retried request
+  // (PayPal returns the same refund) is never counted twice.
+  refundIds: jsonb("refund_ids").$type<string[]>().notNull().default([]),
   // Buyer's problem report and the seller agent's refund proposal.
   problemNote: text("problem_note"),
   // Buyer's photo (data URL), kept for the dispute evidence pack.
@@ -183,6 +188,19 @@ export const orders = pgTable("orders", {
   status: orderStatus("status").notNull().default("CREATED"),
   trackingNumber: text("tracking_number"),
   carrier: text("carrier"),
+  // Who PayPal pays: the seller's own account, or null for the Mandi merchant.
+  payeeEmail: text("payee_email"),
+  // Stock was taken for this order's item(s); given back if the hold is voided.
+  stockReserved: boolean("stock_reserved").notNull().default(false),
+  // Where to ship: the address the buyer chose in the PayPal popup.
+  shipping: jsonb("shipping").$type<{
+    name: string | null;
+    lines: string[];
+    city: string | null;
+    region: string | null;
+    postalCode: string | null;
+    countryCode: string | null;
+  }>(),
   authorizedAt: timestamp("authorized_at"),
   capturedAt: timestamp("captured_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -198,3 +216,28 @@ export const paypalEvents = pgTable("paypal_events", {
   summary: text("summary").notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
+
+export const notifications = pgTable("notifications", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id),
+  title: text("title").notNull(),
+  body: text("body").notNull(),
+  link: text("link"),
+  readAt: timestamp("read_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const passwordResets = pgTable("password_resets", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id),
+  // SHA-256 of the token; the token itself is only ever in the link.
+  tokenHash: text("token_hash").notNull().unique(),
+  expiresAt: timestamp("expires_at").notNull(),
+  usedAt: timestamp("used_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+

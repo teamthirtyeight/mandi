@@ -10,6 +10,8 @@ import { errorResponse } from "@/lib/api/errors";
 const Body = z.object({
   requestText: z.string().trim().min(5).max(300),
   hostile: z.boolean().default(false),
+  // Send the agent after one specific listing (from its product page).
+  listingId: z.string().uuid().optional(),
 });
 
 export async function POST(req: Request) {
@@ -30,6 +32,13 @@ export async function POST(req: Request) {
     );
   }
 
+  if (draft.currency !== "GBP") {
+    return NextResponse.json(
+      { error: "Mandi's sellers price in pounds for now. Please give your budget in £." },
+      { status: 422 },
+    );
+  }
+
   const [mandate] = await db
     .insert(schema.mandates)
     .values({
@@ -43,6 +52,7 @@ export async function POST(req: Request) {
       // The sentence wins if it names a country; otherwise the buyer's default.
       shipToCountry: /\b(ship|deliver|send)\w*\b.*\bto\b/i.test(parsed.data.requestText) ? draft.ship_to_country : user.shipToCountry,
       hostile: parsed.data.hostile,
+      targetListingId: parsed.data.listingId ?? null,
     })
     .returning();
 

@@ -22,24 +22,24 @@ export default function PaypalTestPage() {
 
   if (!clientId) {
     return (
-      <main className="mx-auto max-w-2xl p-8">
-        <p className="text-lg">Set NEXT_PUBLIC_PAYPAL_CLIENT_ID in .env.local to load the PayPal button.</p>
+      <main className="page-narrow">
+        <p className="notice">Set NEXT_PUBLIC_PAYPAL_CLIENT_ID in .env.local to load the PayPal button.</p>
       </main>
     );
   }
 
   return (
-    <main className="mx-auto grid max-w-5xl gap-8 p-8 md:grid-cols-[1fr_1fr]">
+    <main className="page grid gap-8 md:grid-cols-[1fr_1fr]">
       <section className="space-y-6">
         <header>
-          <p className="text-sm uppercase tracking-wide text-neutral-500">PayPal sandbox test</p>
-          <h1 className="text-3xl font-semibold">Approve a test deal</h1>
+          <h1 className="display text-4xl">Approve a test deal</h1>
+          <p className="mt-2 text-ink-2">A developer check of the PayPal sandbox: approve £72 and see it held, without running a negotiation.</p>
         </header>
 
-        <div className="rounded-xl border border-neutral-200 p-5">
-          <p className="text-neutral-600">Meera · Varanasi</p>
-          <p className="text-lg font-medium">Handwoven Banarasi silk scarf, rose and gold</p>
-          <p className="mt-2 text-[28px] font-semibold">£72.00</p>
+        <div className="panel p-5">
+          <p className="text-ink-3">Meera, Varanasi</p>
+          <p className="text-lg font-semibold">Handwoven Banarasi silk scarf, rose and gold</p>
+          <p className="money mt-2 text-3xl">£72.00</p>
         </div>
 
         <PayPalScriptProvider options={{ clientId, intent: "authorize", currency: "GBP" }}>
@@ -83,23 +83,29 @@ export default function PaypalTestPage() {
         </PayPalScriptProvider>
 
         {result.kind === "held" && (
-          <div className="rounded-xl border border-green-300 bg-green-50 p-5">
-            <p className="text-xl font-semibold text-green-900">£72 held — ship within 3 days</p>
-            <p className="mt-1 font-mono text-sm text-green-900">Authorization {result.authorizationId}</p>
+          <div className="notice notice-safe p-5" role="status">
+            <p className="title text-xl">£72 held. Ship within 3 days.</p>
+            <p className="mt-1 text-sm">Authorization {result.authorizationId}</p>
             {result.orderId && (
-              <Link href={`/order/${result.orderId}`} className="mt-3 inline-block font-medium text-green-900 underline">
-                Open the order tracker →
+              <Link href={`/order/${result.orderId}`} className="mt-3 inline-block font-semibold underline">
+                Open the order tracker
               </Link>
             )}
           </div>
         )}
         {result.kind === "cancelled" && (
-          <p className="text-neutral-600">Popup closed. The order stays in CREATED; try again any time.</p>
+          <p className="notice text-sm" role="status">PayPal was closed before approving. Nothing was held; try again any time.</p>
         )}
-        {result.kind === "error" && <p className="text-red-700">{result.message}</p>}
+        {result.kind === "error" && (
+          <p role="alert" className="notice notice-bad text-sm">
+            {result.message}
+          </p>
+        )}
       </section>
 
-      <PayPalCallLog refreshKey={refreshKey} />
+      <div className="panel overflow-hidden">
+        <PayPalCallLog refreshKey={refreshKey} />
+      </div>
     </main>
   );
 }

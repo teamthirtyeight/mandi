@@ -81,7 +81,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       authorizedAt: order.authorizedAt,
       capturedAt: order.capturedAt,
     },
-    shipping: { carrier: order.carrier, trackingNumber: order.trackingNumber },
+    shipping: { carrier: order.carrier, trackingNumber: order.trackingNumber, address: order.shipping },
     problemReport: order.problemNote
       ? { description: order.problemNote, sellerAgentReply: order.agentRefundMessage, photo: order.problemPhoto }
       : null,

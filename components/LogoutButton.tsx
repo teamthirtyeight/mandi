@@ -11,7 +11,7 @@ export function LogoutButton() {
         router.push("/");
         router.refresh();
       }}
-      className="text-sm underline"
+      className="btn btn-quiet btn-sm"
     >
       Log out
     </button>

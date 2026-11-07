@@ -30,29 +30,31 @@ export function PayPalCallLog({ orderId, refreshKey = 0 }: { orderId?: string; r
   }, [load, refreshKey]);
 
   return (
-    <aside className="rounded-xl border border-neutral-200 bg-white p-5">
-      <h2 className="mb-3 font-semibold">PayPal API calls</h2>
+    <aside className="p-5" aria-label="PayPal API calls">
+      <h2 className="title text-lg">PayPal API calls</h2>
+      <p className="hint mb-3">Every request Mandi makes to PayPal, newest first.</p>
       {events.length === 0 ? (
-        <p className="text-sm text-neutral-500">No calls yet.</p>
+        <p className="well px-3 py-2 text-sm text-ink-3">No calls yet. They appear here as soon as money moves.</p>
       ) : (
-        <ul className="space-y-2 text-sm">
-          {events.map((e) => (
-            <li key={e.id} className="border-b border-neutral-100 pb-2">
-              <div className="flex justify-between gap-3 font-mono">
-                <span className="truncate">
-                  {e.direction === "webhook" ? "WEBHOOK " : `${e.method ?? ""} `}
-                  {e.endpoint}
-                </span>
-                <span className={e.httpStatus && e.httpStatus < 300 ? "text-green-700" : "text-red-700"}>
-                  {e.httpStatus}
-                </span>
-              </div>
-              <div className="flex justify-between gap-3 text-neutral-600">
-                <span>{e.summary}</span>
-                <span className="shrink-0 text-neutral-400">{new Date(e.createdAt).toLocaleTimeString()}</span>
-              </div>
-            </li>
-          ))}
+        <ul className="divide-y divide-line text-sm">
+          {events.map((e) => {
+            const ok = e.httpStatus != null && e.httpStatus < 300;
+            return (
+              <li key={e.id} className="py-2.5">
+                <div className="flex items-start justify-between gap-3">
+                  <p className="font-semibold">{e.summary}</p>
+                  <span className={`chip shrink-0 ${ok ? "chip-safe" : "chip-bad"}`}>{e.httpStatus ?? "–"}</span>
+                </div>
+                <div className="mt-0.5 flex justify-between gap-3 text-xs text-ink-3">
+                  <span className="truncate font-mono">
+                    {e.direction === "webhook" ? "Webhook " : `${e.method ?? ""} `}
+                    {e.endpoint}
+                  </span>
+                  <time className="money shrink-0 font-normal">{new Date(e.createdAt).toLocaleTimeString()}</time>
+                </div>
+              </li>
+            );
+          })}
         </ul>
       )}
     </aside>

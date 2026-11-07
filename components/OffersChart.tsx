@@ -1,8 +1,10 @@
 "use client";
 
-// Per-seller offers chart: seller asks (solid) and buyer bids (dashed) by
-// round, with the buyer's budget as a flat line, so convergence is visible.
-import { useMemo } from "react";
+// Per-seller offers chart: seller asks (solid, ink) and buyer bids (indigo) by
+// round, with the buyer's budget as a dashed haldi line, so convergence is
+// visible. The chart draws on a canvas, so colours are read from the CSS tokens
+// at runtime and re-read when the colour scheme changes.
+import { useEffect, useMemo, useState } from "react";
 import { AgCharts } from "ag-charts-react";
 import {
   CategoryAxisModule,
@@ -20,7 +22,32 @@ interface Point {
   final_price: number | null;
 }
 
+const FALLBACK = { ink: "#151935", ink3: "#6b7194", indigo: "#2f3fa0", haldi: "#e9a21b", line: "#e2e4ee" };
+
+function useTokens() {
+  const [tokens, setTokens] = useState(FALLBACK);
+  useEffect(() => {
+    const read = () => {
+      const css = getComputedStyle(document.documentElement);
+      const v = (name: string, fb: string) => css.getPropertyValue(name).trim() || fb;
+      setTokens({
+        ink: v("--ink", FALLBACK.ink),
+        ink3: v("--ink-3", FALLBACK.ink3),
+        indigo: v("--indigo", FALLBACK.indigo),
+        haldi: v("--haldi", FALLBACK.haldi),
+        line: v("--line", FALLBACK.line),
+      });
+    };
+    read();
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    mq.addEventListener("change", read);
+    return () => mq.removeEventListener("change", read);
+  }, []);
+  return tokens;
+}
+
 export function OffersChart({ turns, budget }: { turns: Point[]; budget: number }) {
+  const c = useTokens();
   const options = useMemo<AgCartesianChartOptions>(() => {
     const rounds = new Map<number, { round: string; ask?: number; bid?: number; budget: number }>();
     for (const t of turns) {
@@ -31,6 +58,7 @@ export function OffersChart({ turns, budget }: { turns: Point[]; budget: number 
       rounds.set(t.round, row);
     }
     const data = [...rounds.values()];
+    const label = { color: c.ink3, fontFamily: "inherit", fontSize: 12 };
     return {
       data,
       height: 140,
@@ -39,17 +67,40 @@ export function OffersChart({ turns, budget }: { turns: Point[]; budget: number 
       legend: { enabled: false },
       animation: { enabled: false },
       series: [
-        { type: "line", xKey: "round", yKey: "ask", yName: "Seller ask", stroke: "#404040", marker: { fill: "#404040", size: 6 } },
-        { type: "line", xKey: "round", yKey: "bid", yName: "Buyer bid", stroke: "#2563eb", lineDash: [4, 3], marker: { fill: "#2563eb", size: 6 } },
-        { type: "line", xKey: "round", yKey: "budget", yName: "Budget", stroke: "#d97706", lineDash: [2, 4], marker: { enabled: false } },
+        { type: "line", xKey: "round", yKey: "ask", yName: "Seller asks", stroke: c.ink, strokeWidth: 2, marker: { fill: c.ink, stroke: c.ink, size: 6 } },
+        { type: "line", xKey: "round", yKey: "bid", yName: "Your agent offers", stroke: c.indigo, strokeWidth: 2, marker: { fill: c.indigo, stroke: c.indigo, size: 6 } },
+        { type: "line", xKey: "round", yKey: "budget", yName: "Your budget", stroke: c.haldi, strokeWidth: 2, lineDash: [5, 4], marker: { enabled: false } },
       ],
       axes: {
-        x: { type: "category", position: "bottom" },
-        y: { type: "number", position: "left", label: { formatter: (p: { value: number }) => `£${p.value}` } },
+        x: { type: "category", position: "bottom", label, line: { stroke: c.line } },
+        y: {
+          type: "number",
+          position: "left",
+          label: { ...label, formatter: (p: { value: number }) => `£${p.value}` },
+          gridLine: { style: [{ stroke: c.line, lineDash: [2, 3] }] },
+        },
       },
     };
-  }, [turns, budget]);
+  }, [turns, budget, c]);
 
   if (!turns.some((t) => t.final_price != null)) return null;
-  return <AgCharts options={options} />;
+  return (
+    <div>
+      <AgCharts options={options} />
+      <ul className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-3" aria-hidden="true">
+        <li className="flex items-center gap-1.5">
+          <span className="h-0.5 w-4 bg-ink" />
+          Seller asks
+        </li>
+        <li className="flex items-center gap-1.5">
+          <span className="h-0.5 w-4 bg-indigo" />
+          Your agent offers
+        </li>
+        <li className="flex items-center gap-1.5">
+          <span className="h-0 w-4 border-t-2 border-dashed border-haldi" />
+          Your budget
+        </li>
+      </ul>
+    </div>
+  );
 }

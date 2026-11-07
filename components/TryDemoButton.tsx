@@ -23,15 +23,15 @@ export function TryDemoButton({ hostile = false, label = "Try the demo" }: { hos
           router.push(`/deal/${body.mandateId}`);
           router.refresh(); // the nav picks up the demo sign-in
         }}
-        className={
-          hostile
-            ? "rounded-lg border border-amber-400 px-5 py-3 text-amber-900 disabled:opacity-40"
-            : "rounded-lg bg-green-700 px-5 py-3 font-medium text-white disabled:opacity-40"
-        }
+        className={hostile ? "btn btn-secondary" : "btn btn-primary btn-lg"}
       >
         {busy ? "Starting the agents…" : label}
       </button>
-      {error && <p className="mt-2 text-sm text-red-700">{error}</p>}
+      {error && (
+        <p role="alert" className="mt-2 text-sm text-madder">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

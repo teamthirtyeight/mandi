@@ -17,20 +17,23 @@ export function DemoLogin() {
   };
 
   return (
-    <div className="rounded-lg border border-neutral-200 bg-white p-3 text-sm">
-      <p className="mb-2 text-neutral-600">PayPal sandbox buyer login (test money only)</p>
-      {[
-        ["Email", email],
-        ["Password", password],
-      ].map(([label, value]) => (
-        <div key={label} className="flex items-center justify-between gap-2">
-          <span className="text-neutral-500">{label}</span>
-          <code className="truncate">{value}</code>
-          <button onClick={() => copy(label, value)} className="text-xs underline">
-            {copied === label ? "Copied" : "Copy"}
-          </button>
-        </div>
-      ))}
+    <div className="rounded-xl border border-dashed border-line-strong bg-raised p-3 text-sm">
+      <p className="mb-2 font-semibold">PayPal sandbox buyer login</p>
+      <p className="hint mb-2">Test money only. Use it in the PayPal window.</p>
+      <dl className="space-y-1">
+        {[
+          ["Email", email],
+          ["Password", password],
+        ].map(([label, value]) => (
+          <div key={label} className="flex items-center gap-3">
+            <dt className="w-16 shrink-0 text-ink-3">{label}</dt>
+            <dd className="min-w-0 flex-1 truncate font-medium">{value}</dd>
+            <button onClick={() => copy(label, value)} className="btn btn-quiet btn-sm" aria-label={`Copy ${label.toLowerCase()}`}>
+              <span aria-live="polite">{copied === label ? "Copied" : "Copy"}</span>
+            </button>
+          </div>
+        ))}
+      </dl>
     </div>
   );
 }

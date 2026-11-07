@@ -1,11 +1,12 @@
 // One-click "Try the demo": Sarah's mandate, confirmed, agents started.
 // Capped so a burst of judges can't run up unbounded model spend.
 import { NextResponse } from "next/server";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, gt, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { openNegotiations, runMandate } from "@/lib/negotiation/runner";
 import { getUser, startSession } from "@/lib/auth/session";
 import { DEMO_ACCOUNTS } from "@/lib/auth/demo";
+import { allow, clientIp, MINUTE } from "@/lib/auth/ratelimit";
 
 const DEMO_REQUEST = "Handwoven silk scarf for my mum, under £90, by Dec 20";
 const MAX_RUNNING = 5;
@@ -21,6 +22,9 @@ export async function POST(req: Request) {
   // agent that falls for it, so the engine's blocks show on camera.
   const mode = new URL(req.url).searchParams.get("hostile");
   const hostile = mode === "1" || mode === "2";
+  if (!allow(`demo:${clientIp(req)}`, 10, 10 * MINUTE)) {
+    return NextResponse.json({ error: "That's a lot of demos. Please wait a few minutes." }, { status: 429 });
+  }
   const compromised = mode === "2";
 
   // Logged-out visitors (judges) run the demo as Sarah, the demo buyer.
@@ -35,10 +39,11 @@ export async function POST(req: Request) {
     await startSession(user.id);
   }
 
+  // Count only recent runs, so a run stuck before a restart can't block demos.
   const [{ running }] = await db
     .select({ running: sql<number>`count(*)::int` })
     .from(schema.mandates)
-    .where(eq(schema.mandates.status, "negotiating"));
+    .where(and(eq(schema.mandates.status, "negotiating"), gt(schema.mandates.createdAt, new Date(Date.now() - 10 * 60 * 1000))));
   if (running >= MAX_RUNNING) {
     return NextResponse.json({ error: "A few demos are running right now. Try again in a minute." }, { status: 429 });
   }

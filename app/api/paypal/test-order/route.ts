@@ -32,7 +32,7 @@ export async function POST(req: Request) {
 
     const order = await createAuthorizeOrder({
       ...TEST_DEAL,
-      payeeEmail: process.env.SELLER_MEERA_EMAIL || undefined,
+      payeeEmail: process.env.PAYPAL_PAY_SELLERS_DIRECTLY === "1" ? process.env.SELLER_MEERA_EMAIL || undefined : undefined,
       referenceId: orderRowId ?? "test-deal",
       requestId: `create-${parsed.data.requestKey}`,
       orderId: orderRowId,

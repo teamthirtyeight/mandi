@@ -5,10 +5,10 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 
 const DEMOS = [
-  { as: "sarah", label: "Sarah · buyer, London" },
-  { as: "meera", label: "Meera · seller, Varanasi" },
-  { as: "arjun", label: "Arjun · seller, Jaipur" },
-  { as: "fatima", label: "Fatima · seller, Srinagar" },
+  { as: "sarah", label: "Sarah · buyer, London", note: "Shops for a scarf for her mum" },
+  { as: "meera", label: "Meera · seller, Varanasi", note: "Banarasi silk weaver, reads alerts in Hindi" },
+  { as: "arjun", label: "Arjun · seller, Jaipur", note: "Indigo block printer" },
+  { as: "fatima", label: "Fatima · seller, Srinagar", note: "Sozni embroiderer" },
 ] as const;
 
 function home(role: string) {
@@ -35,36 +35,77 @@ function LoginForm() {
   }
 
   return (
-    <main className="mx-auto max-w-md space-y-8 p-8">
-      <h1 className="text-3xl font-semibold">Log in</h1>
+    <main className="page-narrow max-w-md">
+      <h1 className="display text-4xl">Log in</h1>
+      <p className="mt-2 text-ink-2">Welcome back. Your deals and orders are where you left them.</p>
+
       <form
-        className="space-y-3"
+        className="panel mt-8 space-y-5 p-6"
         onSubmit={(e) => {
           e.preventDefault();
           go("/api/auth/login", { email, password });
         }}
       >
-        <input className="w-full rounded-lg border border-neutral-300 px-3 py-2" type="email" placeholder="Email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-        <input className="w-full rounded-lg border border-neutral-300 px-3 py-2" type="password" placeholder="Password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
-        <button disabled={busy} className="w-full rounded-lg bg-neutral-900 px-5 py-3 text-white disabled:opacity-40">
-          Log in
+        <div>
+          <label htmlFor="login-email" className="label">
+            Email
+          </label>
+          <input id="login-email" className="field" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+        </div>
+        <div>
+          <div className="flex items-baseline justify-between gap-2">
+            <label htmlFor="login-password" className="label">
+              Password
+            </label>
+            <Link href="/reset" className="link text-sm">
+              Forgot password?
+            </Link>
+          </div>
+          <input
+            id="login-password"
+            className="field"
+            type="password"
+            autoComplete="current-password"
+            required
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+        </div>
+        {error && (
+          <p role="alert" className="notice notice-bad text-sm">
+            {error}
+          </p>
+        )}
+        <button disabled={busy} className="btn btn-primary btn-lg w-full">
+          {busy ? "Logging in…" : "Log in"}
         </button>
-        <p className="text-sm text-neutral-600">
-          New here? <Link href="/signup" className="underline">Create an account</Link>
+        <p className="text-center text-sm text-ink-2">
+          New to Mandi?{" "}
+          <Link href="/signup" className="link">
+            Create an account
+          </Link>
         </p>
       </form>
 
-      <section className="space-y-2 rounded-xl border border-neutral-200 p-4">
-        <p className="font-medium">Judges: one-click demo accounts</p>
-        <div className="grid gap-2">
+      <section className="mt-8 rounded-[1.25rem] border border-dashed border-line-strong bg-surface p-5" aria-labelledby="demo-heading">
+        <h2 id="demo-heading" className="title text-lg">
+          Judging? Use a demo account
+        </h2>
+        <p className="hint mt-1">One click logs you in. No password needed.</p>
+        <div className="mt-4 grid gap-2">
           {DEMOS.map((d) => (
-            <button key={d.as} disabled={busy} onClick={() => go("/api/auth/demo", { as: d.as })} className="rounded-lg border border-neutral-300 px-4 py-2 text-left hover:bg-neutral-50 disabled:opacity-40">
-              {d.label}
+            <button
+              key={d.as}
+              disabled={busy}
+              onClick={() => go("/api/auth/demo", { as: d.as })}
+              className="flex w-full flex-col items-start rounded-xl border border-line bg-raised px-4 py-2.5 text-left hover:border-indigo disabled:opacity-45"
+            >
+              <span className="font-semibold">{d.label}</span>
+              <span className="text-sm text-ink-3">{d.note}</span>
             </button>
           ))}
         </div>
       </section>
-      {error && <p className="text-red-700">{error}</p>}
     </main>
   );
 }

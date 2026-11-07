@@ -1,9 +1,11 @@
 // Called after the buyer approves in the PayPal popup. Authorizes the order
 // (money held, not taken) and stores the authorization id.
 import { NextResponse } from "next/server";
-import { authorizeOrder, PaypalError } from "@/lib/paypal/rest";
+import { authorizeOrder, getOrder, PaypalError, shippingFrom } from "@/lib/paypal/rest";
 import { AuthError, requireUser } from "@/lib/auth/session";
 import { assertPaypalOrderAccess } from "@/lib/auth/access";
+import { releaseStock, reserveStock } from "@/lib/orders/stock";
+import { notifyOrder } from "@/lib/notify";
 
 export async function POST(_req: Request, { params }: { params: Promise<{ paypalOrderId: string }> }) {
   const { paypalOrderId } = await params;
@@ -25,7 +27,22 @@ export async function POST(_req: Request, { params }: { params: Promise<{ paypal
       orderRowId = row.id;
     }
 
-    const auth = await authorizeOrder(paypalOrderId, { orderId: orderRowId });
+    // Take the item's stock first, so two buyers can't both pay for the last piece.
+    if (orderRowId && !(await reserveStock(orderRowId))) {
+      return NextResponse.json(
+        { error: "Sorry, this item has just sold to another buyer. You have not been charged." },
+        { status: 409 },
+      );
+    }
+    let auth: Awaited<ReturnType<typeof authorizeOrder>>;
+    try {
+      auth = await authorizeOrder(paypalOrderId, { orderId: orderRowId });
+    } catch (err) {
+      if (orderRowId) await releaseStock(orderRowId);
+      throw err;
+    }
+    // The authorize response normally carries the address; if not, read the order.
+    const shipping = auth.shipping ?? shippingFrom(await getOrder(paypalOrderId, { orderId: orderRowId }).catch(() => null));
 
     if (orderRowId) {
       const { db, schema } = await import("@/lib/db");
@@ -33,7 +50,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ paypal
       // Only move forward: a webhook may already have recorded this authorization.
       await db
         .update(schema.orders)
-        .set({ status: "AUTHORIZED", authorizationId: auth.authorizationId, authorizedAt: new Date() })
+        .set({ status: "AUTHORIZED", authorizationId: auth.authorizationId, authorizedAt: new Date(), shipping })
         .where(and(eq(schema.orders.id, orderRowId), inArray(schema.orders.status, ["CREATED", "APPROVED"])));
       const [order] = await db
         .select({ negotiationId: schema.orders.negotiationId })
@@ -47,6 +64,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ paypal
       }
     }
 
+    if (orderRowId) await notifyOrder(orderRowId, "held");
     return NextResponse.json({
       authorizationId: auth.authorizationId,
       status: auth.status,

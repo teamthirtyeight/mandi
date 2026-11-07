@@ -7,6 +7,7 @@ import { eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { hashPassword } from "@/lib/auth/password";
 import { publicUser, startSession } from "@/lib/auth/session";
+import { allow, clientIp, MINUTE } from "@/lib/auth/ratelimit";
 
 const Common = z.object({
   email: z.string().trim().toLowerCase().email().max(120),
@@ -30,6 +31,9 @@ const Body = z.discriminatedUnion("role", [
 ]);
 
 export async function POST(req: Request) {
+  if (!allow(`signup:${clientIp(req)}`, 10, 60 * MINUTE)) {
+    return NextResponse.json({ error: "Too many attempts. Please wait a few minutes and try again." }, { status: 429 });
+  }
   const parsed = Body.safeParse(await req.json().catch(() => null));
   if (!parsed.success) {
     const issue = parsed.error.issues[0];

@@ -13,7 +13,7 @@ const gbp = (pounds: number) => Math.round(pounds * 100);
 async function main() {
   await db.execute(sql`
     TRUNCATE paypal_events, orders, negotiation_turns, negotiations,
-             mandates, listings, users, sellers RESTART IDENTITY CASCADE
+             mandates, listings, notifications, password_resets, users, sellers RESTART IDENTITY CASCADE
   `);
 
   const [meera, arjun, fatima] = await db

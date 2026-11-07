@@ -4,7 +4,7 @@
 // how firmly it holds the price, what it may offer, and the profile it argues
 // from; buyers set how hard it haggles, how many sellers it talks to, and what
 // matters most when it recommends a deal.
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import Link from "next/link";
 
 type SellerSettings = {
@@ -26,59 +26,110 @@ type Data =
   | { role: "buyer"; name: string; settings: BuyerSettings };
 
 const SELLER_STYLES = [
-  { v: "firm", label: "Firm", hint: "Small concessions; adds value before cutting price" },
-  { v: "balanced", label: "Balanced", hint: "Concedes in shrinking steps" },
-  { v: "flexible", label: "Flexible", hint: "Moves quickly to close the sale" },
+  { v: "firm", label: "Firm", hint: "Small concessions. Adds value, like gift wrapping, before cutting the price." },
+  { v: "balanced", label: "Balanced", hint: "Comes down in shrinking steps." },
+  { v: "flexible", label: "Flexible", hint: "Moves quickly to close the sale." },
 ] as const;
 const BUYER_STYLES = [
-  { v: "patient", label: "Patient", hint: "Small steps; uses every round to get the best price" },
-  { v: "balanced", label: "Balanced", hint: "Concedes slowly" },
-  { v: "quick", label: "Quick", hint: "Agrees on a fair price early" },
+  { v: "patient", label: "Patient", hint: "Small steps. Uses every round to get the best price." },
+  { v: "balanced", label: "Balanced", hint: "Comes up slowly." },
+  { v: "quick", label: "Quick", hint: "Agrees on a fair price early." },
 ] as const;
 const PRIORITIES = [
-  { v: "price", label: "Lowest price" },
-  { v: "balanced", label: "Balanced" },
-  { v: "delivery", label: "Fastest delivery" },
+  { v: "price", label: "Lowest price", hint: "Cheapest deal that arrives in time." },
+  { v: "balanced", label: "Balanced", hint: "Weighs price, delivery and the seller's offer." },
+  { v: "delivery", label: "Fastest delivery", hint: "Earliest arrival within your budget." },
 ] as const;
 
 function Choice<T extends string>({
+  label,
   options,
   value,
   onChange,
 }: {
+  label: string;
   options: readonly { v: T; label: string; hint?: string }[];
   value: T;
   onChange: (v: T) => void;
 }) {
   return (
-    <div className="grid gap-2 sm:grid-cols-3">
-      {options.map((o) => (
-        <button
-          type="button"
-          key={o.v}
-          onClick={() => onChange(o.v)}
-          className={`rounded-xl border p-3 text-left ${value === o.v ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-300"}`}
-        >
-          <p className="font-medium">{o.label}</p>
-          {o.hint && <p className={`text-xs ${value === o.v ? "text-neutral-300" : "text-neutral-500"}`}>{o.hint}</p>}
-        </button>
-      ))}
+    <div role="radiogroup" aria-label={label} className="grid gap-2 sm:grid-cols-3">
+      {options.map((o) => {
+        const on = value === o.v;
+        return (
+          <button
+            type="button"
+            role="radio"
+            aria-checked={on}
+            key={o.v}
+            onClick={() => onChange(o.v)}
+            className={`rounded-xl border px-4 py-3 text-left ${on ? "border-indigo bg-indigo-soft ring-1 ring-indigo" : "border-line-strong bg-raised hover:border-ink-3"}`}
+          >
+            <span className={`flex items-center gap-2 font-semibold ${on ? "text-indigo" : ""}`}>
+              <span
+                aria-hidden="true"
+                className={`flex h-4 w-4 items-center justify-center rounded-full border-2 ${on ? "border-indigo" : "border-line-strong"}`}
+              >
+                {on && <span className="h-1.5 w-1.5 rounded-full bg-indigo" />}
+              </span>
+              {o.label}
+            </span>
+            {o.hint && <span className="mt-1 block text-sm text-ink-2">{o.hint}</span>}
+          </button>
+        );
+      })}
     </div>
   );
 }
 
-const Toggle = ({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) => (
-  <label className="flex items-center gap-3">
-    <input type="checkbox" className="h-5 w-5" checked={checked} onChange={(e) => onChange(e.target.checked)} />
-    {label}
-  </label>
-);
+function Toggle({ checked, onChange, label, hint }: { checked: boolean; onChange: (v: boolean) => void; label: string; hint?: string }) {
+  const id = useId();
+  return (
+    <div className="flex items-start justify-between gap-4">
+      <div>
+        <p id={`${id}-l`} className="font-semibold">
+          {label}
+        </p>
+        {hint && (
+          <p id={`${id}-h`} className="hint mt-0.5">
+            {hint}
+          </p>
+        )}
+      </div>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        aria-labelledby={`${id}-l`}
+        aria-describedby={hint ? `${id}-h` : undefined}
+        onClick={() => onChange(!checked)}
+        className={`relative mt-0.5 h-7 w-12 shrink-0 rounded-full transition-colors ${checked ? "bg-indigo" : "bg-line-strong"}`}
+      >
+        <span
+          aria-hidden="true"
+          className={`absolute top-1 h-5 w-5 rounded-full bg-paper shadow transition-[left] ${checked ? "left-6" : "left-1"}`}
+        />
+      </button>
+    </div>
+  );
+}
+
+function Section({ title, body, children }: { title: string; body: string; children: React.ReactNode }) {
+  return (
+    <section className="panel p-6">
+      <h2 className="title text-xl">{title}</h2>
+      <p className="mt-1 text-ink-2">{body}</p>
+      <div className="mt-5 space-y-5">{children}</div>
+    </section>
+  );
+}
 
 export default function AgentPage() {
   const [data, setData] = useState<Data | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [dirty, setDirty] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -98,135 +149,226 @@ export default function AgentPage() {
     setSaving(false);
     if (!res.ok) return setError((await res.json()).error ?? "Couldn't save");
     setSaved(true);
+    setDirty(false);
   }
 
   if (authError)
     return (
-      <main className="p-8">
-        {authError}.{" "}
-        <Link href="/login?next=/agent" className="underline">
-          Log in
-        </Link>
+      <main className="page-narrow">
+        <div className="panel p-6">
+          <p className="title text-xl">{authError}</p>
+          <p className="mt-1 text-ink-2">Log in to change how your agent negotiates.</p>
+          <Link href="/login?next=/agent" className="btn btn-primary mt-5">
+            Log in
+          </Link>
+        </div>
       </main>
     );
-  if (!data) return <main className="p-8 text-neutral-500">Loading…</main>;
+  if (!data)
+    return (
+      <main className="page-narrow" aria-busy="true">
+        <div className="h-10 w-64 animate-pulse rounded-lg bg-surface" />
+        <div className="mt-8 h-48 animate-pulse rounded-[1.25rem] bg-surface" />
+      </main>
+    );
 
-  const input = "w-full rounded-lg border border-neutral-300 px-3 py-2";
-  const setSeller = (patch: Partial<SellerSettings>) =>
+  const touched = () => {
+    setSaved(false);
+    setDirty(true);
+  };
+  const setSeller = (patch: Partial<SellerSettings>) => {
+    touched();
     setData((d) => (d && d.role === "seller" ? { ...d, settings: { ...d.settings, ...patch } } : d));
-  const setProfile = (patch: Partial<SellerProfile>) =>
+  };
+  const setProfile = (patch: Partial<SellerProfile>) => {
+    touched();
     setData((d) => (d && d.role === "seller" ? { ...d, profile: { ...d.profile, ...patch } } : d));
-  const setBuyer = (patch: Partial<BuyerSettings>) =>
+  };
+  const setBuyer = (patch: Partial<BuyerSettings>) => {
+    touched();
     setData((d) => (d && d.role === "buyer" ? { ...d, settings: { ...d.settings, ...patch } } : d));
+  };
 
   return (
-    <main className="mx-auto max-w-3xl space-y-8 p-8">
+    <main className="page-narrow pb-32">
       <header>
-        <p className="text-sm uppercase tracking-wide text-neutral-500">My agent</p>
-        <h1 className="text-3xl font-semibold">
-          {data.role === "seller" ? `${data.name}'s sales agent` : `${data.name}'s shopping agent`}
-        </h1>
-        <p className="mt-1 text-neutral-600">
-          Your agent negotiates for you with these settings. Whatever you choose, your{" "}
-          {data.role === "seller" ? "floor" : "budget"} is enforced in code and never shown to the other side.
+        <h1 className="display text-4xl">My agent</h1>
+        <p className="mt-3 text-lg text-ink-2">
+          {data.role === "seller" ? `${data.name}'s sales agent` : `${data.name}'s shopping agent`} negotiates with these
+          settings. Whatever you choose, your {data.role === "seller" ? "floor price" : "budget"} is enforced by Mandi&apos;s
+          rules engine and is never shown to the other side.
         </p>
       </header>
 
-      {data.role === "seller" ? (
-        <>
-          <section className="space-y-3">
-            <h2 className="text-lg font-semibold">How firmly it holds your price</h2>
-            <Choice options={SELLER_STYLES} value={data.settings.agentStyle} onChange={(v) => setSeller({ agentStyle: v })} />
-          </section>
+      <div className="mt-8 space-y-6">
+        {data.role === "seller" ? (
+          <>
+            <Section title="How firmly it holds your price" body="How quickly your agent comes down from the list price towards your floor.">
+              <Choice label="Negotiating style" options={SELLER_STYLES} value={data.settings.agentStyle} onChange={(v) => setSeller({ agentStyle: v })} />
+            </Section>
 
-          <section className="space-y-3">
-            <h2 className="text-lg font-semibold">What it may offer</h2>
-            <Toggle checked={data.settings.offerGiftWrap} onChange={(v) => setSeller({ offerGiftWrap: v })} label="Gift wrapping instead of a bigger discount" />
-            <Toggle checked={data.settings.offerBundles} onChange={(v) => setSeller({ offerBundles: v })} label="A second item as a bundle after a sale" />
-            {data.settings.offerBundles && (
-              <label className="block max-w-xs text-sm text-neutral-600">
-                Max bundle discount: {data.settings.maxBundleDiscountPct}%
-                <input
-                  type="range"
-                  min={0}
-                  max={30}
-                  value={data.settings.maxBundleDiscountPct}
-                  onChange={(e) => setSeller({ maxBundleDiscountPct: Number(e.target.value) })}
-                  className="block w-full"
-                />
-              </label>
-            )}
-            <label className="block text-sm text-neutral-600">
-              Your instructions for your agent (optional)
-              <textarea
-                className={input}
-                rows={2}
-                maxLength={300}
-                placeholder="e.g. Mention that the zari is real gold thread. Never offer free shipping."
-                value={data.settings.agentNote ?? ""}
-                onChange={(e) => setSeller({ agentNote: e.target.value })}
+            <Section title="What it may offer" body="Extras your agent can use to close a sale without cutting the price further.">
+              <Toggle
+                checked={data.settings.offerGiftWrap}
+                onChange={(v) => setSeller({ offerGiftWrap: v })}
+                label="Gift wrapping"
+                hint="Offered instead of a bigger discount."
               />
-            </label>
-          </section>
+              <Toggle
+                checked={data.settings.offerBundles}
+                onChange={(v) => setSeller({ offerBundles: v })}
+                label="Bundles"
+                hint="After a deal is agreed, your agent may offer a second item of yours at a discount."
+              />
+              {data.settings.offerBundles && (
+                <div className="well p-4">
+                  <label htmlFor="bundle-discount" className="label flex justify-between">
+                    <span>Largest bundle discount</span>
+                    <span className="money text-indigo">{data.settings.maxBundleDiscountPct}%</span>
+                  </label>
+                  <input
+                    id="bundle-discount"
+                    type="range"
+                    min={0}
+                    max={30}
+                    value={data.settings.maxBundleDiscountPct}
+                    onChange={(e) => setSeller({ maxBundleDiscountPct: Number(e.target.value) })}
+                    aria-valuetext={`${data.settings.maxBundleDiscountPct}%`}
+                    className="block w-full accent-[var(--indigo)]"
+                  />
+                  <p className="hint mt-1">The bundle price never goes below the second item&apos;s floor.</p>
+                </div>
+              )}
+              <div>
+                <label htmlFor="agent-note" className="label">
+                  Instructions for your agent <span className="font-normal text-ink-3">(optional)</span>
+                </label>
+                <textarea
+                  id="agent-note"
+                  className="field"
+                  rows={3}
+                  maxLength={300}
+                  placeholder="e.g. Mention that the zari is real gold thread. Never offer free shipping."
+                  value={data.settings.agentNote ?? ""}
+                  onChange={(e) => setSeller({ agentNote: e.target.value })}
+                  aria-describedby="agent-note-hint"
+                />
+                <p id="agent-note-hint" className="hint mt-1">
+                  {(data.settings.agentNote ?? "").length}/300. Your agent follows these but can never break your floor.
+                </p>
+              </div>
+            </Section>
 
-          <section className="space-y-3">
-            <h2 className="text-lg font-semibold">What it knows about you</h2>
-            <label className="block text-sm text-neutral-600">
-              Your story (what your agent tells buyers)
-              <textarea className={input} rows={3} value={data.profile.story} onChange={(e) => setProfile({ story: e.target.value })} />
-            </label>
-            <div className="grid gap-3 sm:grid-cols-2 text-sm text-neutral-600">
-              <label>
-                Language for your notifications
-                <select className={input} value={data.profile.language} onChange={(e) => setProfile({ language: e.target.value as "en" | "hi" })}>
-                  <option value="hi">हिन्दी (Hindi)</option>
-                  <option value="en">English</option>
-                </select>
-              </label>
-              <label>
-                Agent may refund on its own up to (£)
-                <input className={input} type="number" min={0} value={data.profile.refundCap} onChange={(e) => setProfile({ refundCap: Number(e.target.value) })} />
-              </label>
-              <label>
-                You ship within (days, max 3)
-                <input className={input} type="number" min={1} max={3} value={data.profile.shipByDays} onChange={(e) => setProfile({ shipByDays: Number(e.target.value) })} />
-              </label>
-              <label>
-                Delivery takes (days)
-                <input className={input} type="number" min={1} max={30} value={data.profile.transitDays} onChange={(e) => setProfile({ transitDays: Number(e.target.value) })} />
-              </label>
-            </div>
-            <p className="text-xs text-neutral-500">Floors and per-item refund caps are set on each listing at Sell.</p>
-          </section>
-        </>
-      ) : (
-        <>
-          <section className="space-y-3">
-            <h2 className="text-lg font-semibold">How hard it haggles</h2>
-            <Choice options={BUYER_STYLES} value={data.settings.agentStyle} onChange={(v) => setBuyer({ agentStyle: v })} />
-          </section>
-          <section className="space-y-3">
-            <h2 className="text-lg font-semibold">What matters most when it recommends a deal</h2>
-            <Choice options={PRIORITIES} value={data.settings.priority} onChange={(v) => setBuyer({ priority: v })} />
-          </section>
-          <section className="space-y-3">
-            <h2 className="text-lg font-semibold">Scope</h2>
-            <label className="block max-w-xs text-sm text-neutral-600">
-              Negotiate with up to {data.settings.maxSellers} seller{data.settings.maxSellers === 1 ? "" : "s"} at once
-              <input type="range" min={1} max={3} value={data.settings.maxSellers} onChange={(e) => setBuyer({ maxSellers: Number(e.target.value) })} className="block w-full" />
-            </label>
-            <Toggle checked={data.settings.acceptBundles} onChange={(v) => setBuyer({ acceptBundles: v })} label="May accept a bundle if it fits my request and budget" />
-            <p className="text-xs text-neutral-500">You always approve the final deal yourself, with one tap.</p>
-          </section>
-        </>
-      )}
+            <Section title="What it knows about you" body="Your agent tells buyers your story and promises delivery based on these.">
+              <div>
+                <label htmlFor="story" className="label">
+                  Your story
+                </label>
+                <textarea id="story" className="field" rows={4} value={data.profile.story} onChange={(e) => setProfile({ story: e.target.value })} />
+              </div>
+              <div className="grid gap-5 sm:grid-cols-2">
+                <div>
+                  <label htmlFor="language" className="label">
+                    Language for your alerts
+                  </label>
+                  <select id="language" className="field" value={data.profile.language} onChange={(e) => setProfile({ language: e.target.value as "en" | "hi" })}>
+                    <option value="hi">हिन्दी (Hindi)</option>
+                    <option value="en">English</option>
+                  </select>
+                </div>
+                <div>
+                  <label htmlFor="refund-cap" className="label">
+                    Agent may refund on its own up to
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <span className="text-ink-2">£</span>
+                    <input id="refund-cap" className="field money" type="number" min={0} value={data.profile.refundCap} onChange={(e) => setProfile({ refundCap: Number(e.target.value) })} />
+                  </div>
+                </div>
+                <div>
+                  <label htmlFor="ship-by" className="label">
+                    You ship within
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input id="ship-by" className="field money" type="number" min={1} max={3} value={data.profile.shipByDays} onChange={(e) => setProfile({ shipByDays: Number(e.target.value) })} />
+                    <span className="text-ink-2">days</span>
+                  </div>
+                  <p className="hint mt-1">Up to 3, while PayPal holds the money.</p>
+                </div>
+                <div>
+                  <label htmlFor="transit" className="label">
+                    Delivery takes
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input id="transit" className="field money" type="number" min={1} max={30} value={data.profile.transitDays} onChange={(e) => setProfile({ transitDays: Number(e.target.value) })} />
+                    <span className="text-ink-2">days</span>
+                  </div>
+                </div>
+              </div>
+              <p className="hint">
+                Floor prices and per-item refund limits are set on each listing in{" "}
+                <Link href="/dashboard" className="link">
+                  your dashboard
+                </Link>
+                .
+              </p>
+            </Section>
+          </>
+        ) : (
+          <>
+            <Section title="How hard it haggles" body="How quickly your agent comes up from its first offer. It never goes over your budget.">
+              <Choice label="Negotiating style" options={BUYER_STYLES} value={data.settings.agentStyle} onChange={(v) => setBuyer({ agentStyle: v })} />
+            </Section>
+            <Section title="What matters most" body="How your agent ranks the deals it gets, to pick the one it recommends.">
+              <Choice label="Priority" options={PRIORITIES} value={data.settings.priority} onChange={(v) => setBuyer({ priority: v })} />
+            </Section>
+            <Section title="Scope" body="How widely your agent shops for each request.">
+              <div>
+                <label htmlFor="max-sellers" className="label flex justify-between">
+                  <span>Sellers to negotiate with at once</span>
+                  <span className="money text-indigo">{data.settings.maxSellers}</span>
+                </label>
+                <input
+                  id="max-sellers"
+                  type="range"
+                  min={1}
+                  max={3}
+                  value={data.settings.maxSellers}
+                  onChange={(e) => setBuyer({ maxSellers: Number(e.target.value) })}
+                  aria-valuetext={`${data.settings.maxSellers} seller${data.settings.maxSellers === 1 ? "" : "s"}`}
+                  className="block w-full accent-[var(--indigo)]"
+                />
+                <p className="hint mt-1">More sellers means more choice; each one is a separate negotiation.</p>
+              </div>
+              <Toggle
+                checked={data.settings.acceptBundles}
+                onChange={(v) => setBuyer({ acceptBundles: v })}
+                label="Accept bundles"
+                hint="Your agent may add a second item from the same seller if it fits your request and budget."
+              />
+              <p className="notice text-sm">You always approve the final deal yourself, in PayPal.</p>
+            </Section>
+          </>
+        )}
+      </div>
 
-      <div className="flex items-center gap-4">
-        <button onClick={save} disabled={saving} className="rounded-lg bg-neutral-900 px-5 py-3 text-white disabled:opacity-40">
-          {saving ? "Saving…" : "Save"}
-        </button>
-        {saved && <span className="text-green-700">Saved. Your agent uses this from its next negotiation.</span>}
-        {error && <span className="text-red-700">{error}</span>}
+      <div className="sticky bottom-4 z-30 mt-8">
+        <div className="panel flex flex-wrap items-center gap-x-4 gap-y-2 p-3 pl-5 shadow-[0_12px_40px_-12px_rgb(21_25_53/0.35)]">
+          <p className="flex-1 text-sm" role="status" aria-live="polite">
+            {error ? (
+              <span className="text-madder">{error}</span>
+            ) : saved ? (
+              <span className="font-semibold text-leaf">Saved. Your agent uses this from its next negotiation.</span>
+            ) : dirty ? (
+              <span className="text-ink-2">You have unsaved changes.</span>
+            ) : (
+              <span className="text-ink-3">Changes apply to new negotiations.</span>
+            )}
+          </p>
+          <button onClick={save} disabled={saving || (!dirty && !error)} className="btn btn-primary">
+            {saving ? "Saving…" : "Save changes"}
+          </button>
+        </div>
       </div>
     </main>
   );
