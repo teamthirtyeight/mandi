@@ -278,3 +278,94 @@ export const PRODUCT_PHOTOS: Record<string, { url: string; credit: string; sourc
     source: "https://commons.wikimedia.org/wiki/File:Kutchi_Embroidery_3.png",
   },
 };
+
+/**
+ * Product copy for the demo listings, by title: a fuller description (the
+ * seller agents pitch from it too), size and care. Applied by the seed and by
+ * scripts/add-makers.ts.
+ */
+export const PRODUCT_COPY: Record<string, { description: string; dimensions: string; care: string }> = {
+  "Handwoven Banarasi silk scarf, rose and gold": {
+    description:
+      "Woven by Meera on a pit loom in Varanasi from pure mulberry silk, with a zari border and small zari motifs scattered across the body. Light, with the soft sheen Banarasi weaving is known for. About four days at the loom.",
+    dimensions: "180 × 55 cm",
+    care: "Dry clean. Store folded in muslin, away from damp.",
+  },
+  "Banarasi silk stole, peacock blue": {
+    description:
+      "A lighter Banarasi stole in mulberry silk, with a small butti motif woven in zari across the body and a deeper border at each end. Drapes easily over a shoulder or a coat.",
+    dimensions: "200 × 70 cm",
+    care: "Dry clean only.",
+  },
+  "Handwoven silk cushion cover": {
+    description:
+      "Silk brocade cushion cover woven on the same loom as Meera's scarves, with a zari-patterned front, a plain silk back and a concealed zip.",
+    dimensions: "40 × 40 cm, insert not included",
+    care: "Spot clean or dry clean.",
+  },
+  "Indigo block-printed silk scarf": {
+    description:
+      "Printed on silk crepe with hand-carved blocks and a dabu clay resist, then dipped in a natural indigo vat until the blue runs deep. The pattern keeps the tiny cracks of the clay, so every piece is a little different.",
+    dimensions: "180 × 50 cm",
+    care: "Hand wash cold, separately. Natural indigo may release a little colour at first.",
+  },
+  "Block-printed cotton tablecloth": {
+    description:
+      "Six-seater tablecloth in heavy cotton, block-printed by hand in madder red and indigo in Bagru, where the river water and clay give the colours their depth.",
+    dimensions: "150 × 230 cm, seats six",
+    care: "Machine wash cold on a gentle cycle. Dry in the shade.",
+  },
+  "Sozni-embroidered silk-wool scarf": {
+    description:
+      "A silk-wool scarf with a paisley border in sozni, the fine needlework of Kashmir. Fatima works the border stitch by stitch over about three weeks, in rose and moss threads.",
+    dimensions: "200 × 70 cm",
+    care: "Dry clean. Store with cedar or neem leaves to keep moths away.",
+  },
+  "Embroidered wool shawl": {
+    description:
+      "A full shawl covered in a sozni jaal, a net of flowers and vines embroidered across the whole field of fine wool. Most of a winter's work: warm for a cold evening, light enough to fold into a bag.",
+    dimensions: "200 × 100 cm",
+    care: "Dry clean only. Air it out between wears rather than washing.",
+  },
+  "Embroidered silk pouch": {
+    description: "A small silk zip pouch embroidered with chain-stitch flowers using an aari hook. Made for jewellery, cards or a phone.",
+    dimensions: "18 × 12 cm",
+    care: "Spot clean.",
+  },
+  "Kanjivaram silk sari, temple border, maroon and gold": {
+    description:
+      "Heavy mulberry silk in maroon with a gold zari temple border and pallu. The border is woven separately and interlocked with the body by hand, the korvai technique that lets a Kanjivaram last for generations. Comes with an unstitched blouse piece.",
+    dimensions: "6.2 m, including a 0.8 m blouse piece",
+    care: "Dry clean only. Refold every few months so the zari doesn't crease.",
+  },
+  "Handwoven tant cotton sari, white with red border": {
+    description:
+      "A crisp, light cotton tant sari from Phulia: white body, red border, and small motifs added by hand as the cloth was woven. Breathes in summer heat and softens with every wash.",
+    dimensions: "5.5 m, no blouse piece",
+    care: "First wash in cold water with a little salt. Starch lightly to keep it crisp.",
+  },
+  "Phulkari bagh dupatta, golden floss on rust cotton": {
+    description:
+      "Bagh-style phulkari, embroidered so densely that the golden floss almost hides the rust khaddar cotton beneath. Stitched from the back of the cloth in darning stitch by Gurpreet's circle in Patiala.",
+    dimensions: "250 × 110 cm",
+    care: "Dry clean. Do not wring.",
+  },
+  "Pattachitra painting, Krishna's Raas Leela": {
+    description:
+      "Krishna dancing with the gopis, painted on a hand-prepared cloth canvas in colours ground from stone, conch shell and lamp soot, then finished with a lacquer coat. Shipped rolled, ready to frame.",
+    dimensions: "45 × 30 cm",
+    care: "Keep out of direct sun and damp. Dust with a soft, dry brush.",
+  },
+  "Ahir mirror-work wall hanging": {
+    description:
+      "Ahir chain-stitch embroidery in bright silk thread with small hand-set mirrors on cotton, shaped as a toran to hang over a doorway or along a wall. Made with a women's cooperative in Bhuj.",
+    dimensions: "90 × 60 cm",
+    care: "Spot clean only.",
+  },
+  "Ahir embroidered cushion cover, mirrors on indigo": {
+    description:
+      "A central Ahir mirror-work medallion on indigo cotton, every mirror held in place by hand stitches. Concealed zip.",
+    dimensions: "40 × 40 cm, insert not included",
+    care: "Hand wash cold, inside out.",
+  },
+};

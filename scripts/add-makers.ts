@@ -5,7 +5,7 @@
 import "dotenv/config";
 import { and, eq, sql } from "drizzle-orm";
 import { db, schema } from "../lib/db";
-import { MAKER_ACCOUNTS, MAKERS, PRODUCT_PHOTOS, REGIONAL_LISTINGS, REGIONAL_SELLERS, makerFields } from "../lib/db/makers";
+import { MAKER_ACCOUNTS, MAKERS, PRODUCT_COPY, PRODUCT_PHOTOS, REGIONAL_LISTINGS, REGIONAL_SELLERS, makerFields } from "../lib/db/makers";
 
 async function main() {
   let updated = 0;
@@ -61,6 +61,19 @@ async function main() {
       .returning({ id: schema.listings.id });
     photos += rows.length;
   }
+
+  // Fuller copy, size and care, only where the listing has no size yet (so a
+  // seller's own edits after this are kept).
+  let copies = 0;
+  for (const [title, copy] of Object.entries(PRODUCT_COPY)) {
+    const rows = await db
+      .update(schema.listings)
+      .set(copy)
+      .where(and(eq(schema.listings.title, title), sql`${schema.listings.dimensions} IS NULL`))
+      .returning({ id: schema.listings.id });
+    copies += rows.length;
+  }
+  console.log(`Product copy set on ${copies} listings.`);
 
   console.log(`Makers: ${updated} updated, ${addedSellers} added; ${addedListings} listings added; ${photos} product photos set.`);
   process.exit(0);

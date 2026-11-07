@@ -12,6 +12,10 @@ const publicFields = {
   listPriceMinor: schema.listings.listPriceMinor,
   currency: schema.listings.currency,
   images: schema.listings.images,
+  dimensions: schema.listings.dimensions,
+  care: schema.listings.care,
+  sellerRegion: schema.sellers.region,
+  sellerCraft: schema.sellers.craft,
   imageCredit: schema.listings.imageCredit,
   imageSource: schema.listings.imageSource,
   stock: schema.listings.stock,
@@ -39,8 +43,6 @@ export async function listCatalog(q?: string) {
 // The maker behind a listing, for "Meet the maker" on the product page.
 const makerFields = {
   sellerId: schema.sellers.id,
-  sellerRegion: schema.sellers.region,
-  sellerCraft: schema.sellers.craft,
   sellerQuote: schema.sellers.quote,
   sellerPhotoUrl: schema.sellers.photoUrl,
   sellerPhotoCredit: schema.sellers.photoCredit,

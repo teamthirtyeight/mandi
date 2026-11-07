@@ -8,7 +8,7 @@ import { db, schema } from "./index";
 import { sql } from "drizzle-orm";
 import { hashPassword } from "../auth/password";
 import { DEFAULT_DEMO_PASSWORD, DEMO_ACCOUNTS } from "../auth/demo";
-import { MAKER_ACCOUNTS, MAKERS, PRODUCT_PHOTOS, REGIONAL_LISTINGS, REGIONAL_SELLERS, makerFields } from "./makers";
+import { MAKER_ACCOUNTS, MAKERS, PRODUCT_COPY, PRODUCT_PHOTOS, REGIONAL_LISTINGS, REGIONAL_SELLERS, makerFields } from "./makers";
 
 const gbp = (pounds: number) => Math.round(pounds * 100);
 
@@ -139,15 +139,17 @@ async function main() {
     .values(REGIONAL_LISTINGS.map(({ maker, ...l }) => ({ ...l, sellerId: by[MAKERS[maker].name] })))
     .returning();
 
-  // Product photos (with credits) for the demo listings.
+  // Product photos (with credits), fuller copy, size and care for the demo listings.
   for (const l of [...listings, ...regionalListings]) {
     const photo = PRODUCT_PHOTOS[l.title];
-    if (photo) {
-      await db
-        .update(schema.listings)
-        .set({ images: [photo.url], imageCredit: photo.credit, imageSource: photo.source })
-        .where(sql`id = ${l.id}`);
-    }
+    const copy = PRODUCT_COPY[l.title];
+    await db
+      .update(schema.listings)
+      .set({
+        ...(photo ? { images: [photo.url], imageCredit: photo.credit, imageSource: photo.source } : {}),
+        ...(copy ?? {}),
+      })
+      .where(sql`id = ${l.id}`);
   }
 
   // Two completed historical orders on Meera's stole and cushion cover, each

@@ -102,6 +102,8 @@ export const listings = pgTable("listings", {
   images: jsonb("images").$type<string[]>().notNull().default([]),
   // Credit for a borrowed first photo (the demo's Wikimedia Commons photos);
   // null for a seller's own photos.
+  dimensions: text("dimensions"),
+  care: text("care"),
   imageCredit: text("image_credit"),
   imageSource: text("image_source"),
   listPriceMinor: integer("list_price_minor").notNull(),
