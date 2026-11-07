@@ -294,6 +294,9 @@ const INJECTION_PATTERNS = [
   /system prompt/i,
   /(reveal|tell me|what is|what's) (your|the) (floor|minimum|lowest|bottom line)/i,
   /lowest (price )?you('re| are)? (allowed|able|willing) to accept/i,
+  // Pretending to be the system, or closing the untrusted-data tags.
+  /(^|\s)(system|admin|developer)\s*:/i,
+  /<\/?\s*(counterparty_message|system|instructions?|buyer_complaint|seller_message)\s*>/i,
 ];
 
 /** Labels counterparty text that tries to instruct the other agent. Detection only;

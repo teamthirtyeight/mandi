@@ -348,6 +348,59 @@ export async function provideDisputeEvidence(input: {
   }
 }
 
+// ---- Payouts ----
+
+/**
+ * Sends one seller payout. sender_batch_id is per order, so PayPal itself
+ * refuses a second batch for the same order: a retry can't pay twice.
+ */
+export async function createPayout(input: {
+  senderBatchId: string;
+  receiverEmail: string;
+  amountMinor: number;
+  currency: string;
+  note: string;
+  subject: string;
+  orderId?: string | null;
+}) {
+  const body = await paypalRequest({
+    method: "POST",
+    path: "/v1/payments/payouts",
+    requestId: input.senderBatchId,
+    orderId: input.orderId,
+    body: {
+      sender_batch_header: { sender_batch_id: input.senderBatchId, email_subject: input.subject.slice(0, 255) },
+      items: [
+        {
+          recipient_type: "EMAIL",
+          receiver: input.receiverEmail,
+          amount: { value: toValue(input.amountMinor), currency: input.currency },
+          note: input.note.slice(0, 4000),
+          sender_item_id: input.senderBatchId,
+        },
+      ],
+    },
+    summary: (ok, b) =>
+      ok ? `Payout ${b.batch_header?.payout_batch_id} sent (${input.currency} ${toValue(input.amountMinor)})` : "Payout failed",
+  });
+  return { batchId: body.batch_header.payout_batch_id as string, status: body.batch_header.batch_status as string };
+}
+
+/** Current state of a payout: the batch status, or the item's once PayPal has processed it. */
+export async function getPayout(batchId: string, opts: { orderId?: string | null } = {}) {
+  const body = await paypalRequest({
+    method: "GET",
+    path: `/v1/payments/payouts/${batchId}`,
+    orderId: opts.orderId,
+    summary: (ok, b) => (ok ? `Payout ${batchId}: ${b.items?.[0]?.transaction_status ?? b.batch_header?.batch_status}` : "Payout lookup failed"),
+  });
+  const item = body.items?.[0];
+  return {
+    status: (item?.transaction_status ?? body.batch_header?.batch_status) as string,
+    error: (item?.errors?.message as string | undefined) ?? null,
+  };
+}
+
 // ---- Webhooks ----
 
 export async function verifyWebhookSignature(headers: Headers, rawBody: string): Promise<boolean> {

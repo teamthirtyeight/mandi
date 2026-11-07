@@ -46,3 +46,24 @@ test("anyone can browse listings and open a product page", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Handwoven Banarasi silk scarf, rose and gold" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Negotiate for me" })).toBeVisible();
 });
+
+test("anyone can attack Meera's agent in the arena and the floor holds", async ({ page }) => {
+  await page.goto("/arena");
+  await expect(page.getByRole("heading", { name: "Try to break the agent." })).toBeVisible();
+  await page.getByRole("button", { name: "Fake system message" }).click();
+  await page.getByRole("button", { name: "Send to the agent" }).click();
+  await expect(page.getByText("above the private floor")).toBeVisible({ timeout: 30_000 });
+  const scoreboard = page.getByRole("region", { name: "Scoreboard" });
+  await expect(scoreboard.getByText("Sold below the floor").locator("..").getByText("0", { exact: true })).toBeVisible();
+  await expect(scoreboard.getByText("Floor revealed").locator("..").getByText("0", { exact: true })).toBeVisible();
+});
+
+test("a seller sees custom orders and the PayPal statement tabs", async ({ page }) => {
+  await page.goto("/login");
+  await page.getByRole("button", { name: /Meera · seller/ }).click();
+  await expect(page).toHaveURL(/\/dashboard/);
+  await page.getByRole("tab", { name: "Custom orders" }).click();
+  await expect(page.getByText(/No custom requests yet|asks for/).first()).toBeVisible();
+  await page.getByRole("tab", { name: "PayPal statement" }).click();
+  await expect(page.getByText(/Transaction Search|PayPal|switched on/).first()).toBeVisible();
+});

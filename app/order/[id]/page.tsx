@@ -410,9 +410,59 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
         )}
       </section>
 
-      <div className="panel overflow-hidden lg:sticky lg:top-24">
-        <PayPalCallLog orderId={order.id} refreshKey={refreshKey} />
+      <div className="space-y-4 lg:sticky lg:top-24">
+        {order.paypalOrderId && <PayPalNow orderId={order.id} refreshKey={refreshKey} />}
+        <div className="panel overflow-hidden">
+          <PayPalCallLog orderId={order.id} refreshKey={refreshKey} />
+        </div>
       </div>
     </main>
+  );
+}
+
+const PAYMENT_STATUS: Record<string, string> = {
+  CREATED: "Held",
+  CAPTURED: "Held",
+  COMPLETED: "Completed",
+  PENDING: "Pending",
+  VOIDED: "Released",
+  PARTIALLY_CAPTURED: "Partly captured",
+  PARTIALLY_REFUNDED: "Partly refunded",
+  REFUNDED: "Refunded",
+  DENIED: "Denied",
+};
+
+/** The order as PayPal sees it right now, read through the Agent Toolkit's get_order. */
+function PayPalNow({ orderId, refreshKey }: { orderId: string; refreshKey: number }) {
+  const [view, setView] = useState<{ status: string; payments: { kind: string; id: string; status: string; amount: string }[] } | null>(null);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    fetch(`/api/orders/${orderId}/paypal`).then(async (r) => (r.ok ? setView(await r.json()) : setFailed(true)));
+  }, [orderId, refreshKey]);
+  if (failed) return null;
+  return (
+    <section className="panel p-4" aria-label="Live from PayPal">
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="font-semibold">Live from PayPal</h2>
+        {view && <span className="chip chip-progress">{view.status}</span>}
+      </div>
+      {!view ? (
+        <div className="mt-3 h-12 animate-pulse rounded-xl bg-surface" />
+      ) : (
+        <ul className="mt-3 space-y-1.5 text-sm">
+          {view.payments.map((p) => (
+            <li key={p.id} className="flex justify-between gap-3">
+              <span className="text-ink-2">
+                {p.kind} <span className="font-mono text-xs text-ink-3">{p.id}</span>
+              </span>
+              <span>
+                <span className="money">{p.amount}</span> · {PAYMENT_STATUS[p.status] ?? p.status}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="hint mt-2">Read just now from PayPal through the Agent Toolkit, not from Mandi&apos;s copy.</p>
+    </section>
   );
 }

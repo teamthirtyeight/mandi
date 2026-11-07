@@ -43,6 +43,18 @@ interface TurnRow {
   source: string;
 }
 
+// PayPal payout states, in plain words.
+const PAYOUT_LABEL: Record<string, string> = {
+  SENDING: "sending",
+  PENDING: "on its way",
+  PROCESSING: "on its way",
+  SUCCESS: "in your PayPal",
+  UNCLAIMED: "waiting for you to claim it",
+  ONHOLD: "on hold at PayPal",
+  RETURNED: "returned",
+  BLOCKED: "blocked by PayPal",
+};
+
 const gbp = (n: number | null | undefined) =>
   n == null ? "–" : new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(n);
 const when = (iso: string | null) =>
@@ -102,7 +114,7 @@ const theme = themeQuartz.withParams({
 
 export default function DashboardPage() {
   const [data, setData] = useState<Dashboard | null>(null);
-  const [tab, setTab] = useState<"orders" | "negotiations" | "listings">("orders");
+  const [tab, setTab] = useState<"orders" | "negotiations" | "listings" | "custom" | "statement">("orders");
   const [selected, setSelected] = useState<Neg | null>(null);
   const [turns, setTurns] = useState<TurnRow[]>([]);
   const [disputes, setDisputes] = useState<{
@@ -155,6 +167,18 @@ export default function DashboardPage() {
       { headerName: "Tracking", valueGetter: (p) => (p.data?.tracking ? `${p.data.carrier} ${p.data.tracking}` : "–"), flex: 1, minWidth: 160 },
       { field: "authorizedAt", headerName: "Held on", valueFormatter: (p) => when(p.value), width: 110 },
       { field: "capturedAt", headerName: "Captured", valueFormatter: (p) => when(p.value), width: 110 },
+      {
+        headerName: "Paid to you",
+        valueGetter: (p) => p.data?.payout ?? null,
+        valueFormatter: (p) => {
+          const o = p.data;
+          if (!o?.payoutStatus) return "–";
+          if (o.payoutStatus === "FAILED") return "Payout failed";
+          return `${gbp(o.payout ?? 0)} · ${PAYOUT_LABEL[o.payoutStatus] ?? o.payoutStatus.toLowerCase()}`;
+        },
+        tooltipValueGetter: (p) => (p.data?.payoutError ? p.data.payoutError : p.data?.payoutBatchId ? `PayPal payout ${p.data.payoutBatchId}, fee ${gbp(p.data.fee ?? 0)}` : null),
+        width: 190,
+      },
       {
         headerName: "",
         width: 90,
@@ -267,7 +291,12 @@ export default function DashboardPage() {
   const toShip = data.orders.filter((o) => o.status === "AUTHORIZED");
   const stats = [
     { label: "Money held", value: gbp(data.tiles.held), note: "Paid by buyers, released when you ship", tone: "text-leaf" },
-    { label: "Paid to you", value: gbp(data.tiles.captured), note: "After shipping, net of refunds", tone: "" },
+    {
+      label: "Paid to you",
+      value: gbp(data.tiles.paidOut),
+      note: data.tiles.payoutDebt > 0 ? `Sent to your PayPal; ${gbp(data.tiles.payoutDebt)} of refunds comes off the next one` : "Sent to your PayPal after shipping, minus Mandi's fee",
+      tone: "",
+    },
     { label: "Refunded", value: gbp(data.tiles.refunded), note: "Returned to buyers", tone: "" },
     {
       label: "Open negotiations",
@@ -282,7 +311,7 @@ export default function DashboardPage() {
     },
     { label: "Average above floor", value: avgMargin == null ? "–" : gbp(avgMargin), note: "How far above your floor your agent sold", tone: "" },
   ];
-  const TAB_LABEL = { orders: "Orders", negotiations: "Negotiations", listings: "Listings" } as const;
+  const TAB_LABEL = { orders: "Orders", negotiations: "Negotiations", listings: "Listings", custom: "Custom orders", statement: "PayPal statement" } as const;
 
   return (
     <main className="page space-y-8">
@@ -390,7 +419,7 @@ export default function DashboardPage() {
 
       <section>
         <div className="mb-3 flex gap-1 overflow-x-auto border-b border-line" role="tablist" aria-label="Seller records">
-          {(["orders", "negotiations", "listings"] as const).map((t) => (
+          {(["orders", "negotiations", "listings", "custom", "statement"] as const).map((t) => (
             <button
               key={t}
               role="tab"
@@ -400,13 +429,15 @@ export default function DashboardPage() {
                 tab === t ? "border-indigo text-indigo" : "border-transparent text-ink-2 hover:text-ink"
               }`}
             >
-              {TAB_LABEL[t]} <span className="money ml-1 text-sm text-ink-3">{data[t].length}</span>
+              {TAB_LABEL[t]} {t !== "custom" && t !== "statement" && <span className="money ml-1 text-sm text-ink-3">{data[t].length}</span>}
             </button>
           ))}
         </div>
         {tab === "negotiations" && !selected && <p className="hint mb-3">Select a negotiation to read what the agents said.</p>}
 
-        <div className="grid gap-4 lg:grid-cols-[1fr_auto]">
+        {tab === "custom" && <SellerCommissions />}
+        {tab === "statement" && <Statement theme={theme} />}
+        <div className={`grid gap-4 lg:grid-cols-[1fr_auto] ${tab === "custom" || tab === "statement" ? "hidden" : ""}`}>
           <div className="min-w-0 overflow-x-auto">
             <div style={{ minWidth: 640 }}>
               {tab === "orders" && (
@@ -469,5 +500,130 @@ export default function DashboardPage() {
         <AgCharts options={chart} />
       </section>
     </main>
+  );
+}
+
+interface SellerCommission {
+  id: string;
+  title: string;
+  buyer: string;
+  request: string;
+  price: number | null;
+  readyInDays: number;
+  agentNote: string;
+  status: string;
+}
+
+/** Custom-order requests for this seller: approve sends a PayPal invoice (same as replying "yes" on WhatsApp). */
+function SellerCommissions() {
+  const [items, setItems] = useState<SellerCommission[] | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const load = () =>
+    fetch("/api/commissions")
+      .then((r) => r.json())
+      .then((b) => setItems(b.commissions ?? []));
+  useEffect(() => {
+    load();
+  }, []);
+  async function act(id: string, action: "approve" | "decline") {
+    setBusy(id);
+    setError(null);
+    const res = await fetch(`/api/commissions/${id}/${action}`, { method: "POST" });
+    setBusy(null);
+    if (!res.ok) setError((await res.json().catch(() => ({}))).error ?? "That didn't work. Try again.");
+    load();
+  }
+  if (!items) return <div className="h-24 animate-pulse rounded-[1.25rem] bg-surface" />;
+  if (items.length === 0)
+    return (
+      <p className="well p-5 text-ink-2">
+        No custom requests yet. Buyers can ask for a made-to-order piece on any of your listings; you approve the price here or by replying on WhatsApp.
+      </p>
+    );
+  return (
+    <div className="space-y-3">
+      {error && <p className="notice notice-bad">{error}</p>}
+      <ul className="panel divide-y divide-line">
+        {items.map((c) => (
+          <li key={c.id} className="flex flex-wrap items-start justify-between gap-4 p-4 sm:p-5">
+            <div className="min-w-0 max-w-xl space-y-1">
+              <p className="font-semibold">
+                {c.buyer} asks for: <span className="font-normal">&ldquo;{c.request}&rdquo;</span>
+              </p>
+              <p className="text-sm text-ink-3">
+                Based on {c.title}. Your agent suggests {c.price != null ? gbp(c.price) : "–"}, ready in {c.readyInDays} days.
+              </p>
+            </div>
+            {c.status === "AWAITING_SELLER" ? (
+              <div className="flex gap-2">
+                <button className="btn btn-primary btn-sm" disabled={busy === c.id} onClick={() => act(c.id, "approve")}>
+                  {busy === c.id ? "Sending invoice…" : "Approve and send PayPal invoice"}
+                </button>
+                <button className="btn btn-quiet btn-sm" disabled={busy === c.id} onClick={() => act(c.id, "decline")}>
+                  Decline
+                </button>
+              </div>
+            ) : (
+              <span className={`chip ${c.status === "PAID" ? "chip-safe" : c.status === "INVOICED" ? "chip-agreed" : ""}`}>
+                {c.status === "PAID" ? "Paid: start making it" : c.status === "INVOICED" ? "Invoice sent" : c.status === "DECLINED" ? "Declined" : c.status}
+              </span>
+            )}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+interface StatementLine {
+  id: string;
+  date: string;
+  type: string;
+  amount: number;
+  currency: string;
+  paypalStatus: string;
+  listing: string | null;
+  mandiAmount: number | null;
+  matches: boolean | null;
+}
+
+/** PayPal's own statement for this seller (Transaction Search via the Agent Toolkit), checked against Mandi's records. */
+function Statement({ theme }: { theme: ReturnType<typeof themeQuartz.withParams> }) {
+  const [data, setData] = useState<{ lines: StatementLine[]; unmatched: number } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    fetch("/api/dashboard/statement").then(async (r) => (r.ok ? setData(await r.json()) : setError((await r.json().catch(() => ({}))).error ?? "Couldn't load")));
+  }, []);
+  const cols = useMemo<ColDef<StatementLine>[]>(
+    () => [
+      { field: "date", valueFormatter: (p) => (p.value ? new Date(p.value).toLocaleDateString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "–"), width: 150, sort: "desc" },
+      { field: "type", flex: 1, minWidth: 170 },
+      { field: "listing", flex: 1, minWidth: 180, valueFormatter: (p) => p.value ?? "–" },
+      { field: "amount", headerName: "PayPal", type: "rightAligned", width: 120, valueFormatter: (p) => new Intl.NumberFormat("en-GB", { style: "currency", currency: p.data?.currency ?? "GBP" }).format(p.value ?? 0) },
+      { field: "mandiAmount", headerName: "Mandi", type: "rightAligned", width: 110, valueFormatter: (p) => (p.value == null ? "–" : gbp(p.value)) },
+      { field: "matches", headerName: "Agrees", width: 100, valueFormatter: (p) => (p.value == null ? "–" : p.value ? "✓" : "Check") },
+      { field: "paypalStatus", headerName: "Status", width: 120 },
+    ],
+    [],
+  );
+  if (error) return <p className="notice">{error}</p>;
+  if (!data) return <div className="h-24 animate-pulse rounded-[1.25rem] bg-surface" />;
+  return (
+    <div className="space-y-3">
+      <p className="hint">
+        From PayPal&apos;s Transaction Search (last 30 days), checked line by line against Mandi&apos;s records. New payments can take up to three hours to appear
+        here.
+      </p>
+      {data.lines.length === 0 ? (
+        <p className="well p-5 text-ink-2">PayPal hasn&apos;t listed any of your transactions yet.</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <div style={{ minWidth: 760 }}>
+            <AgGridReact<StatementLine> theme={theme} rowData={data.lines} columnDefs={cols} domLayout="autoHeight" getRowId={(p) => p.data.id} />
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

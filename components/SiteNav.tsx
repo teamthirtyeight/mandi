@@ -18,9 +18,10 @@ export async function SiteNav() {
         ? [
             { href: "/shop", label: "Shop" },
             { href: "/orders", label: "My orders" },
+            { href: "/monthly", label: "Monthly" },
             { href: "/agent", label: "My agent" },
           ]
-        : [];
+        : [{ href: "/monthly", label: "Monthly" }];
 
   return (
     <header className="sticky top-0 z-40 border-b border-line bg-paper/90 backdrop-blur">
@@ -31,7 +32,7 @@ export async function SiteNav() {
             मंडी
           </span>
         </Link>
-        <NavLinks links={[{ href: "/browse", label: "Browse" }, ...links]} />
+        <NavLinks links={[{ href: "/browse", label: "Browse" }, ...links, { href: "/arena", label: "Break the agent" }]} />
         <div className="ml-auto flex items-center gap-2">
           {user ? (
             <>

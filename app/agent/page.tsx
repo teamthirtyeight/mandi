@@ -137,13 +137,72 @@ interface WaMessage {
   id: string;
   to: string;
   body: string;
-  status: "sent" | "logged" | "failed";
+  status: "sent" | "logged" | "failed" | "received";
   error: string | null;
   createdAt: string;
 }
 
 // Test button and the last few messages, so a seller (or a judge) can see
 // exactly what their agent sent.
+/** The buyer's MCP key and how to plug it into an assistant. */
+function McpPanel() {
+  const [state, setState] = useState<{ key: string | null; url: string | null; endpoint: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [copied, setCopied] = useState<string | null>(null);
+  useEffect(() => {
+    fetch("/api/me/api-key").then(async (r) => r.ok && setState(await r.json()));
+  }, []);
+  const copy = async (label: string, text: string) => {
+    await navigator.clipboard.writeText(text).catch(() => {});
+    setCopied(label);
+    setTimeout(() => setCopied(null), 1500);
+  };
+  async function create() {
+    if (state?.key && !confirm("Make a new key? Assistants using the old one will stop working.")) return;
+    setBusy(true);
+    const res = await fetch("/api/me/api-key", { method: "POST" });
+    if (res.ok) setState(await res.json());
+    setBusy(false);
+  }
+  const claudeCode = state?.key ? `claude mcp add --transport http mandi ${state.endpoint} --header "Authorization: Bearer ${state.key}"` : "";
+  return (
+    <div className="space-y-4">
+      {state?.url ? (
+        <>
+          <div>
+            <p className="label">Connector URL (Claude, ChatGPT and other apps)</p>
+            <div className="flex gap-2">
+              <input className="field money text-sm" readOnly value={state.url} onFocus={(e) => e.currentTarget.select()} aria-label="Connector URL" />
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => copy("url", state.url!)}>
+                {copied === "url" ? "Copied" : "Copy"}
+              </button>
+            </div>
+            <p className="hint mt-1">Add it as a custom connector. Treat it like a password: anyone with it can shop as you (but never pay).</p>
+          </div>
+          <div>
+            <p className="label">Claude Code</p>
+            <div className="flex gap-2">
+              <input className="field money text-sm" readOnly value={claudeCode} onFocus={(e) => e.currentTarget.select()} aria-label="Claude Code command" />
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => copy("cc", claudeCode)}>
+                {copied === "cc" ? "Copied" : "Copy"}
+              </button>
+            </div>
+          </div>
+          <p className="well p-4 text-sm text-ink-2">
+            Then ask it: &ldquo;Find me a handwoven silk scarf on Mandi for my mum, under £90, by 20 December.&rdquo; It sends your agent, follows the bargaining,
+            and hands you the link to approve the deal in PayPal.
+          </p>
+        </>
+      ) : (
+        <p className="text-ink-2">No assistant connected yet.</p>
+      )}
+      <button type="button" className="btn btn-secondary btn-sm" disabled={busy} onClick={create}>
+        {state?.key ? "Make a new key" : "Create a connection key"}
+      </button>
+    </div>
+  );
+}
+
 function WhatsAppPanel({ unsaved }: { unsaved: boolean }) {
   const [state, setState] = useState<{ live: boolean; messages: WaMessage[] } | null>(null);
   const [busy, setBusy] = useState(false);
@@ -160,6 +219,7 @@ function WhatsAppPanel({ unsaved }: { unsaved: boolean }) {
   const STATUS: Record<WaMessage["status"], { label: string; cls: string }> = {
     sent: { label: "Sent", cls: "chip-safe" },
     logged: { label: "Recorded, not sent", cls: "" },
+    received: { label: "You wrote", cls: "chip-progress" },
     failed: { label: "Failed", cls: "chip-bad" },
   };
 
@@ -414,7 +474,7 @@ export default function AgentPage() {
 
             <Section
               title="Alerts on WhatsApp"
-              body="Your agent messages you on WhatsApp when something sells, when money arrives, and when a buyer needs a refund approved. In your language, with amounts in rupees."
+              body="Your agent messages you on WhatsApp when something sells, when money arrives, and when a buyer needs a refund approved. In your language, with amounts in rupees. Reply to run your shop: send a photo of the shipping receipt to ship, answer yes or no, or write “status”."
             >
               <div>
                 <label htmlFor="whatsapp" className="label">
@@ -477,6 +537,12 @@ export default function AgentPage() {
                 hint="Your agent may add a second item from the same seller if it fits your request and budget."
               />
               <p className="notice text-sm">You always approve the final deal yourself, in PayPal.</p>
+            </Section>
+            <Section
+              title="Connect your own AI assistant"
+              body="Let Claude, ChatGPT or any assistant that supports MCP shop at Mandi for you: search, send your agent to bargain, and follow the deal. It can't pay. Every deal comes back to you to approve in PayPal."
+            >
+              <McpPanel />
             </Section>
           </>
         )}

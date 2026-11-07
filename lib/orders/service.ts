@@ -5,6 +5,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { checkRefund, type RefundDecision } from "@/lib/engine/negotiation";
 import { releaseStock } from "./stock";
+import { payOutOrder, recordRefundAfterPayout } from "./payout";
 import { notifyOrder } from "@/lib/notify";
 import {
   addTracking,
@@ -92,6 +93,13 @@ export async function shipOrder(orderId: string, input: { carrier: string; track
   }
 
   await notifyOrder(orderId, "captured");
+  // Pass the seller their share. A payout failure is recorded on the order and
+  // can be retried; it never undoes the capture.
+  try {
+    await payOutOrder(orderId);
+  } catch (err) {
+    console.error("[ship] payout error", orderId, err);
+  }
   return { order: await getOrderRow(orderId), trackingWarning };
 }
 
@@ -211,6 +219,7 @@ export async function refundOrder(orderId: string, input: RefundInput): Promise<
       .update(schema.orders)
       .set({ pendingRefundMinor: null, ...(counted.refundedMinor >= counted.amountMinor ? { status: "REFUNDED" as const } : {}) })
       .where(eq(schema.orders.id, orderId));
+    await recordRefundAfterPayout(order, input.amountMinor);
     await notifyOrder(orderId, "refunded", input.amountMinor);
     return { outcome: "REFUNDED", order: await getOrderRow(orderId), refundId };
   } catch (err) {
@@ -220,6 +229,18 @@ export async function refundOrder(orderId: string, input: RefundInput): Promise<
       .where(eq(schema.orders.id, orderId));
     throw err;
   }
+}
+
+/** Seller says no to a refund their agent proposed: clear it and tell the buyer. */
+export async function declineRefund(orderId: string) {
+  const [cleared] = await db
+    .update(schema.orders)
+    .set({ pendingRefundMinor: null })
+    .where(and(eq(schema.orders.id, orderId), sql`${schema.orders.pendingRefundMinor} is not null`))
+    .returning();
+  if (!cleared) throw new OrderError("No refund is waiting for this order", 409);
+  await notifyOrder(orderId, "refund_declined");
+  return cleared;
 }
 
 /** PayPal carrier codes for common carriers; anything else is sent as OTHER with its name. */

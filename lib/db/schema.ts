@@ -69,6 +69,10 @@ export const sellers = pgTable("sellers", {
   offerBundles: boolean("offer_bundles").notNull().default(true),
   maxBundleDiscountPct: integer("max_bundle_discount_pct").notNull().default(15),
   agentNote: text("agent_note"),
+  // Refunds made after a payout, taken off this seller's next payout (lib/orders/payout.ts).
+  payoutDebtMinor: integer("payout_debt_minor").notNull().default(0),
+  // Two-way WhatsApp (lib/whatsapp/inbound.ts): what the seller's last reply answers.
+  whatsappAwaiting: text("whatsapp_awaiting"), // language | null
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -87,6 +91,8 @@ export const users = pgTable("users", {
   maxSellers: integer("max_sellers").notNull().default(3),
   acceptBundles: boolean("accept_bundles").notNull().default(true),
   priority: text("priority").notNull().default("balanced"), // price | balanced | delivery
+  // Buyers: key for the Mandi MCP server, so their own AI assistant can shop (app/api/mcp).
+  apiKey: text("api_key"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -220,6 +226,13 @@ export const orders = pgTable("orders", {
   }>(),
   authorizedAt: timestamp("authorized_at"),
   capturedAt: timestamp("captured_at"),
+  // Seller payout through PayPal Payouts after capture (lib/orders/payout.ts).
+  payoutStatus: text("payout_status"), // SENDING | PENDING | PROCESSING | SUCCESS | UNCLAIMED | FAILED | ...
+  payoutBatchId: text("payout_batch_id"),
+  payoutMinor: integer("payout_minor"),
+  feeMinor: integer("fee_minor"),
+  payoutError: text("payout_error"),
+  paidOutAt: timestamp("paid_out_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -269,8 +282,71 @@ export const whatsappMessages = pgTable("whatsapp_messages", {
   to: text("to").notNull(),
   body: text("body").notNull(),
   mediaUrl: text("media_url"), // banner card attached to the message, if any
-  status: text("status").notNull(), // sent | logged | failed
+  status: text("status").notNull(), // sent | logged | failed | received
+  direction: text("direction").notNull().default("out"), // out | in
   providerId: text("provider_id"),
   error: text("error"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Made-to-order requests, billed with a PayPal invoice once the seller approves.
+export const commissions = pgTable("commissions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  listingId: uuid("listing_id")
+    .notNull()
+    .references(() => listings.id),
+  sellerId: uuid("seller_id")
+    .notNull()
+    .references(() => sellers.id),
+  buyerUserId: uuid("buyer_user_id")
+    .notNull()
+    .references(() => users.id),
+  request: text("request").notNull(),
+  // The seller agent's quote: never below the listing's floor (lib/commissions.ts).
+  priceMinor: integer("price_minor").notNull(),
+  currency: text("currency").notNull().default("GBP"),
+  readyInDays: integer("ready_in_days").notNull(),
+  agentNote: text("agent_note").notNull(),
+  status: text("status").notNull().default("AWAITING_SELLER"), // AWAITING_SELLER | DECLINED | INVOICED | PAID | CANCELLED
+  invoiceId: text("invoice_id"),
+  invoiceUrl: text("invoice_url"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Mandi Monthly: a PayPal subscription for one craft piece a month.
+export const subscriptions = pgTable("subscriptions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  buyerUserId: uuid("buyer_user_id")
+    .notNull()
+    .references(() => users.id),
+  paypalSubscriptionId: text("paypal_subscription_id").notNull().unique(),
+  status: text("status").notNull(), // APPROVAL_PENDING | ACTIVE | CANCELLED | ...
+  approveUrl: text("approve_url"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Values Mandi creates once in PayPal and reuses, such as the Mandi Monthly plan id.
+export const appSettings = pgTable("app_settings", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// "Try to break the agent": each attack a visitor sends Meera's seller agent.
+export const arenaAttempts = pgTable("arena_attempts", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  attack: text("attack").notNull(),
+  offerMinor: integer("offer_minor"),
+  reply: text("reply").notNull(),
+  priceMinor: integer("price_minor"),
+  // What the engine did: blocked a price, withheld a limit, flagged an injection.
+  blocked: boolean("blocked").notNull().default(false),
+  redacted: boolean("redacted").notNull().default(false),
+  injection: boolean("injection").notNull().default(false),
+  // Must stay false: a price below the floor, or the floor in the reply.
+  belowFloor: boolean("below_floor").notNull().default(false),
+  leaked: boolean("leaked").notNull().default(false),
+  source: text("source").notNull(),
+  ipHash: text("ip_hash").notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });

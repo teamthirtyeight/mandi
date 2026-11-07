@@ -4,6 +4,7 @@ import { asc, desc, eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { toMajor } from "@/lib/engine/negotiation";
 import { weekStart } from "./weeks";
+import { refreshPayouts } from "@/lib/orders/payout";
 
 const WEEKS = 8;
 const DAY = 24 * 60 * 60 * 1000;
@@ -35,6 +36,19 @@ export async function getDashboard(sellerId: string, now = new Date()) {
     .innerJoin(schema.mandates, eq(schema.mandates.id, schema.negotiations.mandateId))
     .where(eq(schema.listings.sellerId, sellerId))
     .orderBy(desc(schema.orders.createdAt));
+
+  // Payouts PayPal is still processing: check them now, so the dashboard shows where the money is.
+  const processing = orders.filter(({ o }) => o.payoutBatchId && o.payoutStatus && ["PENDING", "PROCESSING", "SENDING"].includes(o.payoutStatus));
+  if (processing.length) {
+    await refreshPayouts(processing.map(({ o }) => o.id));
+    for (const r of orders) {
+      if (!processing.some((p) => p.o.id === r.o.id)) continue;
+      const [fresh] = await db.select().from(schema.orders).where(eq(schema.orders.id, r.o.id));
+      if (fresh) r.o = fresh;
+    }
+  }
+  let paidOutMinor = 0;
+  for (const { o } of orders) if (o.payoutMinor && o.payoutStatus && o.payoutStatus !== "FAILED") paidOutMinor += o.payoutMinor;
 
   const negCount = new Map<string, { total: number; agreed: number }>();
   for (const r of negs) {
@@ -72,6 +86,8 @@ export async function getDashboard(sellerId: string, now = new Date()) {
       held: toMajor(heldMinor),
       captured: toMajor(capturedMinor),
       refunded: toMajor(refundedMinor),
+      paidOut: toMajor(paidOutMinor),
+      payoutDebt: toMajor(seller.payoutDebtMinor),
       activeNegotiations: negs.filter((r) => ACTIVE.has(r.n.state)).length,
       /** Agreed by both agents, waiting for the buyer to approve in PayPal. */
       awaitingBuyer: negs.filter((r) => r.n.state === "AGREED" || r.n.state === "AWAITING_BUYER_APPROVAL").length,
@@ -124,6 +140,11 @@ export async function getDashboard(sellerId: string, now = new Date()) {
       tracking: o.trackingNumber,
       authorizedAt: o.authorizedAt?.toISOString() ?? null,
       capturedAt: o.capturedAt?.toISOString() ?? null,
+      payout: major(o.payoutMinor),
+      fee: major(o.feeMinor),
+      payoutStatus: o.payoutStatus,
+      payoutBatchId: o.payoutBatchId,
+      payoutError: o.payoutError,
     })),
     revenueByWeek: weeks,
   };

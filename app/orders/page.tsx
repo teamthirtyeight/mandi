@@ -108,6 +108,7 @@ export default function OrdersPage() {
           </ul>
         )}
       </section>
+      <CustomOrders />
       <section>
         <div className="flex flex-wrap items-end justify-between gap-3">
           <h2 className="title text-2xl">My requests</h2>
@@ -136,5 +137,70 @@ export default function OrdersPage() {
         )}
       </section>
     </main>
+  );
+}
+
+interface Commission {
+  id: string;
+  listingId: string;
+  title: string;
+  seller: string;
+  request: string;
+  price: number | null;
+  readyInDays: number;
+  agentNote: string;
+  status: string;
+  invoiceUrl: string | null;
+}
+const COMMISSION_LABEL: Record<string, { label: string; chip: string }> = {
+  AWAITING_SELLER: { label: "Waiting for the maker", chip: "chip-progress" },
+  INVOICING: { label: "Sending invoice", chip: "chip-progress" },
+  INVOICED: { label: "Invoice ready to pay", chip: "chip-agreed" },
+  PAID: { label: "Paid, being made", chip: "chip-safe" },
+  DECLINED: { label: "Maker declined", chip: "" },
+};
+
+/** Made-to-order requests and their PayPal invoices. */
+function CustomOrders() {
+  const [items, setItems] = useState<Commission[] | null>(null);
+  useEffect(() => {
+    fetch("/api/commissions")
+      .then((r) => (r.ok ? r.json() : { commissions: [] }))
+      .then((b) => setItems(b.commissions));
+  }, []);
+  if (!items || items.length === 0) return null;
+  return (
+    <section>
+      <h2 className="title text-2xl">Custom orders</h2>
+      <ul className="panel mt-4 divide-y divide-line overflow-hidden">
+        {items.map((c) => (
+          <li key={c.id} className="space-y-2 p-4 sm:p-5">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <span className="min-w-0">
+                <Link href={`/listing/${c.listingId}`} className="block font-semibold hover:underline">
+                  {c.title}
+                </Link>
+                <span className="block text-sm text-ink-3">by {c.seller}</span>
+              </span>
+              <span className="flex items-center gap-3">
+                {c.price != null && <span className="money text-lg">{gbp(Math.round(c.price * 100))}</span>}
+                <span className={`chip ${COMMISSION_LABEL[c.status]?.chip ?? ""}`}>{COMMISSION_LABEL[c.status]?.label ?? c.status}</span>
+              </span>
+            </div>
+            <p className="text-ink-2">&ldquo;{c.request}&rdquo;</p>
+            {c.status !== "AWAITING_SELLER" && c.status !== "DECLINED" && (
+              <p className="text-sm text-ink-3">
+                {c.agentNote} Ready in about {c.readyInDays} days.
+              </p>
+            )}
+            {c.status === "INVOICED" && c.invoiceUrl && (
+              <a href={c.invoiceUrl} target="_blank" rel="noreferrer" className="btn btn-primary btn-sm">
+                Pay the invoice in PayPal
+              </a>
+            )}
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }

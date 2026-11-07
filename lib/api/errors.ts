@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { OrderError } from "@/lib/orders/service";
 import { PaypalError } from "@/lib/paypal/rest";
 import { AuthError } from "@/lib/auth/session";
+import { CommissionError } from "@/lib/commissions";
+import { ToolkitError } from "@/lib/paypal/toolkit";
 
 export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -23,7 +25,11 @@ export function errorResponse(err: unknown) {
     const plain = FRIENDLY[issue] ?? "PayPal couldn't complete this just now. Nothing was charged or refunded; try again in a minute.";
     return NextResponse.json({ error: `${plain} (PayPal: ${issue})` }, { status: err.status >= 500 ? 502 : err.status });
   }
-  if (err instanceof OrderError || err instanceof AuthError) {
+  if (err instanceof ToolkitError) {
+    console.error("[toolkit]", err.message);
+    return NextResponse.json({ error: `PayPal couldn't complete this just now: ${err.message}` }, { status: 502 });
+  }
+  if (err instanceof OrderError || err instanceof AuthError || err instanceof CommissionError) {
     return NextResponse.json({ error: err.message }, { status: err.status });
   }
   console.error(err);

@@ -56,6 +56,9 @@ export interface SellerStrings {
   voidedBody: string;
   open: string;
   welcome: string;
+  // Payout: the seller's share, sent to their PayPal after Mandi's fee.
+  paidOut: S;
+  paidOutBody: string;
 }
 
 export const SELLER_STRINGS: Record<SellerLanguage, SellerStrings> = {
@@ -85,6 +88,8 @@ export const SELLER_STRINGS: Record<SellerLanguage, SellerStrings> = {
     voidedBody: "Not shipped in time, so the buyer wasn't charged.",
     open: "Open Mandi",
     welcome: "Mandi will send your sales updates here.",
+    paidOut: (amt) => `Sent to your PayPal: ${amt}`,
+    paidOutBody: "Your share after Mandi's fee. It's in your PayPal account now.",
   },
   hi: {
     title: "मेरी बिक्री",
@@ -112,6 +117,8 @@ export const SELLER_STRINGS: Record<SellerLanguage, SellerStrings> = {
     voidedBody: "समय पर नहीं भेजा गया, इसलिए खरीदार से पैसा नहीं लिया गया।",
     open: "Mandi खोलें",
     welcome: "Mandi आपकी बिक्री की जानकारी यहाँ भेजेगा।",
+    paidOut: (amt) => `आपके PayPal में भेजा गया: ${amt}`,
+    paidOutBody: "Mandi की फ़ीस के बाद आपका हिस्सा। अब यह आपके PayPal खाते में है।",
   },
   mr: {
     title: "माझी विक्री",
@@ -139,6 +146,8 @@ export const SELLER_STRINGS: Record<SellerLanguage, SellerStrings> = {
     voidedBody: "वेळेत पाठवले नाही, म्हणून खरेदीदाराकडून पैसे घेतले नाहीत.",
     open: "Mandi उघडा",
     welcome: "Mandi तुमच्या विक्रीच्या बातम्या इथे पाठवेल.",
+    paidOut: (amt) => `तुमच्या PayPal मध्ये पाठवले: ${amt}`,
+    paidOutBody: "Mandi च्या शुल्कानंतर तुमचा वाटा. आता तो तुमच्या PayPal खात्यात आहे.",
   },
   bn: {
     title: "আমার বিক্রি",
@@ -166,6 +175,8 @@ export const SELLER_STRINGS: Record<SellerLanguage, SellerStrings> = {
     voidedBody: "সময়মতো পাঠানো হয়নি, তাই ক্রেতার কাছ থেকে টাকা নেওয়া হয়নি।",
     open: "Mandi খুলুন",
     welcome: "Mandi আপনার বিক্রির খবর এখানে পাঠাবে।",
+    paidOut: (amt) => `আপনার PayPal-এ পাঠানো হয়েছে: ${amt}`,
+    paidOutBody: "Mandi-র ফি বাদ দিয়ে আপনার অংশ। এখন এটি আপনার PayPal অ্যাকাউন্টে আছে।",
   },
   ta: {
     title: "என் விற்பனை",
@@ -193,6 +204,8 @@ export const SELLER_STRINGS: Record<SellerLanguage, SellerStrings> = {
     voidedBody: "நேரத்தில் அனுப்பப்படவில்லை, எனவே வாங்குபவரிடம் பணம் எடுக்கப்படவில்லை.",
     open: "Mandi-ஐத் திறக்கவும்",
     welcome: "Mandi உங்கள் விற்பனை தகவல்களை இங்கே அனுப்பும்.",
+    paidOut: (amt) => `உங்கள் PayPal-க்கு அனுப்பப்பட்டது: ${amt}`,
+    paidOutBody: "Mandi கட்டணம் போக உங்கள் பங்கு. இப்போது உங்கள் PayPal கணக்கில் உள்ளது.",
   },
   te: {
     title: "నా అమ్మకాలు",
@@ -220,6 +233,8 @@ export const SELLER_STRINGS: Record<SellerLanguage, SellerStrings> = {
     voidedBody: "సమయానికి పంపలేదు, కాబట్టి కొనుగోలుదారు నుండి డబ్బు తీసుకోలేదు.",
     open: "Mandi తెరవండి",
     welcome: "Mandi మీ అమ్మకాల సమాచారాన్ని ఇక్కడ పంపుతుంది.",
+    paidOut: (amt) => `మీ PayPal కి పంపబడింది: ${amt}`,
+    paidOutBody: "Mandi రుసుము తర్వాత మీ వాటా. ఇప్పుడు ఇది మీ PayPal ఖాతాలో ఉంది.",
   },
   gu: {
     title: "મારું વેચાણ",
@@ -247,6 +262,8 @@ export const SELLER_STRINGS: Record<SellerLanguage, SellerStrings> = {
     voidedBody: "સમયસર મોકલાયું નહીં, તેથી ખરીદનાર પાસેથી પૈસા લેવાયા નથી.",
     open: "Mandi ખોલો",
     welcome: "Mandi તમારા વેચાણની માહિતી અહીં મોકલશે.",
+    paidOut: (amt) => `તમારા PayPal માં મોકલ્યા: ${amt}`,
+    paidOutBody: "Mandi ની ફી પછી તમારો હિસ્સો. હવે તે તમારા PayPal ખાતામાં છે.",
   },
   kn: {
     title: "ನನ್ನ ಮಾರಾಟ",
@@ -274,6 +291,8 @@ export const SELLER_STRINGS: Record<SellerLanguage, SellerStrings> = {
     voidedBody: "ಸಮಯಕ್ಕೆ ಕಳುಹಿಸಲಿಲ್ಲ, ಆದ್ದರಿಂದ ಖರೀದಿದಾರರಿಂದ ಹಣ ತೆಗೆದುಕೊಂಡಿಲ್ಲ.",
     open: "Mandi ತೆರೆಯಿರಿ",
     welcome: "Mandi ನಿಮ್ಮ ಮಾರಾಟದ ಮಾಹಿತಿಯನ್ನು ಇಲ್ಲಿ ಕಳುಹಿಸುತ್ತದೆ.",
+    paidOut: (amt) => `ನಿಮ್ಮ PayPal ಗೆ ಕಳುಹಿಸಲಾಗಿದೆ: ${amt}`,
+    paidOutBody: "Mandi ಶುಲ್ಕದ ನಂತರ ನಿಮ್ಮ ಪಾಲು. ಈಗ ಇದು ನಿಮ್ಮ PayPal ಖಾತೆಯಲ್ಲಿದೆ.",
   },
   ml: {
     title: "എന്റെ വിൽപ്പന",
@@ -301,6 +320,8 @@ export const SELLER_STRINGS: Record<SellerLanguage, SellerStrings> = {
     voidedBody: "സമയത്ത് അയച്ചില്ല, അതിനാൽ വാങ്ങുന്നയാളിൽ നിന്ന് പണം എടുത്തിട്ടില്ല.",
     open: "Mandi തുറക്കുക",
     welcome: "Mandi നിങ്ങളുടെ വിൽപ്പന വിവരങ്ങൾ ഇവിടെ അയയ്ക്കും.",
+    paidOut: (amt) => `നിങ്ങളുടെ PayPal-ലേക്ക് അയച്ചു: ${amt}`,
+    paidOutBody: "Mandi ഫീസ് കഴിഞ്ഞുള്ള നിങ്ങളുടെ വിഹിതം. ഇപ്പോൾ ഇത് നിങ്ങളുടെ PayPal അക്കൗണ്ടിലാണ്.",
   },
   pa: {
     title: "ਮੇਰੀ ਵਿਕਰੀ",
@@ -328,6 +349,8 @@ export const SELLER_STRINGS: Record<SellerLanguage, SellerStrings> = {
     voidedBody: "ਸਮੇਂ ਸਿਰ ਨਹੀਂ ਭੇਜਿਆ, ਇਸ ਲਈ ਖਰੀਦਦਾਰ ਤੋਂ ਪੈਸੇ ਨਹੀਂ ਲਏ ਗਏ।",
     open: "Mandi ਖੋਲ੍ਹੋ",
     welcome: "Mandi ਤੁਹਾਡੀ ਵਿਕਰੀ ਦੀ ਜਾਣਕਾਰੀ ਇੱਥੇ ਭੇਜੇਗਾ।",
+    paidOut: (amt) => `ਤੁਹਾਡੇ PayPal ਵਿੱਚ ਭੇਜਿਆ ਗਿਆ: ${amt}`,
+    paidOutBody: "Mandi ਦੀ ਫ਼ੀਸ ਤੋਂ ਬਾਅਦ ਤੁਹਾਡਾ ਹਿੱਸਾ। ਹੁਣ ਇਹ ਤੁਹਾਡੇ PayPal ਖਾਤੇ ਵਿੱਚ ਹੈ।",
   },
   or: {
     title: "ମୋର ବିକ୍ରି",
@@ -355,5 +378,7 @@ export const SELLER_STRINGS: Record<SellerLanguage, SellerStrings> = {
     voidedBody: "ସମୟରେ ପଠାଯାଇନାହିଁ, ତେଣୁ କ୍ରେତାଙ୍କଠାରୁ ଟଙ୍କା ନିଆଯାଇନାହିଁ।",
     open: "Mandi ଖୋଲନ୍ତୁ",
     welcome: "Mandi ଆପଣଙ୍କ ବିକ୍ରିର ଖବର ଏଠାକୁ ପଠାଇବ।",
+    paidOut: (amt) => `ଆପଣଙ୍କ PayPal କୁ ପଠାଗଲା: ${amt}`,
+    paidOutBody: "Mandi ଫି ପରେ ଆପଣଙ୍କ ଅଂଶ। ଏବେ ଏହା ଆପଣଙ୍କ PayPal ଖାତାରେ ଅଛି।",
   },
 };

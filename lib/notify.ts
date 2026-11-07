@@ -10,7 +10,7 @@ import { SELLER_STRINGS, sellerLanguage, type SellerLanguage } from "@/lib/i18n/
 import { sendWhatsApp } from "@/lib/whatsapp";
 import { signBanner, type BannerData } from "@/lib/banner";
 
-export type OrderEvent = "held" | "captured" | "refunded" | "refund_pending" | "voided";
+export type OrderEvent = "held" | "captured" | "refunded" | "refund_pending" | "voided" | "paid_out" | "refund_declined";
 
 const gbp = (minor: number) => new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(minor / 100);
 
@@ -54,6 +54,10 @@ function sellerText(e: OrderEvent, lang: SellerLanguage, title: string, amountMi
       return { title: t.refunded(extra), body: title };
     case "voided":
       return { title: t.voidedTitle, body: `${title}: ${t.voidedBody}` };
+    case "paid_out":
+      return { title: t.paidOut(extra), body: `${title}: ${t.paidOutBody}` };
+    case "refund_declined":
+      return null; // the seller chose this themselves
   }
 }
 
@@ -77,6 +81,10 @@ export async function sellerBanner(orderId: string, event: OrderEvent, extraMino
       return { ...base, tone: "progress", chip: null, headline: t.refunded(rupees(extraMinor)), sub: gbp(extraMinor), body: null };
     case "voided":
       return { ...base, tone: "plain", chip: null, headline: t.voidedTitle, sub: null, body: t.voidedBody };
+    case "paid_out":
+      return { ...base, tone: "safe", chip: t.done, headline: t.paidOut(rupees(extraMinor)), sub: gbp(extraMinor), body: t.paidOutBody };
+    case "refund_declined":
+      return null;
   }
 }
 
@@ -104,8 +112,14 @@ function buyerText(e: OrderEvent, title: string, amountMinor: number, extraMinor
       return { title: `Refund: ${gbp(extraMinor)}`, body: `${title}. It's on its way back to your PayPal account.` };
     case "voided":
       return { title: "Order cancelled", body: `${title}: the seller couldn't ship in time. You weren't charged.` };
+    case "refund_declined":
+      return {
+        title: "The seller didn't approve a refund",
+        body: `${title}. If you're not happy, you can still open a case with PayPal: your purchase is covered by PayPal Buyer Protection.`,
+      };
     case "refund_pending":
-      return null; // the buyer already sees "waiting for the seller" on the order page
+    case "paid_out":
+      return null; // the buyer already sees "waiting for the seller"; payouts are between Mandi and the seller
   }
 }
 
@@ -120,10 +134,10 @@ export async function notifyOrder(orderId: string, event: OrderEvent, extraMinor
     const lang = sellerLanguage(p.language);
     const s = sellerText(event, lang, p.title, p.order.amountMinor, extraMinor, p.shipByDays, rate);
     const sellerLink = event === "held" ? "/seller" : link;
-    for (const userId of p.sellerUserIds) rows.push({ userId, ...s, link: sellerLink });
+    if (s) for (const userId of p.sellerUserIds) rows.push({ userId, ...s, link: sellerLink });
     // The seller's agent also messages them on WhatsApp, if they opted in.
     // Not awaited: a slow or failed message never holds up the money flow.
-    if (p.whatsappOptIn && p.whatsappNumber) {
+    if (s && p.whatsappOptIn && p.whatsappNumber) {
       const body = `*${s.title}*\n${s.body}\n\n${SELLER_STRINGS[lang].open}: ${appUrl()}${sellerLink}`;
       const to = p.whatsappNumber;
       void (async () => {

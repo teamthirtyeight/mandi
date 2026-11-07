@@ -10,6 +10,16 @@ const EVENTS = [
   "PAYMENT.AUTHORIZATION.VOIDED",
   "PAYMENT.CAPTURE.COMPLETED",
   "PAYMENT.CAPTURE.REFUNDED",
+  // Custom orders, Mandi Monthly and seller payouts.
+  "INVOICING.INVOICE.PAID",
+  "BILLING.SUBSCRIPTION.ACTIVATED",
+  "BILLING.SUBSCRIPTION.CANCELLED",
+  "BILLING.SUBSCRIPTION.SUSPENDED",
+  "PAYMENT.SALE.COMPLETED",
+  "PAYMENT.PAYOUTSBATCH.SUCCESS",
+  "PAYMENT.PAYOUTS-ITEM.SUCCEEDED",
+  "PAYMENT.PAYOUTS-ITEM.UNCLAIMED",
+  "PAYMENT.PAYOUTS-ITEM.FAILED",
 ];
 
 async function main() {
@@ -27,6 +37,22 @@ async function main() {
   const { access_token } = await tokenRes.json();
 
   const url = `${publicUrl}/api/paypal/webhook`;
+  const headers = { Authorization: `Bearer ${access_token}`, "Content-Type": "application/json" };
+
+  // Already registered for this URL: update its events instead of adding a second webhook.
+  const existing = (await (await fetch(`${base}/v1/notifications/webhooks`, { headers })).json()).webhooks?.find((w: { url: string }) => w.url === url);
+  if (existing) {
+    const patch = await fetch(`${base}/v1/notifications/webhooks/${existing.id}`, {
+      method: "PATCH",
+      headers,
+      body: JSON.stringify([{ op: "replace", path: "/event_types", value: EVENTS.map((name) => ({ name })) }]),
+    });
+    const body = await patch.json();
+    if (!patch.ok) throw new Error(`Update failed (${patch.status}): ${JSON.stringify(body.details ?? body)}`);
+    console.log(`Webhook ${existing.id} for ${url} now listens to ${EVENTS.length} events`);
+    return;
+  }
+
   const res = await fetch(`${base}/v1/notifications/webhooks`, {
     method: "POST",
     headers: { Authorization: `Bearer ${access_token}`, "Content-Type": "application/json" },

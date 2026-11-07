@@ -105,3 +105,112 @@ export async function listDisputes(): Promise<DisputeSummary[] | null> {
     return null;
   }
 }
+
+// ---- Platform toolkit: fixed server code, never an agent ----
+//
+// Invoices, subscriptions, reporting and order lookups run through a second
+// Agent Toolkit instance that only Mandi's own server code calls (no model
+// chooses these calls). It has its own allowlist: the toolkit must not hand it
+// order-creation, capture, refund or payout tools, and the agents' toolset
+// above never gets any of these.
+export const PLATFORM_TOOLS = [
+  "create_invoice",
+  "send_invoice",
+  "get_invoice",
+  "create_product",
+  "create_subscription_plan",
+  "show_subscription_plan_details",
+  "create_subscription",
+  "show_subscription_details",
+  "cancel_subscription",
+  "get_order",
+  "list_transactions",
+] as const;
+export type PlatformTool = (typeof PLATFORM_TOOLS)[number];
+
+let platform: PayPalAgentToolkit | null = null;
+
+function getPlatformToolkit(): PayPalAgentToolkit | null {
+  const clientId = process.env.PAYPAL_CLIENT_ID;
+  const clientSecret = process.env.PAYPAL_CLIENT_SECRET;
+  if (!clientId || !clientSecret) return null;
+  if (!platform) {
+    const tk = new PayPalAgentToolkit({
+      clientId,
+      clientSecret,
+      configuration: {
+        actions: {
+          invoices: { create: true, send: true, get: true },
+          products: { create: true },
+          subscriptionPlans: { create: true, show: true },
+          subscriptions: { create: true, show: true, cancel: true },
+          orders: { get: true },
+          transactions: { list: true },
+        },
+        context: { sandbox: process.env.PAYPAL_ENV !== "live" },
+      },
+    });
+    const extra = Object.keys(tk.getTools()).filter((name) => !(PLATFORM_TOOLS as readonly string[]).includes(name));
+    if (extra.length) throw new Error(`Platform toolkit refused: unexpected tools ${extra.join(", ")}`);
+    platform = tk;
+  }
+  return platform;
+}
+
+export class ToolkitError extends Error {}
+
+const FEATURE: Partial<Record<PlatformTool, string>> = {
+  create_invoice: "Invoicing",
+  send_invoice: "Invoicing",
+  get_invoice: "Invoicing",
+  list_transactions: "Transaction Search",
+  create_subscription_plan: "Subscriptions",
+  create_subscription: "Subscriptions",
+};
+
+/** Runs one platform tool, logs it to the PayPal call panel, and returns PayPal's response body. */
+export async function runPlatformTool<T = Record<string, unknown>>(
+  name: PlatformTool,
+  args: Record<string, unknown>,
+  opts: { label: string; orderId?: string | null },
+): Promise<T> {
+  const tk = getPlatformToolkit();
+  if (!tk) throw new ToolkitError("PayPal is not configured");
+  const tool = tk.getTools()[name];
+  if (!tool?.execute) throw new ToolkitError(`Toolkit tool ${name} is not available`);
+  let body: Record<string, unknown> | null = null;
+  let failure: string | null = null;
+  try {
+    const raw: unknown = await tool.execute(args, { toolCallId: `${opts.label}`.slice(0, 60), messages: [] });
+    body = (typeof raw === "string" ? JSON.parse(raw) : raw) as Record<string, unknown>;
+    // The toolkit reports failures as { ok: false, code, message } or { error: { message } }.
+    const err = body?.error as { message?: string } | undefined;
+    if (err) failure = err.message ?? JSON.stringify(err).slice(0, 300);
+    else if (body?.ok === false) failure = String(body.message ?? body.code ?? "PayPal refused the request");
+    else if (body == null || (typeof body === "object" && Object.keys(body).length === 0 && name !== "cancel_subscription")) {
+      failure = "PayPal returned nothing";
+    }
+  } catch (err) {
+    failure = (err as Error).message;
+  }
+  await logPaypalEvent({
+    direction: "call",
+    method: "TOOL",
+    endpoint: `agent-toolkit ${name}`,
+    httpStatus: failure ? 500 : 200,
+    orderId: opts.orderId ?? null,
+    summary: (failure ? `${name} failed: ${failure}` : `${name}: ${opts.label}`).slice(0, 200),
+  });
+  if (failure) {
+    // "X: X" duplicates from the toolkit, and a plain sentence for a missing app permission.
+    const parts = failure.split(": ");
+    const clean = parts.length === 2 && parts[0].replace(/\.$/, "") === parts[1].replace(/\.$/, "") ? parts[0] : failure;
+    if (/insufficient permissions|NOT_AUTHORIZED|PERMISSION_DENIED/i.test(clean)) {
+      throw new ToolkitError(`${FEATURE[name] ?? name} isn't switched on for Mandi's PayPal app yet (PayPal developer dashboard → Apps & Credentials → Features).`);
+    }
+    throw new ToolkitError(clean);
+  }
+  return body as T;
+}
+
+export const platformToolkitConfigured = () => Boolean(process.env.PAYPAL_CLIENT_ID && process.env.PAYPAL_CLIENT_SECRET);

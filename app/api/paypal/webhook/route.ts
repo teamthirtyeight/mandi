@@ -7,6 +7,8 @@ import { advance, statusForWebhook, type OrderStatus } from "@/lib/orders/state"
 import { verifyWebhookSignature } from "@/lib/paypal/rest";
 import { logPaypalEvent } from "@/lib/paypal/log";
 import { releaseStock } from "@/lib/orders/stock";
+import { markCommissionPaid } from "@/lib/commissions";
+import { monthlyPaymentReceived, refreshSubscription } from "@/lib/subscriptions";
 
 export async function POST(req: Request) {
   const raw = await req.text();
@@ -55,5 +57,46 @@ export async function POST(req: Request) {
     }
   }
 
+  // Invoices, subscriptions and payouts (not tied to a checkout order).
+  try {
+    await handleOtherEvents(event.event_type as string, resource);
+  } catch (err) {
+    console.error("[webhook] follow-up failed", event.event_type, err);
+  }
+
   return NextResponse.json({ received: true });
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function handleOtherEvents(type: string, resource: any) {
+  if (type === "INVOICING.INVOICE.PAID") {
+    const invoiceId: string | undefined = resource.id ?? resource.invoice?.id;
+    if (!invoiceId) return;
+    const [c] = await db.select({ id: schema.commissions.id }).from(schema.commissions).where(eq(schema.commissions.invoiceId, invoiceId));
+    if (c) await markCommissionPaid(c.id);
+    return;
+  }
+  if (type.startsWith("BILLING.SUBSCRIPTION.") && resource.id) {
+    await refreshSubscription(resource.id);
+    return;
+  }
+  if (type === "PAYMENT.SALE.COMPLETED" && resource.billing_agreement_id) {
+    await monthlyPaymentReceived({
+      saleId: resource.id,
+      subscriptionId: resource.billing_agreement_id,
+      amount: resource.amount?.total ?? "0",
+      currency: resource.amount?.currency ?? "USD",
+    });
+    return;
+  }
+  if (type.startsWith("PAYMENT.PAYOUTS-ITEM.") || type.startsWith("PAYMENT.PAYOUTSBATCH.")) {
+    // Payout status changes: refresh the order whose batch this is.
+    const batchId: string | undefined = resource.payout_batch_id ?? resource.batch_header?.payout_batch_id;
+    if (!batchId) return;
+    const [o] = await db.select({ id: schema.orders.id }).from(schema.orders).where(eq(schema.orders.payoutBatchId, batchId));
+    if (o) {
+      const { refreshPayouts } = await import("@/lib/orders/payout");
+      await refreshPayouts([o.id]);
+    }
+  }
 }

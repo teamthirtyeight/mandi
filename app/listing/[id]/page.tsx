@@ -322,6 +322,8 @@ export default function ListingPage({ params }: { params: Promise<{ id: string }
           </section>
       </div>
 
+      <CustomPiece listingId={id} sellerName={item.sellerName} />
+
       <MeetTheMaker item={item} />
 
       {/* Phone: keep the next step in reach */}
@@ -354,6 +356,83 @@ export default function ListingPage({ params }: { params: Promise<{ id: string }
         </dialog>
       )}
     </main>
+  );
+}
+
+/** Made to order: the seller's agent quotes, the artisan approves, PayPal sends an invoice. */
+function CustomPiece({ listingId, sellerName }: { listingId: string; sellerName: string }) {
+  const [text, setText] = useState("");
+  const [state, setState] = useState<"idle" | "busy" | "sent" | "login">("idle");
+  const [error, setError] = useState<string | null>(null);
+
+  async function send(e: React.FormEvent) {
+    e.preventDefault();
+    setState("busy");
+    setError(null);
+    const res = await fetch("/api/commissions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ listingId, request: text }),
+    });
+    if (res.status === 401 || res.status === 403) return setState("login");
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      setState("idle");
+      return setError(body.error ?? "That didn't go through. Try again.");
+    }
+    setState("sent");
+  }
+
+  return (
+    <section aria-labelledby="custom-heading" className="mt-16 grid gap-6 rounded-[1.25rem] border border-line p-5 sm:p-8 md:grid-cols-[1fr_1.2fr]">
+      <div>
+        <h2 id="custom-heading" className="title text-2xl">
+          Have one made for you
+        </h2>
+        <p className="mt-2 text-ink-2">
+          A different colour, size or design. {sellerName}&apos;s agent quotes a price, {sellerName} approves it on WhatsApp, and PayPal sends you an invoice.
+          You pay only if you&apos;re happy with it.
+        </p>
+      </div>
+      {state === "sent" ? (
+        <div className="notice notice-safe self-start">
+          <p className="font-semibold">Sent to {sellerName}.</p>
+          <p className="mt-1">
+            You&apos;ll get the price and a PayPal invoice once they&apos;ve approved it. Follow it in{" "}
+            <Link href="/orders" className="underline">
+              My orders
+            </Link>
+            .
+          </p>
+        </div>
+      ) : (
+        <form onSubmit={send} className="space-y-3">
+          <label htmlFor="custom-request" className="label">
+            What should {sellerName} make?
+          </label>
+          <textarea
+            id="custom-request"
+            className="field"
+            rows={3}
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder="The same weave in emerald green, 2 metres long, for my sister's wedding."
+          />
+          {error && <p className="notice notice-bad text-sm">{error}</p>}
+          {state === "login" && (
+            <p className="notice text-sm">
+              <Link href={`/login?next=/listing/${listingId}`} className="font-semibold underline">
+                Log in as a buyer
+              </Link>{" "}
+              to ask for a custom piece.
+            </p>
+          )}
+          <button className="btn btn-secondary" disabled={state === "busy" || text.trim().length < 10}>
+            {state === "busy" ? "Asking…" : `Ask ${sellerName}`}
+          </button>
+        </form>
+      )}
+    </section>
   );
 }
 
