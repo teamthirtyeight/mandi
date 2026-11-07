@@ -269,7 +269,17 @@ export default function DashboardPage() {
     { label: "Money held", value: gbp(data.tiles.held), note: "Paid by buyers, released when you ship", tone: "text-leaf" },
     { label: "Paid to you", value: gbp(data.tiles.captured), note: "After shipping, net of refunds", tone: "" },
     { label: "Refunded", value: gbp(data.tiles.refunded), note: "Returned to buyers", tone: "" },
-    { label: "Live negotiations", value: String(data.tiles.activeNegotiations), note: "Your agent is talking to buyers", tone: "" },
+    {
+      label: "Open negotiations",
+      value: String(data.tiles.activeNegotiations),
+      note:
+        data.tiles.awaitingBuyer === 0
+          ? "Your agent is talking to buyers"
+          : data.tiles.awaitingBuyer === data.tiles.activeNegotiations
+            ? "Agreed, waiting for the buyer to pay"
+            : `${data.tiles.awaitingBuyer} agreed, waiting for the buyer to pay`,
+      tone: "",
+    },
     { label: "Average above floor", value: avgMargin == null ? "–" : gbp(avgMargin), note: "How far above your floor your agent sold", tone: "" },
   ];
   const TAB_LABEL = { orders: "Orders", negotiations: "Negotiations", listings: "Listings" } as const;

@@ -112,6 +112,15 @@ describe("guarded agents", () => {
   });
 });
 
+describe("price written by code", () => {
+  it("an accept without {{price}} reads as agreement, not a new offer", async () => {
+    const { renderMessage } = await import("@/lib/guardrails");
+    const base = { template: "Thank you, happy to accept.", finalMinor: 11720, currency: "GBP", secretsMinor: [6800] };
+    expect(renderMessage({ ...base, agreed: true })).toMatchObject({ value: "Thank you, happy to accept. Agreed at £117.20." });
+    expect(renderMessage(base)).toMatchObject({ value: "Thank you, happy to accept. My offer is £117.20." });
+  });
+});
+
 describe("agent tools", () => {
   it("the PayPal toolkit tools Mandi enables are allowed, payment tools never are", async () => {
     const { checkToolset } = await import("@/lib/guardrails");

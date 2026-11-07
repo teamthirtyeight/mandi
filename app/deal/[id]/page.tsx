@@ -65,7 +65,10 @@ function toLine(t: Turn): ChatLine {
   if (t.limit_redacted) notes.push("Engine withheld a private limit");
   if (t.source === "fallback") notes.push("Rule-based reply");
   if (t.source === "script") notes.push(t.from === "buyer" ? "Scripted attack" : "Simulated compromised agent");
-  return { id: t.id, from: t.from as "seller" | "buyer", text: t.message, price: t.final_price, notes };
+  if (t.guardrail_result === "ADDON_OFFERED") notes.push("Bundle offer, after the deal");
+  // A declined bundle has no price of its own to show.
+  const price = t.guardrail_result === "ADDON_DECLINED" ? null : t.final_price;
+  return { id: t.id, from: t.from as "seller" | "buyer", text: t.message, price, notes };
 }
 
 export default function DealPage({ params }: { params: Promise<{ id: string }> }) {
@@ -184,7 +187,7 @@ export default function DealPage({ params }: { params: Promise<{ id: string }> }
   const live = !FINAL.has(status);
 
   const lastPrice = (ts: Turn[], who: "buyer" | "seller") =>
-    [...ts].reverse().find((t) => t.from === who && t.final_price != null)?.final_price ?? null;
+    [...ts].reverse().find((t) => t.from === who && t.final_price != null && !t.guardrail_result.startsWith("ADDON"))?.final_price ?? null;
 
   return (
     <main className="mx-auto w-full max-w-7xl space-y-6 px-4 pb-24 pt-8 sm:px-6">

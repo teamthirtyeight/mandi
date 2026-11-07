@@ -73,6 +73,8 @@ export async function getDashboard(sellerId: string, now = new Date()) {
       captured: toMajor(capturedMinor),
       refunded: toMajor(refundedMinor),
       activeNegotiations: negs.filter((r) => ACTIVE.has(r.n.state)).length,
+      /** Agreed by both agents, waiting for the buyer to approve in PayPal. */
+      awaitingBuyer: negs.filter((r) => r.n.state === "AGREED" || r.n.state === "AWAITING_BUYER_APPROVAL").length,
       currency: "GBP",
     },
     listings: listings.map((l) => ({

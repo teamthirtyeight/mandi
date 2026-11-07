@@ -45,10 +45,14 @@ export function scoreDeals(opts: {
       const priceScore = Math.max(0, (opts.ceilingMinor - d.agreedMinor) / opts.ceilingMinor);
       const slackDays = Math.floor((opts.deadline.getTime() - d.arrival.getTime()) / DAY);
       const deliveryScore = Math.min(1, Math.max(0, slackDays / window));
-      const score = w.price * priceScore + w.delivery * deliveryScore + w.match * d.match;
+      // Price and delivery count in proportion to how well the item matched, so a
+      // cheap item that isn't what was asked for (a cushion cover for "wool shawl")
+      // can't win on price alone.
+      const score = d.match * (w.price * priceScore + w.delivery * deliveryScore) + w.match * d.match;
 
       const reasons = [`${money(d.agreedMinor, d.currency)}, ${money(opts.ceilingMinor - d.agreedMinor, d.currency)} under budget`];
-      if (opts.referenceMinor != null) {
+      // The reference price is for what the buyer asked for, so only compare close matches with it.
+      if (opts.referenceMinor != null && d.match >= 0.6) {
         const diff = opts.referenceMinor - d.agreedMinor;
         reasons.push(
           diff >= 0

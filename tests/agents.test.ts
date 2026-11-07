@@ -108,6 +108,23 @@ describe("deal scoring", () => {
     expect(rec.best?.reasons[0]).toBe("£72.00, £18.00 under budget");
   });
 
+  it("a cheap poor match does not beat the item that was asked for", () => {
+    const now = new Date("2026-11-07T00:00:00Z");
+    const rec = scoreDeals({
+      now,
+      ceilingMinor: 20000,
+      referenceMinor: 24450,
+      deadline: new Date("2026-12-04T23:59:59Z"),
+      deals: [
+        { negotiationId: "cushion", sellerName: "Hetal", title: "Cushion cover", agreedMinor: 3800, currency: "GBP", arrival: new Date("2026-11-17"), match: 0.25 },
+        { negotiationId: "shawl", sellerName: "Fatima", title: "Wool shawl", agreedMinor: 19500, currency: "GBP", arrival: new Date("2026-11-18"), match: 1 },
+      ],
+    });
+    expect(rec.best?.negotiationId).toBe("shawl");
+    // The reference price is for a shawl, so it isn't compared with the cushion cover.
+    expect(rec.ranked.find((d) => d.negotiationId === "cushion")!.reasons.join(" ")).not.toMatch(/similar products/);
+  });
+
   it("returns no recommendation without agreed deals", () => {
     expect(scoreDeals({ deals: [], ceilingMinor: 9000, referenceMinor: null, deadline: new Date() }).best).toBeNull();
   });

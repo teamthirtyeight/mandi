@@ -68,6 +68,8 @@ export interface RenderMessageInput {
   currency: string;
   /** Values this speaker must not reveal: the seller's floor or buyer's ceiling. */
   secretsMinor: readonly number[];
+  /** True when this turn closes the deal, so a price added by code reads as agreement, not a new offer. */
+  agreed?: boolean;
 }
 
 /**
@@ -92,7 +94,7 @@ export function renderMessage(input: RenderMessageInput): Decision<string> {
   const price = formatMoney(input.finalMinor, input.currency);
   const rendered = template.includes(PRICE_PLACEHOLDER)
     ? template.split(PRICE_PLACEHOLDER).join(price)
-    : `${template.trim()} My offer is ${price}.`.trim();
+    : `${template.trim()} ${input.agreed ? "Agreed at" : "My offer is"} ${price}.`.trim();
   return allow("MESSAGE_OK", "message passed all checks", rendered);
 }
 

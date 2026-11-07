@@ -72,6 +72,9 @@ export interface ListingMatch {
   match: number;
 }
 
+/** Listings matching less than this share of the best match are left out. */
+const MIN_RELATIVE_MATCH = 0.4;
+
 /** Postgres full-text search, best listing per seller, deadline filter applied. */
 export async function findListings(mandate: Mandate, now = new Date(), maxSellers = MAX_SELLERS): Promise<ListingMatch[]> {
   const terms = mandate.query
@@ -102,6 +105,9 @@ export async function findListings(mandate: Mandate, now = new Date(), maxSeller
   const top = rows[0]?.rank || 1;
   for (const r of rows) {
     if (bestPerSeller.has(r.seller.id)) continue;
+    // Words are OR-ed, so "embroidered wool shawl" also hits a cushion cover on
+    // "embroidered" alone. Keep only listings close to the best match.
+    if (r.rank / top < MIN_RELATIVE_MATCH) continue;
     if (!meetsDeadline(r.seller.shipByDays, r.seller.transitDays, deadline, now)) continue;
     bestPerSeller.set(r.seller.id, { listing: r.listing, seller: r.seller, match: Math.min(1, r.rank / top) });
   }

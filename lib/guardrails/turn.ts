@@ -253,7 +253,13 @@ export async function runGuardedTurn(
 
   const { finalMinor } = accepted.event;
   const render = (text: string) =>
-    renderMessage({ template: text, finalMinor, currency: state.currency, secretsMinor: [secret] });
+    renderMessage({
+      template: text,
+      finalMinor,
+      currency: state.currency,
+      secretsMinor: [secret],
+      agreed: accepted.state.status === "AGREED",
+    });
 
   problem = null;
   let rendered = render(template);
