@@ -9,6 +9,7 @@ import { PayPalButtons, PayPalScriptProvider } from "@paypal/react-paypal-js";
 import { DemoLogin } from "@/components/DemoLogin";
 import { OffersChart } from "@/components/OffersChart";
 import { ListingImage } from "@/components/ListingImage";
+import { NegotiationChat, type ChatLine } from "@/components/NegotiationChat";
 import type { MandateSnapshot } from "@/lib/negotiation/snapshot";
 
 type Turn = MandateSnapshot["turns"][number];
@@ -56,14 +57,15 @@ const STATE_CHIP: Record<string, string> = {
   BLOCKED_BY_GUARDRAIL: "chip-bad",
 };
 
-function GuardrailBadge({ t }: { t: Turn }) {
-  if (!t.injection && !t.limit_redacted) return null;
-  return (
-    <div className="mt-2 flex flex-wrap gap-1">
-      {t.injection && <span className="chip chip-bad">Injection attempt ignored</span>}
-      {t.limit_redacted && <span className="chip chip-bad">Engine withheld a private limit from this message</span>}
-    </div>
-  );
+// One stored turn as a chat line (components/NegotiationChat).
+function toLine(t: Turn): ChatLine {
+  if (t.from === "engine") return { id: t.id, from: "engine", text: t.message, price: null, blocked: t.guardrail_result.startsWith("REJECTED") };
+  const notes: string[] = [];
+  if (t.injection) notes.push("Injection attempt ignored");
+  if (t.limit_redacted) notes.push("Engine withheld a private limit");
+  if (t.source === "fallback") notes.push("Rule-based reply");
+  if (t.source === "script") notes.push(t.from === "buyer" ? "Scripted attack" : "Simulated compromised agent");
+  return { id: t.id, from: t.from as "seller" | "buyer", text: t.message, price: t.final_price, notes };
 }
 
 export default function DealPage({ params }: { params: Promise<{ id: string }> }) {
@@ -438,54 +440,32 @@ export default function DealPage({ params }: { params: Promise<{ id: string }> }
                 )}
                 <OffersChart turns={ts.filter((t) => !t.guardrail_result.startsWith("ADDON"))} budget={snap.mandate.maxPrice} />
               </header>
-              <ol className="flex-1 space-y-3 p-4" aria-live="polite">
-                {ts.map((t) => (
-                  <li key={t.id} className={t.from === "buyer" ? "flex flex-col items-end" : t.from === "engine" ? "" : "flex flex-col items-start"}>
-                    {t.from === "engine" ? (
-                      t.guardrail_result.startsWith("REJECTED") ? (
-                        <div className="rounded-xl border-l-4 border-madder bg-madder-soft px-3 py-2.5">
-                          <p className="flex items-center gap-1.5 text-sm font-semibold text-madder">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">
-                              <circle cx="12" cy="12" r="9" />
-                              <path d="M5.6 5.6l12.8 12.8" />
-                            </svg>
-                            Engine blocked
-                          </p>
-                          <p className="mt-0.5 text-sm text-ink">{t.message}</p>
-                        </div>
-                      ) : (
-                        <p className="text-center text-sm text-ink-3">{t.message}</p>
-                      )
-                    ) : (
-                      <>
-                        <p className="mb-1 px-1 text-xs text-ink-3">
-                          {t.from === "buyer" ? `${snap.mandate.buyerName}'s agent` : `${n.seller.name}'s agent`}, round {t.round}
-                          {t.source === "fallback" && ", rule-based"}
-                          {t.source === "script" && (t.from === "buyer" ? ", scripted attack" : ", simulated compromised agent")}
-                        </p>
-                        <div
-                          className={`max-w-[88%] rounded-2xl px-3.5 py-2.5 ${
-                            t.from === "buyer" ? "rounded-br-md bg-indigo-soft" : "rounded-bl-md bg-surface"
-                          }`}
-                        >
-                          <p className="leading-snug">{t.message}</p>
-                          {t.final_price != null && (
-                            <p className={`money mt-1 text-lg ${t.from === "buyer" ? "text-right text-indigo" : ""}`}>{money(t.final_price, currency)}</p>
-                          )}
-                          <GuardrailBadge t={t} />
-                        </div>
-                      </>
-                    )}
-                  </li>
-                ))}
-                {!FINAL.has(status) && !["AGREED", "WALKED_AWAY", "EXPIRED", "BLOCKED_BY_GUARDRAIL"].includes(st) && (
-                  <li className="flex items-center gap-1 px-1 text-sm text-ink-3" aria-label="An agent is typing">
-                    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-ink-3 [animation-delay:-0.3s]" />
-                    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-ink-3 [animation-delay:-0.15s]" />
-                    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-ink-3" />
-                  </li>
-                )}
-              </ol>
+              <NegotiationChat
+                scroll
+                className="flex-1 p-4"
+                lines={ts.map(toLine)}
+                currency={currency}
+                left={`${n.seller.name}'s agent`}
+                right="Your agent"
+                typing={!FINAL.has(status) && !["AGREED", "ORDERED", "WALKED_AWAY", "EXPIRED", "BLOCKED_BY_GUARDRAIL", "CANCELLED"].includes(st)}
+                outcome={
+                  st === "AGREED" || st === "ORDERED"
+                    ? {
+                        kind: "agreed",
+                        price: states[n.id]?.agreed ?? n.agreedPrice ?? lastPrice(ts, "seller") ?? 0,
+                        held: held && isBest ? `${money(held.amount, currency)} held by PayPal until it ships` : null,
+                      }
+                    : st === "WALKED_AWAY"
+                      ? { kind: "walked", text: "No deal this time" }
+                      : st === "BLOCKED_BY_GUARDRAIL"
+                        ? { kind: "blocked", text: "Stopped by the rules engine" }
+                        : st === "EXPIRED"
+                          ? { kind: "walked", text: "Ran out of rounds without a deal" }
+                          : st === "CANCELLED"
+                            ? { kind: "walked", text: "You cancelled this request" }
+                            : null
+                }
+              />
             </section>
           );
         })}

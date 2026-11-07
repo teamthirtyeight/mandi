@@ -22,6 +22,7 @@ import {
   NumberAxisModule,
   type AgCartesianChartOptions,
 } from "ag-charts-community";
+import { NegotiationChat } from "@/components/NegotiationChat";
 import type { Dashboard } from "@/lib/dashboard/data";
 
 ModuleRegistry.registerModules([AllCommunityModule]);
@@ -420,7 +421,7 @@ export default function DashboardPage() {
           </div>
 
           {tab === "negotiations" && selected && (
-            <aside className="panel max-h-[440px] w-full overflow-y-auto p-4 lg:w-96" aria-label="Negotiation transcript">
+            <aside className="panel w-full p-4 lg:w-96" aria-label="Negotiation transcript">
               <div className="mb-3 flex items-start justify-between gap-2">
                 <div>
                   <p className="font-semibold">With {selected.buyer}&apos;s agent</p>
@@ -433,30 +434,21 @@ export default function DashboardPage() {
               {turns.length === 0 ? (
                 <p className="text-sm text-ink-3">No messages recorded.</p>
               ) : (
-                <ol className="space-y-2 text-sm">
-                  {turns.map((t) => (
-                    <li key={t.id} className={`rounded-xl px-3 py-2 ${t.from === "buyer" ? "bg-indigo-soft" : t.from === "seller" ? "bg-surface" : "border border-line"}`}>
-                      <p className="text-xs text-ink-3">
-                        {t.from === "buyer" ? `${selected.buyer}'s agent` : t.from === "seller" ? "Your agent" : t.from}, round {t.round}
-                        {t.source === "fallback" && ", rule-based"}
-                      </p>
-                      <p className="mt-0.5">{t.message}</p>
-                      {t.final != null && (
-                        <p className="money mt-1">
-                          {gbp(t.final)}
-                          {t.proposed != null && t.proposed !== t.final && (
-                            <span className="ml-2 text-xs font-normal text-haldi-ink">engine adjusted from {gbp(t.proposed)}</span>
-                          )}
-                        </p>
-                      )}
-                      {t.injection && <p className="mt-1 text-xs font-semibold text-madder">Injection attempt ignored</p>}
-                    </li>
-                  ))}
-                </ol>
+                <NegotiationChat
+                  scroll
+                  lines={turns.map((t) => {
+                    if (t.from === "engine") return { id: t.id, from: "engine" as const, text: t.message, price: null, blocked: t.guardrail.startsWith("REJECTED") };
+                    const notes: string[] = [];
+                    if (t.injection) notes.push("Injection attempt ignored");
+                    if (t.source === "fallback") notes.push("Rule-based reply");
+                    if (t.proposed != null && t.final != null && t.proposed !== t.final) notes.push(`Engine adjusted from ${gbp(t.proposed)}`);
+                    return { id: t.id, from: t.from as "seller" | "buyer", text: t.message, price: t.final, notes };
+                  })}
+                  left="Your agent"
+                  right={`${selected.buyer}'s agent`}
+                />
               )}
-              <Link href={`/deal/${selected.mandateId}`} className="link mt-3 inline-block text-sm">
-                Open the negotiation room
-              </Link>
+              <p className="hint mt-3">Only your conversation is shown. The buyer&apos;s budget and other sellers stay private.</p>
             </aside>
           )}
         </div>
