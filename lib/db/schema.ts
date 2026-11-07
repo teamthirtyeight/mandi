@@ -44,6 +44,14 @@ export const sellers = pgTable("sellers", {
   city: text("city").notNull(),
   country: text("country").notNull(),
   story: text("story").notNull(),
+  // "Meet the maker" on listing pages: where they work, their craft, a line in
+  // their own words, and a photo of the craft with its credit (lib/db/seed.ts).
+  region: text("region"),
+  craft: text("craft"),
+  quote: text("quote"),
+  photoUrl: text("photo_url"),
+  photoCredit: text("photo_credit"),
+  photoSource: text("photo_source"),
   // Payee for orders: the seller's PayPal sandbox business account.
   paypalMerchantEmail: text("paypal_merchant_email").notNull(),
   language: text("language").notNull().default("en"), // lib/i18n/seller.ts SELLER_LANGUAGES
@@ -92,6 +100,10 @@ export const listings = pgTable("listings", {
   category: text("category").notNull(),
   materials: text("materials").notNull(),
   images: jsonb("images").$type<string[]>().notNull().default([]),
+  // Credit for a borrowed first photo (the demo's Wikimedia Commons photos);
+  // null for a seller's own photos.
+  imageCredit: text("image_credit"),
+  imageSource: text("image_source"),
   listPriceMinor: integer("list_price_minor").notNull(),
   // Never sent to any buyer-side prompt.
   floorPriceMinor: integer("floor_price_minor").notNull(),

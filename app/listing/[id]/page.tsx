@@ -6,6 +6,7 @@ import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ListingImage } from "@/components/ListingImage";
+import { swatchStyle } from "@/lib/swatch";
 
 interface Item {
   id: string;
@@ -15,6 +16,8 @@ interface Item {
   listPriceMinor: number;
   currency: string;
   images: string[];
+  imageCredit: string | null;
+  imageSource: string | null;
   stock: number;
   status: string;
   sellerName: string;
@@ -22,6 +25,13 @@ interface Item {
   sellerStory: string;
   shipByDays: number;
   transitDays: number;
+  sellerRegion: string | null;
+  sellerCraft: string | null;
+  sellerQuote: string | null;
+  sellerPhotoUrl: string | null;
+  sellerPhotoCredit: string | null;
+  sellerPhotoSource: string | null;
+  more: { id: string; title: string; listPriceMinor: number; currency: string; image: string | null }[];
 }
 
 export default function ListingPage({ params }: { params: Promise<{ id: string }> }) {
@@ -101,7 +111,20 @@ export default function ListingPage({ params }: { params: Promise<{ id: string }
       </Link>
       <div className="grid gap-10 md:grid-cols-[1.1fr_1fr]">
         <section className="space-y-3">
-          <ListingImage src={item.images[photo] ?? null} title={item.title} className="aspect-square w-full rounded-[1.25rem]" />
+          <ListingImage src={item.images[photo] ?? null} title={item.title} className="aspect-square w-full rounded-[1.25rem] bg-surface" />
+          {photo === 0 && item.imageCredit && (
+            <p className="hint">
+              {item.imageCredit}
+              {item.imageSource && (
+                <>
+                  {", "}
+                  <a href={item.imageSource} target="_blank" rel="noreferrer" className="underline underline-offset-2">
+                    Wikimedia Commons
+                  </a>
+                </>
+              )}
+            </p>
+          )}
           {item.images.length > 1 && (
             <div className="flex gap-2">
               {item.images.map((src, i) => (
@@ -134,14 +157,20 @@ export default function ListingPage({ params }: { params: Promise<{ id: string }
             </p>
           </div>
 
-          <div className="well p-4">
-            <p className="font-semibold">
-              Made by {item.sellerName} in {item.sellerCity}
-            </p>
-            <p className="mt-1 text-ink-2">{item.sellerStory}</p>
-            <p className="hint mt-2">
-              Ships within {item.shipByDays} days and arrives in about {item.shipByDays + item.transitDays} days.
-            </p>
+          <div className="flex items-center gap-3 border-y border-line py-4">
+            <MakerAvatar name={item.sellerName} craft={item.sellerCraft} size="sm" />
+            <div className="min-w-0 flex-1">
+              <p className="font-semibold">
+                Made by {item.sellerName} in {item.sellerCity}
+                {item.sellerRegion ? `, ${item.sellerRegion}` : ""}
+              </p>
+              <p className="hint">
+                Ships within {item.shipByDays} days and arrives in about {item.shipByDays + item.transitDays} days.
+              </p>
+            </div>
+            <a href="#maker" className="link shrink-0 text-sm">
+              Their story
+            </a>
           </div>
 
           {sold ? (
@@ -185,6 +214,101 @@ export default function ListingPage({ params }: { params: Promise<{ id: string }
           )}
         </section>
       </div>
+
+      <MeetTheMaker item={item} />
     </main>
+  );
+}
+
+// Woven-swatch avatar with the maker's initial (the makers are fictional, so
+// no portrait photos; a real seller's photo could go here instead).
+function MakerAvatar({ name, craft, size = "lg" }: { name: string; craft: string | null; size?: "sm" | "lg" }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={`display flex shrink-0 items-center justify-center rounded-full text-white ring-4 ring-paper ${
+        size === "sm" ? "h-11 w-11 text-lg" : "h-20 w-20 text-3xl"
+      }`}
+      style={swatchStyle(`${name} ${craft ?? ""}`)}
+    >
+      {name.charAt(0)}
+    </span>
+  );
+}
+
+function MeetTheMaker({ item }: { item: Item }) {
+  const money = (m: number, c: string) => new Intl.NumberFormat("en-GB", { style: "currency", currency: c }).format(m / 100);
+  return (
+    <section id="maker" aria-labelledby="maker-heading" className="mt-16 scroll-mt-24 border-t border-line pt-12">
+      <div className={`grid items-start gap-10 ${item.sellerPhotoUrl ? "md:grid-cols-[1fr_1.1fr]" : ""}`}>
+        {item.sellerPhotoUrl && (
+          <figure>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={item.sellerPhotoUrl}
+              alt={item.sellerPhotoCredit?.split(". Photo:")[0] ?? `${item.sellerCraft ?? "Craft"} in ${item.sellerCity}`}
+              loading="lazy"
+              className="aspect-[4/3] w-full rounded-[1.25rem] bg-surface object-cover"
+            />
+            {item.sellerPhotoCredit && (
+              <figcaption className="hint mt-2">
+                {item.sellerPhotoCredit}
+                {item.sellerPhotoSource && (
+                  <>
+                    {", "}
+                    <a href={item.sellerPhotoSource} target="_blank" rel="noreferrer" className="underline underline-offset-2">
+                      Wikimedia Commons
+                    </a>
+                  </>
+                )}
+              </figcaption>
+            )}
+          </figure>
+        )}
+
+        <div>
+          <h2 id="maker-heading" className="text-ink-3">
+            Meet the maker
+          </h2>
+          <div className="mt-3 flex items-center gap-4">
+            <MakerAvatar name={item.sellerName} craft={item.sellerCraft} />
+            <div>
+              <p className="display text-4xl">{item.sellerName}</p>
+              <p className="mt-1 text-ink-2">
+                {item.sellerCity}
+                {item.sellerRegion ? `, ${item.sellerRegion}` : ""}
+              </p>
+            </div>
+          </div>
+          {item.sellerCraft && <p className="chip chip-agreed mt-4">{item.sellerCraft}</p>}
+
+          <p className="mt-5 max-w-[38rem] text-lg leading-relaxed text-ink-2">{item.sellerStory}</p>
+
+          {item.sellerQuote && (
+            <blockquote className="mt-6 border-l-4 border-haldi pl-4">
+              <p className="title text-xl">&ldquo;{item.sellerQuote}&rdquo;</p>
+              <footer className="hint mt-1">{item.sellerName}</footer>
+            </blockquote>
+          )}
+
+          {item.more.length > 0 && (
+            <div className="mt-8">
+              <h3 className="font-semibold">More from {item.sellerName}</h3>
+              <ul className="mt-3 grid grid-cols-3 gap-3">
+                {item.more.map((m) => (
+                  <li key={m.id}>
+                    <Link href={`/listing/${m.id}`} className="group block">
+                      <ListingImage src={m.image} title={m.title} className="aspect-square w-full rounded-xl" />
+                      <p className="mt-1.5 line-clamp-2 text-sm leading-snug group-hover:underline">{m.title}</p>
+                      <p className="money text-sm">{money(m.listPriceMinor, m.currency)}</p>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      </div>
+    </section>
   );
 }

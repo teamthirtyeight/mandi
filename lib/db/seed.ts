@@ -1,4 +1,5 @@
-// Demo seed: 3 sellers, 8 listings, 1 mandate-ready buyer, 2 historical orders.
+// Demo seed: 8 makers from across India, 14 listings, 1 mandate-ready buyer,
+// 2 historical orders. Maker stories and photo credits are in ./makers.ts.
 // The three scarf listings are tuned so every run shows three outcomes against
 // Sarah's £90 ceiling: Meera agrees, Arjun walks away (floor above ceiling),
 // Fatima's negotiation pushes the buyer into the ceiling clamp.
@@ -7,6 +8,7 @@ import { db, schema } from "./index";
 import { sql } from "drizzle-orm";
 import { hashPassword } from "../auth/password";
 import { DEFAULT_DEMO_PASSWORD, DEMO_ACCOUNTS } from "../auth/demo";
+import { MAKER_ACCOUNTS, MAKERS, PRODUCT_PHOTOS, REGIONAL_LISTINGS, REGIONAL_SELLERS, makerFields } from "./makers";
 
 const gbp = (pounds: number) => Math.round(pounds * 100);
 
@@ -23,8 +25,7 @@ async function main() {
         name: "Meera",
         city: "Varanasi",
         country: "IN",
-        story:
-          "Third-generation handloom weaver. Each silk piece takes about four days on the loom.",
+        ...makerFields("meera"),
         paypalMerchantEmail: process.env.SELLER_MEERA_EMAIL ?? "meera@example.com",
         language: "hi",
         shipByDays: 2,
@@ -34,7 +35,7 @@ async function main() {
         name: "Arjun",
         city: "Jaipur",
         country: "IN",
-        story: "Block printer working with natural indigo and madder dyes.",
+        ...makerFields("arjun"),
         paypalMerchantEmail: process.env.SELLER_ARJUN_EMAIL ?? "arjun@example.com",
         shipByDays: 3,
         transitDays: 7,
@@ -43,7 +44,7 @@ async function main() {
         name: "Fatima",
         city: "Srinagar",
         country: "IN",
-        story: "Kashmiri embroiderer; hand-stitched sozni work on wool and silk.",
+        ...makerFields("fatima"),
         paypalMerchantEmail: process.env.SELLER_FATIMA_EMAIL ?? "fatima@example.com",
         shipByDays: 3,
         transitDays: 8,
@@ -126,6 +127,29 @@ async function main() {
     },
   ]).returning();
 
+  // Makers from other regions, with their own pieces. None of these listings
+  // mention scarves, so they don't change the scarf demo above.
+  const regional = await db
+    .insert(schema.sellers)
+    .values(REGIONAL_SELLERS.map((key) => ({ ...MAKER_ACCOUNTS[key], ...makerFields(key) })))
+    .returning();
+  const by = Object.fromEntries(regional.map((r) => [r.name, r.id]));
+  const regionalListings = await db
+    .insert(schema.listings)
+    .values(REGIONAL_LISTINGS.map(({ maker, ...l }) => ({ ...l, sellerId: by[MAKERS[maker].name] })))
+    .returning();
+
+  // Product photos (with credits) for the demo listings.
+  for (const l of [...listings, ...regionalListings]) {
+    const photo = PRODUCT_PHOTOS[l.title];
+    if (photo) {
+      await db
+        .update(schema.listings)
+        .set({ images: [photo.url], imageCredit: photo.credit, imageSource: photo.source })
+        .where(sql`id = ${l.id}`);
+    }
+  }
+
   // Two completed historical orders on Meera's stole and cushion cover, each
   // with the mandate and negotiation behind it, so her dashboard is never empty.
   const now = Date.now();
@@ -194,7 +218,7 @@ async function main() {
   );
 
   console.log("Seeded 4 demo logins (see lib/auth/demo.ts).");
-  console.log("Seeded 3 sellers, 8 listings, 2 historical orders.");
+  console.log(`Seeded ${3 + regional.length} sellers, ${listings.length + regionalListings.length} listings, 2 historical orders.`);
   process.exit(0);
 }
 
