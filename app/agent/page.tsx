@@ -22,6 +22,7 @@ type SellerProfile = {
   transitDays: number;
   refundCap: number;
   whatsappNumber: string;
+  paypalEmail: string;
   whatsappOptIn: boolean;
 };
 type BuyerSettings = {
@@ -470,6 +471,27 @@ export default function AgentPage() {
                 </Link>
                 .
               </p>
+            </Section>
+
+            <Section title="Getting paid" body="When a buyer's money is released, Mandi sends your share, minus a 5% fee, to this PayPal account.">
+              <div>
+                <label htmlFor="paypal-email" className="label">
+                  PayPal email for payouts
+                </label>
+                <input
+                  id="paypal-email"
+                  className="field"
+                  type="email"
+                  autoComplete="email"
+                  placeholder="you@example.com"
+                  value={data.profile.paypalEmail}
+                  onChange={(e) => setProfile({ paypalEmail: e.target.value })}
+                  aria-describedby="paypal-email-hint"
+                />
+                <p id="paypal-email-hint" className="hint mt-1">
+                  The email you log in to PayPal with. Payouts that failed earlier are sent again when you save.
+                </p>
+              </div>
             </Section>
 
             <Section

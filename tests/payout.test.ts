@@ -126,3 +126,30 @@ describe.skipIf(!TEST_DB)("seller payouts", () => {
     expect(dash!.tiles.paidOut).toBe(171);
   });
 });
+
+describe.skipIf(!TEST_DB)("seller fixes their PayPal email", () => {
+  it("failed payouts are sent again", async () => {
+    process.env.DATABASE_URL = TEST_DB;
+    const dbmod = await import("@/lib/db");
+    const { sql, eq } = await import("drizzle-orm");
+    await dbmod.db.execute(sql.raw(TRUNCATE_ALL));
+    const calls: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init: RequestInit = {}) => {
+        const path = new URL(url).pathname;
+        calls.push(path);
+        const json = (status: number, data: unknown) => new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json" } });
+        if (path === "/v1/oauth2/token") return json(200, { access_token: "tok", expires_in: 3600 });
+        if (path === "/v1/payments/payouts" && init.method === "POST") return json(201, { batch_header: { payout_batch_id: "B-2", batch_status: "PENDING" } });
+        return json(404, {});
+      }),
+    );
+    const { seller, order } = await sellerWithOrder(dbmod, { order: { status: "CAPTURED", captureId: "CAP-1", payoutStatus: "FAILED", payoutError: "Receiver is invalid" } });
+    const { retryFailedPayouts } = await import("@/lib/orders/payout");
+    expect(await retryFailedPayouts(seller.id)).toBe(1);
+    const [o] = await dbmod.db.select().from(dbmod.schema.orders).where(eq(dbmod.schema.orders.id, order.id));
+    expect(o.payoutStatus).toBe("PENDING");
+    vi.unstubAllGlobals();
+  });
+});

@@ -9,6 +9,7 @@ import { errorResponse } from "@/lib/api/errors";
 import { BuyerAgentSettings, SellerAgentSettings } from "@/lib/agents/settings";
 import { SELLER_LANGUAGES } from "@/lib/i18n/seller";
 import { normalizeWhatsAppNumber } from "@/lib/phone";
+import { retryFailedPayouts } from "@/lib/orders/payout";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +29,11 @@ const SellerProfile = z.object({
     })
     .default(""),
   whatsappOptIn: z.boolean().default(false),
+  // Where Mandi pays the seller (PayPal Payouts). Omitted: unchanged.
+  paypalEmail: z.preprocess(
+    (v) => (typeof v === "string" && v.trim() === "" ? undefined : v),
+    z.string().trim().toLowerCase().email("Enter the email address of your PayPal account").max(120).optional(),
+  ),
   shipByDays: z.number().int().min(1).max(3),
   transitDays: z.number().int().min(1).max(30),
   refundCap: z.number().min(0).max(1000),
@@ -59,6 +65,7 @@ export async function GET() {
         refundCap: s.refundCapMinor / 100,
         whatsappNumber: s.whatsappNumber ?? "",
         whatsappOptIn: s.whatsappOptIn,
+        paypalEmail: s.paypalMerchantEmail.includes("@") ? s.paypalMerchantEmail : "",
       },
     });
   } catch (err) {
@@ -82,15 +89,23 @@ export async function PUT(req: Request) {
       const issue = (settings.error ?? profile.error)?.issues[0];
       return NextResponse.json({ error: issue ? `${issue.path.join(".")}: ${issue.message}` : "Invalid settings" }, { status: 400 });
     }
-    const { refundCap, ...rest } = profile.data;
+    const { refundCap, paypalEmail, ...rest } = profile.data;
     if (rest.whatsappOptIn && !rest.whatsappNumber) {
       return NextResponse.json({ error: "Add your WhatsApp number to turn on WhatsApp alerts" }, { status: 400 });
     }
     await db
       .update(schema.sellers)
-      .set({ ...settings.data, agentNote: settings.data.agentNote || null, ...rest, refundCapMinor: Math.round(refundCap * 100) })
+      .set({
+        ...settings.data,
+        agentNote: settings.data.agentNote || null,
+        ...rest,
+        ...(paypalEmail ? { paypalMerchantEmail: paypalEmail } : {}),
+        refundCapMinor: Math.round(refundCap * 100),
+      })
       .where(eq(schema.sellers.id, user.sellerId!));
-    return NextResponse.json({ ok: true });
+    // A new PayPal email: send any payouts that failed for want of one.
+    const retried = paypalEmail ? await retryFailedPayouts(user.sellerId!) : 0;
+    return NextResponse.json({ ok: true, retriedPayouts: retried });
   } catch (err) {
     return errorResponse(err);
   }

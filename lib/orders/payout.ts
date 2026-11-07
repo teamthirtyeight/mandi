@@ -114,6 +114,18 @@ export async function retryPayout(orderId: string) {
   return reset ? payOutOrder(orderId) : getOrder(orderId);
 }
 
+/** Retries every failed payout for one seller (after they fix their PayPal email). Returns how many were retried. */
+export async function retryFailedPayouts(sellerId: string): Promise<number> {
+  const failed = await db
+    .select({ id: schema.orders.id })
+    .from(schema.orders)
+    .innerJoin(schema.negotiations, eq(schema.negotiations.id, schema.orders.negotiationId))
+    .innerJoin(schema.listings, eq(schema.listings.id, schema.negotiations.listingId))
+    .where(and(eq(schema.listings.sellerId, sellerId), eq(schema.orders.payoutStatus, "FAILED")));
+  for (const o of failed) await retryPayout(o.id).catch((err) => console.error("[payout] retry failed", o.id, err));
+  return failed.length;
+}
+
 /** Refreshes payouts PayPal is still processing, for the given orders. */
 export async function refreshPayouts(orderIds: string[]): Promise<void> {
   if (orderIds.length === 0) return;
