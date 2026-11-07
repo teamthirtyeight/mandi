@@ -1,23 +1,36 @@
 // Runs a mandate end to end: finds 2-3 listings, negotiates with each seller in
-// parallel, and recommends one deal. Every agent turn goes through
-// applyGuardrails before it is saved, streamed or shown to the other agent.
+// parallel, and recommends one deal. Every agent turn goes through the
+// guardrails library (lib/guardrails) before it is saved, streamed or shown to
+// the other agent; the agents never see the floor or the budget.
 import { and, asc, eq, gt, inArray, ne, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
+import { buyerAddonDecision, HOSTILE_MESSAGE, sellerAddonOffer } from "@/lib/agents/agents";
+import type { BuyerView, SellerView } from "@/lib/agents/prompts";
 import {
-  buyerAddonDecision,
-  buyerTurn,
-  HOSTILE_MESSAGE,
-  sellerAddonOffer,
-  sellerTurn,
-  type AgentReply,
-} from "@/lib/agents/agents";
-import type { BuyerView, SellerView, TranscriptTurn } from "@/lib/agents/prompts";
+  breaker,
+  buyerSystem,
+  mandiModel,
+  sellerSystem,
+  turnUser,
+  type GuardedBuyerView,
+  type GuardedSellerView,
+  type Line,
+} from "@/lib/agents/guarded";
+import {
+  createNegotiation,
+  emptyMetrics,
+  formatMoney,
+  PRICE_PLACEHOLDER,
+  ruleBasedTurn,
+  runGuardedTurn,
+  takeTurn,
+  type NegotiationState as NegotiationStateG,
+  type TurnEvent,
+} from "@/lib/guardrails";
 import { getComps } from "@/lib/channel3/comps";
 import {
-  applyGuardrails,
   checkAddon,
   detectInjection,
-  fallbackTurn,
   redactLimit,
   MAX_ROUNDS,
   meetsDeadline,
@@ -25,16 +38,13 @@ import {
   toMajor,
   type Actor,
   type GuardrailOutcome,
-  type NegotiationContext,
   type NegotiationState,
 } from "@/lib/engine/negotiation";
 import { publish } from "./bus";
 import { notifyUser } from "@/lib/notify";
 import {
-  BUYER_CONCESSION,
   DEFAULT_BUYER,
   PRIORITY_WEIGHTS,
-  SELLER_CONCESSION,
   type BuyerAgentSettings,
 } from "@/lib/agents/settings";
 import { scoreDeals, type DealCandidate } from "./scoring";
@@ -203,37 +213,15 @@ function views(p: Party): { seller: SellerView; buyer: BuyerView } {
   };
 }
 
-function engineNote(out: GuardrailOutcome, actor: Actor): string {
-  switch (out.guardrailResult) {
-    case "REJECTED_BELOW_FLOOR":
-      return "Your last offer was blocked: it is below the lowest price the seller accepts. It was not sent.";
-    case "REJECTED_ABOVE_CEILING":
-      return "Your last offer was blocked: it is above your hard budget. It was not sent.";
-    case "REJECTED_BACKTRACK":
-      return actor === "seller"
-        ? "Your last offer was rejected: you cannot raise a price you already offered."
-        : "Your last offer was rejected: you cannot lower an offer you already made.";
-    default:
-      return "Your last reply was rejected as invalid. Make a concrete offer, accept, or walk away.";
-  }
-}
+const money = (minor: number, currency: string) => formatMoney(minor, currency);
 
-/** What the room shows when the engine blocks a turn. Never sent to either agent,
- *  and never states the private limit itself. */
-function blockedMessage(out: GuardrailOutcome, who: string): string {
-  const price = out.proposedMinor != null ? `£${(out.proposedMinor / 100).toFixed(2)}` : "the offer";
-  switch (out.guardrailResult) {
-    case "REJECTED_BELOW_FLOOR":
-      return `Blocked ${who}'s offer of ${price}: below the seller's private floor. Not delivered.`;
-    case "REJECTED_ABOVE_CEILING":
-      return `Blocked ${who}'s offer of ${price}: above the buyer's budget. Not delivered.`;
-    case "REJECTED_BACKTRACK":
-      return `Blocked ${who}'s offer of ${price}: it takes back an earlier concession. Not delivered.`;
-    default:
-      return `Blocked an invalid reply from ${who}. Not delivered.`;
-  }
-}
-
+/**
+ * One negotiation on the guardrails library (lib/guardrails). The agents only
+ * ever see agentBrief(): their limit for this round, never the floor or the
+ * budget. runGuardedTurn checks each move, retries once, falls back to rules,
+ * and writes the price into the message. Anything the engine had to replace is
+ * shown in the room as an engine block and never reaches the other agent.
+ */
 async function runNegotiation(negotiationId: string, referenceMinor: number | null) {
   const [row] = await db
     .select({ n: schema.negotiations, mandate: schema.mandates, listing: schema.listings, seller: schema.sellers })
@@ -246,159 +234,150 @@ async function runNegotiation(negotiationId: string, referenceMinor: number | nu
 
   const buyer = await buyerSettings(row.mandate);
   const party: Party = { mandate: row.mandate, listing: row.listing, seller: row.seller, referenceMinor, buyer };
-  const rates = {
-    seller: SELLER_CONCESSION[row.seller.agentStyle as keyof typeof SELLER_CONCESSION] ?? SELLER_CONCESSION.balanced,
-    buyer: BUYER_CONCESSION[buyer.agentStyle],
-  };
   const v = views(party);
   const mandateId = row.mandate.id;
-  const transcript: TranscriptTurn[] = [];
+  const currency = row.listing.currency;
+  const floor = row.listing.floorPriceMinor;
+  const ceiling = row.mandate.maxPriceMinor;
 
-  let state: NegotiationState = "OPEN";
-  let lastSeller: number | null = null;
-  let lastBuyer: number | null = null;
-  let round = 1;
-  let actor: Actor = "seller";
-  let hostileSent = false;
-  let compromisedSent = false;
-
-  const ctxFor = (who: Actor): NegotiationContext => ({
-    actor: who,
-    state,
-    floorMinor: row.listing.floorPriceMinor,
-    ceilingMinor: row.mandate.maxPriceMinor,
-    lastSellerOfferMinor: lastSeller,
-    lastBuyerOfferMinor: lastBuyer,
-    round,
-    maxRounds: MAX_ROUNDS,
-  });
-
-  // Hard cap on model calls per negotiation (each agent reply may use two:
-  // one retry on invalid output). Past the cap, turns are rule-based.
-  let modelBudget = MAX_MODEL_CALLS;
-  const agentReply = async (who: Actor, note?: string): Promise<AgentReply> => {
-    if (modelBudget < 2) {
-      return { turn: fallbackTurn(ctxFor(who), row.listing.listPriceMinor, rates), source: "fallback" };
-    }
-    modelBudget -= 2;
-    return who === "seller"
-      ? sellerTurn({ view: v.seller, turns: transcript, ctx: ctxFor(who), engineNote: note, concession: rates.seller })
-      : buyerTurn({ view: v.buyer, turns: transcript, ctx: ctxFor(who), engineNote: note, concession: rates.buyer });
+  const sellerView: GuardedSellerView = {
+    sellerName: row.seller.name,
+    sellerCity: row.seller.city,
+    sellerStory: row.seller.story,
+    title: row.listing.title,
+    description: row.listing.description,
+    materials: row.listing.materials,
+    shipByDays: row.seller.shipByDays,
+    style: row.seller.agentStyle as GuardedSellerView["style"],
+    offerGiftWrap: row.seller.offerGiftWrap,
+    agentNote: row.seller.agentNote,
+  };
+  const buyerView: GuardedBuyerView = {
+    buyerName: row.mandate.buyerName,
+    style: buyer.agentStyle,
+    requestText: row.mandate.requestText,
+    deadline: row.mandate.deadline,
+    referenceMinor,
+    listing: {
+      title: row.listing.title,
+      description: row.listing.description,
+      materials: row.listing.materials,
+      sellerName: row.seller.name,
+      sellerCity: row.seller.city,
+      estimatedArrival: v.buyer.listing.estimatedArrival,
+    },
   };
 
-  while (!TERMINAL_STATES.has(state)) {
+  let g = createNegotiation({ listMinor: row.listing.listPriceMinor, floorMinor: floor, ceilingMinor: ceiling, currency, maxRounds: MAX_ROUNDS });
+  const model = mandiModel({ calls: MAX_MODEL_CALLS });
+  const metrics = emptyMetrics();
+  const lines: Line[] = [];
+  let hostileSent = false;
+  let compromisedSent = false;
+  const who = (a: Actor) => (a === "seller" ? `${row.seller.name}'s agent` : `${row.mandate.buyerName}'s agent`);
+  const base = { negotiationId, mandateId, seller: row.seller.name };
+  const engineRow = (message: string, round: number, proposedMinor: number | null, source: string) =>
+    saveTurn({ ...base, actor: "engine", message, out: null, proposedMinor, finalMinor: null, rule: "REJECTED_ROUND_LIMIT", state: g.status, round, injection: false, source });
+
+  while (!TERMINAL_STATES.has(g.status)) {
     // The buyer may cancel mid-run; stop at the next turn.
     if (await closeIfCancelled(negotiationId, mandateId)) return;
-    if (round > MAX_ROUNDS) {
-      state = "EXPIRED";
-      await saveTurn({
-        negotiationId,
-        mandateId,
-        seller: row.seller.name,
-        actor: "engine",
-        message: `No agreement after ${MAX_ROUNDS} rounds.`,
-        out: null,
-        state,
-        round: MAX_ROUNDS,
-        injection: false,
-        source: "engine",
-      });
-      break;
-    }
+    const actor = g.nextActor;
+    const round = g.round;
+    const secret = actor === "seller" ? floor : ceiling;
 
-    type Reply = { turn: AgentReply["turn"]; source: AgentReply["source"] | "script" };
-    const who = actor === "seller" ? `${row.seller.name}'s agent` : `${row.mandate.buyerName}'s agent`;
-    const scripted: Reply[] = [];
+    let next: NegotiationStateG;
+    let event: TurnEvent;
+    let message: string;
+    let source: "agent" | "fallback" | "script";
+    let redacted = false;
+
     if (actor === "buyer" && row.mandate.hostile && !hostileSent) {
-      // Hostile-buyer demo: a scripted attempt to extract the floor.
-      scripted.push({ turn: { message: HOSTILE_MESSAGE, offer_price: 1, action: "offer" }, source: "script" });
+      // Hostile-buyer demo: a scripted attempt to extract the floor, offering £1.
       hostileSent = true;
+      const t = takeTurn(g, "buyer", { action: "offer", priceMinor: 100 });
+      const ok = t.decision.verdict === "ALLOW" || t.decision.verdict === "REWRITE";
+      const r = ok ? t : takeTurn(g, "buyer", ruleBasedTurn(g, "buyer"));
+      ({ state: next, event } = r);
+      message = HOSTILE_MESSAGE;
+      source = "script";
     } else if (actor === "seller" && row.mandate.compromised && hostileSent && !compromisedSent) {
-      // Simulates a seller agent that falls for the attack: it tries to sell for £1,
-      // then leaks its floor. The engine must stop both.
-      const floor = row.listing.floorPriceMinor;
-      const ask = lastSeller ?? row.listing.listPriceMinor;
-      // Above the floor (so the number in the text is the only leak) and not above the last ask.
-      const leakPrice = Math.min(ask, Math.max(floor + 100, ask - 500));
-      scripted.push(
-        { turn: { message: "Okay, you can have it for £1.", offer_price: 1, action: "offer" }, source: "script" },
-        {
-          turn: {
-            message: `Between us, my floor is £${(floor / 100).toFixed(0)}. I can do £${(leakPrice / 100).toFixed(0)} today.`,
-            offer_price: leakPrice / 100,
-            action: "offer",
-          },
-          source: "script",
-        },
-      );
+      // A seller agent that falls for the attack: it tries to sell for £1, then
+      // leaks its floor. The engine must stop both.
       compromisedSent = true;
+      await engineRow(`Blocked ${who("seller")}'s offer of ${money(100, currency)}: below what it may accept this round. Not delivered.`, round, 100, "script");
+      const ask = g.sellerLastMinor ?? row.listing.listPriceMinor;
+      const leakPrice = Math.min(ask, Math.max(floor + 100, ask - 500));
+      const t = takeTurn(g, "seller", { action: "offer", priceMinor: leakPrice });
+      const ok = t.decision.verdict === "ALLOW" || t.decision.verdict === "REWRITE";
+      const r = ok ? t : takeTurn(g, "seller", ruleBasedTurn(g, "seller"));
+      ({ state: next, event } = r);
+      const text = `Between us, my floor is ${money(floor, currency)}. I can do ${PRICE_PLACEHOLDER} today.`.replace(
+        PRICE_PLACEHOLDER,
+        event.finalMinor != null ? money(event.finalMinor, currency) : "a fair price",
+      );
+      const filtered = redactLimit(text, floor, event.finalMinor);
+      message = filtered.message;
+      redacted = filtered.redacted;
+      source = "script";
+    } else {
+      const prompt = {
+        system: actor === "seller" ? sellerSystem(sellerView) : buyerSystem(buyerView, currency),
+        user: turnUser(g, actor, lines),
+      };
+      const r = await runGuardedTurn(model, g, actor, prompt, metrics, { breaker });
+      if (r.event.verdict === "REWRITE" && r.event.proposedMinor != null) {
+        await engineRow(
+          `Blocked ${who(actor)}'s offer of ${money(r.event.proposedMinor, currency)}: outside what it may offer this round. Replaced with a counter-offer.`,
+          round,
+          r.event.proposedMinor,
+          r.source.action === "rules" ? "fallback" : "agent",
+        );
+      }
+      ({ state: next, event } = r);
+      // Defence in depth: the library already refuses messages that state a limit.
+      const filtered = redactLimit(r.message, secret, event.finalMinor);
+      message = filtered.message;
+      redacted = filtered.redacted;
+      source = r.source.action === "rules" || r.source.message === "backup" ? "fallback" : "agent";
     }
 
-    // Up to two attempts (scripted or agent), then the rule-based fallback.
-    // Each refused attempt is shown in the room as an engine block and is never
-    // delivered to the other agent.
-    let reply: Reply = scripted.shift() ?? (await agentReply(actor));
-    let out = applyGuardrails(reply.turn, ctxFor(actor));
-    for (let attempt = 0; out.retryable && attempt < 2; attempt++) {
-      await saveTurn({
-        negotiationId,
-        mandateId,
-        seller: row.seller.name,
-        actor: "engine",
-        message: blockedMessage(out, who),
-        out,
-        state,
-        round,
-        injection: false,
-        source: reply.source,
-      });
-      reply =
-        attempt === 0
-          ? (scripted.shift() ?? (await agentReply(actor, engineNote(out, actor))))
-          : { turn: fallbackTurn(ctxFor(actor), row.listing.listPriceMinor, rates), source: "fallback" };
-      out = applyGuardrails(reply.turn, ctxFor(actor));
-    }
-    // A fallback turn should never be refused; if it is, stop the negotiation.
-    const nextState: NegotiationState = out.retryable ? "BLOCKED_BY_GUARDRAIL" : out.state;
-
-    // Leak filter: the sender's own private limit never reaches the other side.
-    const limit = actor === "seller" ? row.listing.floorPriceMinor : row.mandate.maxPriceMinor;
-    const filtered = redactLimit(reply.turn.message, limit, out.finalMinor);
-
-    state = nextState;
-    lastSeller = out.lastSellerOfferMinor;
-    lastBuyer = out.lastBuyerOfferMinor;
-    transcript.push({ from: actor, message: filtered.message, finalMinor: out.finalMinor });
-
+    g = next;
+    lines.push({ from: actor, message, finalMinor: event.finalMinor });
     await saveTurn({
-      negotiationId,
-      mandateId,
-      seller: row.seller.name,
+      ...base,
       actor,
-      message: filtered.message,
-      out,
-      state,
+      message,
+      out: null,
+      proposedMinor: event.proposedMinor,
+      finalMinor: event.finalMinor,
+      rule: event.guardrailResult,
+      state: g.status,
       round,
-      injection: detectInjection(reply.turn.message),
-      limitRedacted: filtered.redacted,
-      source: reply.source,
+      injection: detectInjection(message),
+      limitRedacted: redacted,
+      source,
     });
-
     await db
       .update(schema.negotiations)
       .set({
-        state,
-        sellerOfferMinor: lastSeller,
-        buyerOfferMinor: lastBuyer,
+        state: g.status,
+        sellerOfferMinor: g.sellerLastMinor,
+        buyerOfferMinor: g.buyerLastMinor,
         rounds: round,
-        agreedPriceMinor: out.agreedMinor,
-        outcomeReason: state === "WALKED_AWAY" ? `${actor} walked away` : null,
+        agreedPriceMinor: g.agreedMinor,
+        outcomeReason: g.status === "WALKED_AWAY" ? `${actor} walked away` : null,
       })
       .where(eq(schema.negotiations.id, negotiationId));
+    if (!TERMINAL_STATES.has(g.status)) await sleep(turnDelay());
+  }
 
-    if (actor === "buyer") round += 1;
-    actor = actor === "seller" ? "buyer" : "seller";
-    if (!TERMINAL_STATES.has(state)) await sleep(turnDelay());
+  if (g.status === "EXPIRED") {
+    await saveTurn({ ...base, actor: "engine", message: `No agreement after ${MAX_ROUNDS} rounds.`, out: null, state: g.status, round: MAX_ROUNDS, injection: false, source: "engine" });
+  }
+  const state: NegotiationState = g.status;
+  if (metrics.ruleFallbackTurns || metrics.messageFallbacks) {
+    console.info(`[negotiation] ${negotiationId} rule backups: ${metrics.ruleFallbackTurns} turns, ${metrics.messageFallbacks} messages`);
   }
 
   if (state === "AGREED") {
@@ -406,7 +385,7 @@ async function runNegotiation(negotiationId: string, referenceMinor: number | nu
     if (agreedRow?.agreedPriceMinor != null) {
       // Both sides must allow bundles: the seller offers them, the buyer accepts them.
       if (row.seller.offerBundles && buyer.acceptBundles) {
-        await offerAddon({ row, views: v, agreedMinor: agreedRow.agreedPriceMinor, round, mandateId, negotiationId });
+        await offerAddon({ row, views: v, agreedMinor: agreedRow.agreedPriceMinor, round: g.round, mandateId, negotiationId });
       }
     }
   }
@@ -549,6 +528,10 @@ async function saveTurn(t: {
   actor: "buyer" | "seller" | "engine";
   message: string;
   out: GuardrailOutcome | null;
+  /** Explicit values (guardrails library turns); override `out` when given. */
+  proposedMinor?: number | null;
+  finalMinor?: number | null;
+  rule?: string;
   state: NegotiationState;
   round: number;
   injection: boolean;
@@ -561,9 +544,9 @@ async function saveTurn(t: {
       negotiationId: t.negotiationId,
       actor: t.actor,
       message: t.message,
-      proposedPriceMinor: t.out?.proposedMinor ?? null,
-      finalPriceMinor: t.out?.finalMinor ?? null,
-      guardrailResult: t.out?.guardrailResult ?? t.state,
+      proposedPriceMinor: t.proposedMinor !== undefined ? t.proposedMinor : (t.out?.proposedMinor ?? null),
+      finalPriceMinor: t.finalMinor !== undefined ? t.finalMinor : (t.out?.finalMinor ?? null),
+      guardrailResult: t.rule ?? t.out?.guardrailResult ?? t.state,
       injectionDetected: t.injection,
       limitRedacted: t.limitRedacted ?? false,
       source: t.source,

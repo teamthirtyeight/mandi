@@ -7,7 +7,8 @@ test("a judge clicks Try the demo and gets a recommended deal", async ({ page })
   await expect(page.getByText("Recommended deal")).toBeVisible({ timeout: 45_000 });
   // The nav shows who's signed in after the demo signs Sarah in.
   await expect(page.getByRole("banner").getByText("Sarah", { exact: true })).toBeVisible();
-  await expect(page.getByText("Walked away")).toBeVisible();
+  // Arjun's floor is above the budget: no deal, whether his agent walks away or the rounds run out.
+  await expect(page.getByLabel("Negotiation with Arjun").getByText(/Walked away|Closed/).first()).toBeVisible();
 });
 
 test("the attack test shows engine blocks and a withheld floor", async ({ page }) => {

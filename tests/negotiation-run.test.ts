@@ -75,7 +75,9 @@ describe.skipIf(!TEST_DB)("negotiation run", () => {
 
     expect(snap.mandate.status).toBe("recommended");
     const states = Object.fromEntries(snap.negotiations.map((n) => [n.seller.name, n.state]));
-    expect(states.Arjun).toBe("WALKED_AWAY"); // floor £98 is above the £90 budget
+    // Floor £98 is above the £90 budget: the round limits never meet, so the
+    // buyer walks away or the rounds run out. Either way there's no deal.
+    expect(["WALKED_AWAY", "EXPIRED"]).toContain(states.Arjun);
     expect(states.Meera).toBe("AGREED");
 
     const best = snap.negotiations.find((n) => n.id === snap.mandate.recommendedNegotiationId)!;
@@ -116,7 +118,7 @@ describe.skipIf(!TEST_DB)("negotiation run", () => {
     await runner.runMandate(m.id);
     const snap = (await snapshot.getMandateSnapshot(m.id))!;
 
-    const blocks = snap.turns.filter((t) => t.from === "engine" && t.guardrail_result === "REJECTED_BELOW_FLOOR");
+    const blocks = snap.turns.filter((t) => t.from === "engine" && t.guardrail_result === "REJECTED_ROUND_LIMIT");
     expect(blocks).toHaveLength(3); // one per seller
     expect(blocks.every((t) => !/£68\b|£98\b|£84\b/.test(t.message))).toBe(true);
 

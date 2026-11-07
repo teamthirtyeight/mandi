@@ -185,18 +185,34 @@ describe.skipIf(!TEST_DB)("PayPal money flow", () => {
   });
 
   it("buyer reports a problem: the agent's refund within the cap goes straight through", async () => {
+    const refundAgent = await import("@/lib/agents/refund");
+    const spy = vi.spyOn(refundAgent, "proposeRefund").mockResolvedValue({ amountMinor: 800, message: "Sorry about the thread.", source: "agent" });
     const { reportProblem } = await import("@/lib/orders/problem");
     const order = await authorizedOrder();
     await svc.shipOrder(order.id, { carrier: "DHL", trackingNumber: "1234567890" });
 
     const res = await reportProblem(order.id, { description: "A thread has pulled.", photo: null, requestKey: "p1" });
     expect(res.outcome).toBe("REFUNDED");
-    expect(res.amountMinor).toBe(1000); // 15% of £72 = £11, capped at the £10 default
-    expect(res.order.refundedMinor).toBe(1000);
+    expect(res.order.refundedMinor).toBe(800);
     expect(res.order.problemNote).toBe("A thread has pulled.");
     expect(res.order.pendingRefundMinor).toBeNull();
 
-    await expect(reportProblem(order.id, { description: "Again", photo: null, requestKey: "p2" })).resolves.toBeTruthy();
+    // Guardrails: one automatic refund per order. A second report waits for the seller.
+    const again = await reportProblem(order.id, { description: "Another thread.", photo: null, requestKey: "p2" });
+    expect(again.outcome).toBe("NEEDS_SELLER_APPROVAL");
+    expect(again.order.refundedMinor).toBe(800);
+    spy.mockRestore();
+  });
+
+  it("buyer reports a problem: with no usable agent proposal, the refund waits for the seller", async () => {
+    const { reportProblem } = await import("@/lib/orders/problem");
+    const order = await authorizedOrder();
+    await svc.shipOrder(order.id, { carrier: "DHL", trackingNumber: "1234567890" });
+
+    const res = await reportProblem(order.id, { description: "A thread has pulled.", photo: null, requestKey: "p1" });
+    expect(res.outcome).toBe("NEEDS_SELLER_APPROVAL");
+    expect(res.order.refundedMinor).toBe(0);
+    expect(res.order.pendingRefundMinor).toBe(1000); // 15% of £72, capped at the £10 default, for the seller to review
   });
 
   it("auto-voids a hold the seller didn't ship in time, and leaves fresh ones", async () => {

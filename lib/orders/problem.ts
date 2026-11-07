@@ -7,6 +7,10 @@ import { proposeRefund } from "@/lib/agents/refund";
 import type { PhotoInput } from "@/lib/agents/listing";
 import { getOrderRow, OrderError, refundOrder } from "./service";
 import { notifyOrder } from "@/lib/notify";
+import { evaluateRefund, type OrderRecord } from "@/lib/guardrails";
+
+/** One automatic refund per order; any further refund waits for the seller. */
+const MAX_AUTO_REFUNDS = 1;
 
 const DEFAULT_CAP_MINOR = 1000;
 
@@ -48,12 +52,33 @@ export async function reportProblem(
     photo: input.photo,
   });
 
-  const result = await refundOrder(orderId, {
-    amountMinor: proposal.amountMinor,
-    requestKey: input.requestKey,
-    approvedBy: "agent",
-    note: proposal.message,
-  });
+  // Guardrails library: the agent's number (never the complaint text) is checked
+  // against what was captured, the seller's cap on the order's total refunds,
+  // and the automatic-refund limit. A failed model never refunds by itself.
+  const record: OrderRecord = {
+    id: order.id,
+    amountMinor: order.amountMinor,
+    currency: order.currency,
+    status: order.refundedMinor > 0 ? "PARTIALLY_REFUNDED" : "CAPTURED",
+    authorizationId: order.authorizationId,
+    captureId: order.captureId,
+    capturedMinor: order.amountMinor,
+    refundedTotalMinor: order.refundedMinor,
+    refundCount: order.refundIds.length,
+    autoRefundCount: order.agentRefundMessage ? 1 : 0,
+    shipByMs: 0,
+  };
+  const check = evaluateRefund(
+    record,
+    { amountMinor: proposal.amountMinor, currency: order.currency, approvedBy: "agent" },
+    { refundCapMinor: capMinor, maxAutoRefundsPerOrder: MAX_AUTO_REFUNDS },
+  );
+  if (check.verdict === "DENY") throw new OrderError(`This refund can't be made: ${check.reason}`, 409);
+  const auto = check.verdict === "ALLOW" && proposal.source === "agent";
+
+  const result = auto
+    ? await refundOrder(orderId, { amountMinor: proposal.amountMinor, requestKey: input.requestKey, approvedBy: "agent", note: proposal.message })
+    : { outcome: "NEEDS_SELLER_APPROVAL" as const };
 
   // Saved only after the refund went through or was parked, so a failed PayPal
   // call never leaves a "refunded" message behind.

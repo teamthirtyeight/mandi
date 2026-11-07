@@ -2,6 +2,7 @@
 // called from deterministic server code with a narrow tool set (products and
 // shipment tracking only); no agent can reach capture, refund or void.
 import { PayPalAgentToolkit } from "@paypal/agent-toolkit/ai-sdk";
+import { checkToolset } from "@/lib/guardrails";
 import { logPaypalEvent } from "./log";
 
 let toolkit: PayPalAgentToolkit | null = null;
@@ -10,14 +11,21 @@ function getToolkit(): PayPalAgentToolkit | null {
   const clientId = process.env.PAYPAL_CLIENT_ID;
   const clientSecret = process.env.PAYPAL_CLIENT_SECRET;
   if (!clientId || !clientSecret) return null;
-  toolkit ??= new PayPalAgentToolkit({
-    clientId,
-    clientSecret,
-    configuration: {
-      actions: { products: { create: true }, shipment: { create: true }, disputes: { list: true, get: true } },
-      context: { sandbox: process.env.PAYPAL_ENV !== "live" },
-    },
-  });
+  if (!toolkit) {
+    const tk = new PayPalAgentToolkit({
+      clientId,
+      clientSecret,
+      configuration: {
+        actions: { products: { create: true }, shipment: { create: true }, disputes: { list: true, get: true } },
+        context: { sandbox: process.env.PAYPAL_ENV !== "live" },
+      },
+    });
+    // Guardrails: refuse to start with any tool outside the seller allowlist
+    // (no capture, refund or order tools, ever).
+    const check = checkToolset("seller", Object.keys(tk.getTools()));
+    if (check.verdict !== "ALLOW") throw new Error(check.reason);
+    toolkit = tk;
+  }
   return toolkit;
 }
 

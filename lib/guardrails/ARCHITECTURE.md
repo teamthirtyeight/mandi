@@ -2,7 +2,7 @@
 
 The technical flows in `lib/guardrails`, using the real function names. For usage, see the [README](README.md). For a plain-language overview, see [How the guardrails work](HOW-IT-WORKS.md).
 
-> **Status:** this library is not connected to the app yet. The running app uses its own guardrails in `lib/engine/negotiation.ts` and `lib/orders/`. This branch only adds the library, and connecting it is a separate decision.
+> **Status:** connected for the agents. Every negotiation turn runs through `runGuardedTurn` (`lib/negotiation/runner.ts`, prompts in `lib/agents/guarded.ts`), so agents only see `agentBrief()` and never the floor or budget; agent refunds pass `evaluateRefund` (`lib/orders/problem.ts`); and the PayPal Agent Toolkit is checked with `checkToolset` (`lib/paypal/toolkit.ts`). The money operations in `db/operations.ts` aren't connected: the app's order service (`lib/orders/`) still handles stock, holds, capture and refunds with its own database checks.
 
 **Built vs planned:** solid boxes in the first diagram are this library, which is tested. Dashed boxes are app modules that exist but don't call this library yet. In the sequence diagrams, `Route`, `lib/paypal`, and PayPal show a possible integration and haven't run with this library.
 

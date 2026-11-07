@@ -1,6 +1,6 @@
 # How Mandi's guardrails work
 
-> **Status:** this library is not connected to the app yet. The running app uses its own guardrails in `lib/engine/negotiation.ts` and `lib/orders/`. This branch only adds the library, and connecting it is a separate decision.
+> **Status:** connected for the agents. Every negotiation turn runs through `runGuardedTurn` (`lib/negotiation/runner.ts`, prompts in `lib/agents/guarded.ts`), so agents only see `agentBrief()` and never the floor or budget; agent refunds pass `evaluateRefund` (`lib/orders/problem.ts`); and the PayPal Agent Toolkit is checked with `checkToolset` (`lib/paypal/toolkit.ts`). The money operations in `db/operations.ts` aren't connected: the app's order service (`lib/orders/`) still handles stock, holds, capture and refunds with its own database checks.
 
 Guardrails are the rules that stop Mandi's AI agents from doing something costly, even if they're tricked or make a mistake. **The AI can talk and suggest, but ordinary code decides anything involving money.**
 

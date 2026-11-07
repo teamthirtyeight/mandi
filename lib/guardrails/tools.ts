@@ -16,6 +16,12 @@ export const AGENT_TOOL_ALLOWLIST: Record<AgentRole, readonly string[]> = {
     "offer_bundle",
     "post_tracking",
     "propose_refund",
+    // PayPal Agent Toolkit tools the app enables (lib/paypal/toolkit.ts).
+    // Catalog, tracking and dispute reads only: still no capture, refund or order tools.
+    "create_product",
+    "create_shipment_tracking",
+    "list_disputes",
+    "get_dispute",
   ],
   buyer: [
     "parse_mandate",

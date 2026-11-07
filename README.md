@@ -165,7 +165,7 @@ The manual sandbox test matrix is in [docs/LAUNCH.md](docs/LAUNCH.md).
 app/              pages and /api routes
 components/       PayPal call log, offers chart, demo button, nav
 lib/engine/       negotiation guardrails (pure functions)
-lib/guardrails/   separate guardrail library, not connected yet (see its README)
+lib/guardrails/   guardrail library: every agent turn, agent refund and toolkit check runs through it (see its README)
 lib/agents/       prompts, seller/buyer agents, mandate parser, listing writer, refund agent
 lib/negotiation/  runner (parallel negotiations), SSE bus + snapshot, scoring
 lib/orders/       order state machine, payment service, problem reports

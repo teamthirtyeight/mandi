@@ -1,6 +1,6 @@
 # Guardrails integration guide
 
-> **Status:** this library is not connected to the app yet. The running app uses its own guardrails in `lib/engine/negotiation.ts` and `lib/orders/`. This branch only adds the library, and connecting it is a separate decision.
+> **Status:** connected for the agents. Every negotiation turn runs through `runGuardedTurn` (`lib/negotiation/runner.ts`, prompts in `lib/agents/guarded.ts`), so agents only see `agentBrief()` and never the floor or budget; agent refunds pass `evaluateRefund` (`lib/orders/problem.ts`); and the PayPal Agent Toolkit is checked with `checkToolset` (`lib/paypal/toolkit.ts`). The money operations in `db/operations.ts` aren't connected: the app's order service (`lib/orders/`) still handles stock, holds, capture and refunds with its own database checks.
 
 The app uses the `postgres` driver, while `db/operations.ts` uses `pg`. Both can run side by side with their own connections. `db/schema.sql` also needs reconciling with `lib/db/schema.ts`. Parts of this guide were written before the app existed, so check each step against the current code.
 
