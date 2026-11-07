@@ -1,0 +1,18 @@
+# Disposable Postgres for the database safety tests. Data stays in memory, and the
+# port is only reachable from this machine. Never use this for real data.
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: mandi_test
+      POSTGRES_PASSWORD: mandi_test
+      POSTGRES_DB: mandi_test
+    ports:
+      - "127.0.0.1:55432:5432"
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mandi_test"]
+      interval: 1s
+      timeout: 3s
+      retries: 30

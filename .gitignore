@@ -46,3 +46,6 @@ next-env.d.ts
 /.next-e2e/
 /test-results/
 /playwright-report/
+
+# guardrail evaluation output
+/eval-results/
