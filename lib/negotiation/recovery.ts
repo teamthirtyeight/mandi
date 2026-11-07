@@ -1,6 +1,6 @@
-// Negotiations run inside the web server. If it restarts mid-run, a request
-// would stay "negotiating" forever. This marks such runs interrupted and closes
-// their open negotiations, so the room can say so and the demo limit frees up.
+// Backstop for runs that hung. A worker that dies is caught within a minute
+// by its job's heartbeat (lib/jobs/worker.ts); this catches anything still
+// "negotiating" after 10 minutes, so the room can say so and the demo limit frees up.
 import { and, eq, inArray, lt, notInArray } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { publish } from "./bus";

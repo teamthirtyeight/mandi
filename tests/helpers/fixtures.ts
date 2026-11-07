@@ -51,4 +51,4 @@ export async function sellerWithOrder(
 }
 
 export const TRUNCATE_ALL =
-  "TRUNCATE arena_attempts, commissions, subscriptions, app_settings, whatsapp_messages, notifications, paypal_events, orders, negotiation_turns, negotiations, mandates, listings, users, sellers CASCADE";
+  "TRUNCATE jobs, arena_attempts, commissions, subscriptions, app_settings, whatsapp_messages, notifications, paypal_events, orders, negotiation_turns, negotiations, mandates, listings, users, sellers CASCADE";

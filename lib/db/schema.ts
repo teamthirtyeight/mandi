@@ -352,3 +352,20 @@ export const arenaAttempts = pgTable("arena_attempts", {
   ipHash: text("ip_hash").notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
+
+// Background jobs (lib/jobs): negotiations and WhatsApp alerts run in a worker,
+// not inside the web request. Claimed with SKIP LOCKED, kept alive by heartbeat.
+export const jobs = pgTable("jobs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  kind: text("kind").notNull(), // negotiate | whatsapp
+  payload: jsonb("payload").$type<Record<string, unknown>>().notNull(),
+  status: text("status").notNull().default("queued"), // queued | running | done | failed
+  attempts: integer("attempts").notNull().default(0),
+  maxAttempts: integer("max_attempts").notNull().default(3),
+  runAfter: timestamp("run_after").notNull().defaultNow(),
+  lockedBy: text("locked_by"),
+  heartbeatAt: timestamp("heartbeat_at"),
+  lastError: text("last_error"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  finishedAt: timestamp("finished_at"),
+});

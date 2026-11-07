@@ -13,7 +13,8 @@ import { and, desc, eq, gt, ilike, lte, or } from "drizzle-orm";
 import { z } from "zod";
 import { db, schema } from "@/lib/db";
 import { parseMandate } from "@/lib/agents/mandate";
-import { openNegotiations, runMandate } from "@/lib/negotiation/runner";
+import { openNegotiations } from "@/lib/negotiation/runner";
+import { enqueue } from "@/lib/jobs/queue";
 import { getMandateSnapshot } from "@/lib/negotiation/snapshot";
 import { appUrl } from "@/lib/notify";
 import { paypalOrderStatus } from "@/lib/reporting";
@@ -161,7 +162,7 @@ async function startShopping(user: User, args: unknown): Promise<ToolResult> {
   if (!negotiations || negotiations.length === 0) {
     return fail("No seller can deliver that by the deadline. Try a later date or a broader item.");
   }
-  void runMandate(mandate.id).catch((err) => console.error("[mcp] runner crashed", err));
+  await enqueue("negotiate", { mandateId: mandate.id }, { maxAttempts: 1 });
   return ok(`Mandi's agent is now negotiating with ${negotiations.length} artisan${negotiations.length === 1 ? "" : "s"}. Call get_deal in about a minute.`, {
     deal_id: mandate.id,
     understood: { item: draft.item_query, budget: gbp(Math.round(draft.max_price * 100)), deadline: draft.deadline },

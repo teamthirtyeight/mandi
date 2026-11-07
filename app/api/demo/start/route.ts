@@ -3,7 +3,8 @@
 import { NextResponse } from "next/server";
 import { and, eq, gt, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
-import { openNegotiations, runMandate } from "@/lib/negotiation/runner";
+import { openNegotiations } from "@/lib/negotiation/runner";
+import { enqueue } from "@/lib/jobs/queue";
 import { getUser, startSession } from "@/lib/auth/session";
 import { DEMO_ACCOUNTS } from "@/lib/auth/demo";
 import { allow, clientIp, MINUTE } from "@/lib/auth/ratelimit";
@@ -68,6 +69,6 @@ export async function POST(req: Request) {
   if (!negs || negs.length === 0) {
     return NextResponse.json({ error: "No demo listings found. Run the seed script." }, { status: 404 });
   }
-  void runMandate(mandate.id).catch((err) => console.error("[demo] runner crashed", err));
+  await enqueue("negotiate", { mandateId: mandate.id }, { maxAttempts: 1 });
   return NextResponse.json({ mandateId: mandate.id });
 }

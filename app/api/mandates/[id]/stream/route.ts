@@ -1,7 +1,7 @@
 // Server-Sent Events for the negotiation room. Sends a snapshot first, then
 // every turn, state change and the final recommendation as they happen.
 import { UUID } from "@/lib/api/errors";
-import { subscribe, type MandiEvent } from "@/lib/negotiation/bus";
+import { ready, subscribe, type MandiEvent } from "@/lib/negotiation/bus";
 import { getMandateSnapshot } from "@/lib/negotiation/snapshot";
 import { AuthError, requireUser } from "@/lib/auth/session";
 import { assertMandateOwner } from "@/lib/auth/access";
@@ -52,6 +52,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       };
       req.signal.addEventListener("abort", close);
 
+      await ready(); // listening before the snapshot, so no event falls in the gap
       const snap = await getMandateSnapshot(id);
       if (!snap) {
         send("error", { error: "Mandate not found" });

@@ -7,7 +7,6 @@ import { eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { gbpInr, inr } from "@/lib/fx";
 import { SELLER_STRINGS, sellerLanguage, type SellerLanguage } from "@/lib/i18n/seller";
-import { sendWhatsApp } from "@/lib/whatsapp";
 import { signBanner, type BannerData } from "@/lib/banner";
 
 export type OrderEvent = "held" | "captured" | "refunded" | "refund_pending" | "voided" | "paid_out" | "refund_declined";
@@ -139,12 +138,12 @@ export async function notifyOrder(orderId: string, event: OrderEvent, extraMinor
     // Not awaited: a slow or failed message never holds up the money flow.
     if (s && p.whatsappOptIn && p.whatsappNumber) {
       const body = `*${s.title}*\n${s.body}\n\n${SELLER_STRINGS[lang].open}: ${appUrl()}${sellerLink}`;
-      const to = p.whatsappNumber;
-      void (async () => {
-        const { preparedBannerUrl } = await import("@/lib/banner-data"); // lazy: avoids an import cycle
-        const mediaUrl = await preparedBannerUrl(event, orderId, extraMinor);
-        await sendWhatsApp({ sellerId: p.sellerId, orderId, to, body, mediaUrl });
-      })().catch((err) => console.error("[notify] whatsapp failed", err));
+      // A worker draws the banner card and sends it (retried if Twilio fails),
+      // so a slow Chrome render or Twilio call never holds up the money flow.
+      const { enqueue } = await import("@/lib/jobs/queue"); // lazy: avoids an import cycle
+      await enqueue("whatsapp", { sellerId: p.sellerId, orderId, to: p.whatsappNumber, body, banner: event, extra: extraMinor }).catch((err) =>
+        console.error("[notify] couldn't queue WhatsApp", err),
+      );
     }
     const b = buyerText(event, p.title, p.order.amountMinor, extraMinor, p.order.trackingNumber);
     if (b && p.buyerUserId) rows.push({ userId: p.buyerUserId, ...b, link });

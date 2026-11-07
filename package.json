@@ -15,7 +15,8 @@
     "test:e2e": "playwright test",
     "test:guardrails": "vitest run lib/guardrails",
     "test:db": "docker compose -f docker-compose.test.yml up -d --wait && TEST_DATABASE_URL=postgres://mandi_test:mandi_test@127.0.0.1:55432/mandi_test vitest run lib/guardrails/db; status=$?; docker compose -f docker-compose.test.yml down; exit $status",
-    "eval:guardrails": "tsx lib/guardrails/eval/run.ts"
+    "eval:guardrails": "tsx lib/guardrails/eval/run.ts",
+    "worker": "tsx scripts/worker.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.6.0",

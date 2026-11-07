@@ -43,7 +43,7 @@ describe.skipIf(!TEST_DB)("WhatsApp alerts", () => {
 
   beforeEach(async () => {
     const { sql } = await import("drizzle-orm");
-    await dbmod.db.execute(sql`TRUNCATE whatsapp_messages, notifications, paypal_events, orders, negotiation_turns, negotiations, mandates, listings, users, sellers CASCADE`);
+    await dbmod.db.execute(sql`TRUNCATE jobs, whatsapp_messages, notifications, paypal_events, orders, negotiation_turns, negotiations, mandates, listings, users, sellers CASCADE`);
   });
 
   async function orderFor(seller: Partial<typeof dbmod.schema.sellers.$inferInsert>) {
@@ -66,7 +66,12 @@ describe.skipIf(!TEST_DB)("WhatsApp alerts", () => {
     return { seller: s, order: o };
   }
 
-  const settle = () => new Promise((r) => setTimeout(r, 200)); // WhatsApp is sent without blocking
+  // WhatsApp goes through the job queue: run whatever is queued, as a worker would.
+  const settle = async () => {
+    const { claimNext } = await import("@/lib/jobs/queue");
+    const { runJob } = await import("@/lib/jobs/worker");
+    for (let job = await claimNext("test"); job; job = await claimNext("test")) await runJob(job, "test");
+  };
 
   it("a Tamil seller who opted in gets the sale on WhatsApp, in Tamil", async () => {
     const { notifyOrder } = await import("@/lib/notify");

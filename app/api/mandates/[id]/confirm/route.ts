@@ -2,7 +2,8 @@
 // the agents in the background. Progress streams over /api/mandates/:id/stream.
 import { NextResponse } from "next/server";
 import { UUID } from "@/lib/api/errors";
-import { openNegotiations, runMandate } from "@/lib/negotiation/runner";
+import { openNegotiations } from "@/lib/negotiation/runner";
+import { enqueue } from "@/lib/jobs/queue";
 import { requireUser } from "@/lib/auth/session";
 import { assertMandateOwner } from "@/lib/auth/access";
 import { errorResponse } from "@/lib/api/errors";
@@ -22,7 +23,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
     return NextResponse.json({ error: "No sellers can deliver that by the deadline." }, { status: 404 });
   }
 
-  // Fire and forget: the runner persists every turn and publishes it to the stream.
-  void runMandate(id).catch((err) => console.error("[confirm] runner crashed", err));
+  // A worker runs the negotiation; it persists every turn and publishes it to the stream.
+  await enqueue("negotiate", { mandateId: id }, { maxAttempts: 1 });
   return NextResponse.json({ negotiations: negotiations.map((n) => n.id) });
 }

@@ -11,4 +11,6 @@ const client = globalForDb.pg ?? postgres(url, { max: 5 });
 if (process.env.NODE_ENV !== "production") globalForDb.pg = client;
 
 export const db = drizzle(client, { schema });
+/** The raw postgres.js client, for LISTEN/NOTIFY (lib/negotiation/bus.ts, lib/jobs). */
+export const pg = client;
 export { schema };
