@@ -124,6 +124,8 @@ describe.skipIf(!TEST_DB)("seller payouts", () => {
     const dash = await getDashboard(seller.id);
     expect(dash!.orders[0].payoutStatus).toBe("SUCCESS");
     expect(dash!.tiles.paidOut).toBe(171);
+    // The weekly chart counts the same money as the total.
+    expect(dash!.revenueByWeek.reduce((sum, w) => sum + w.captured, 0)).toBeCloseTo(dash!.tiles.paidOut, 2);
   });
 });
 

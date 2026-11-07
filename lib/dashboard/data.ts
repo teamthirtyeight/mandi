@@ -71,10 +71,12 @@ export async function getDashboard(sellerId: string, now = new Date()) {
     if (o.status === "CAPTURED" || o.status === "REFUNDED") {
       capturedMinor += o.amountMinor - o.refundedMinor;
       refundedMinor += o.refundedMinor;
-      if (o.capturedAt) {
-        const idx = Math.floor((weekStart(o.capturedAt).getTime() - firstWeek.getTime()) / (7 * DAY));
-        if (idx >= 0 && idx < WEEKS) weeks[idx].captured += toMajor(o.amountMinor - o.refundedMinor);
-      }
+    }
+    // "Paid to you, by week" counts what actually reached the seller's PayPal,
+    // the same money as the "Paid to you" total.
+    if (o.paidOutAt && o.payoutMinor && o.payoutStatus && o.payoutStatus !== "FAILED") {
+      const idx = Math.floor((weekStart(o.paidOutAt).getTime() - firstWeek.getTime()) / (7 * DAY));
+      if (idx >= 0 && idx < WEEKS) weeks[idx].captured += toMajor(o.payoutMinor);
     }
   }
 

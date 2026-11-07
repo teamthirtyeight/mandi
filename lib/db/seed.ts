@@ -201,6 +201,12 @@ async function main() {
       trackingNumber: h.tracking,
       authorizedAt: created,
       capturedAt: new Date(created.getTime() + 2 * day),
+      // Past sales were paid out too: the seller's share after Mandi's 5% fee.
+      payoutStatus: "SUCCESS",
+      payoutBatchId: `SEED-PAYOUT-${i + 1}`,
+      payoutMinor: Math.round(gbp(h.agreed) * 0.95),
+      feeMinor: gbp(h.agreed) - Math.round(gbp(h.agreed) * 0.95),
+      paidOutAt: new Date(created.getTime() + 2 * day),
       createdAt: created,
     });
   }

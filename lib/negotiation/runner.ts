@@ -48,6 +48,7 @@ import {
   type BuyerAgentSettings,
 } from "@/lib/agents/settings";
 import { scoreDeals, type DealCandidate } from "./scoring";
+import { itemNoun } from "./item";
 
 const DAY = 24 * 60 * 60 * 1000;
 const MAX_SELLERS = 3;
@@ -100,10 +101,16 @@ export async function findListings(mandate: Mandate, now = new Date(), maxSeller
     )
     .orderBy(sql`${rank} desc`);
 
+  // The item itself must match when any listing has it: "handwoven silk scarf"
+  // shouldn't bring back a silk cushion cover because it's also handwoven silk.
+  const item = itemNoun(mandate.query);
+  const isItem = (r: (typeof rows)[number]) => item != null && item.test(`${r.listing.title} ${r.listing.category}`);
+  const candidates = item && rows.some(isItem) ? rows.filter(isItem) : rows;
+
   const deadline = new Date(`${mandate.deadline}T23:59:59Z`);
   const bestPerSeller = new Map<string, ListingMatch>();
-  const top = rows[0]?.rank || 1;
-  for (const r of rows) {
+  const top = candidates[0]?.rank || 1;
+  for (const r of candidates) {
     if (bestPerSeller.has(r.seller.id)) continue;
     // Words are OR-ed, so "embroidered wool shawl" also hits a cushion cover on
     // "embroidered" alone. Keep only listings close to the best match.
