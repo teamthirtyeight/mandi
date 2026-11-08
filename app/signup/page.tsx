@@ -184,12 +184,12 @@ function SignupForm() {
               </div>
               <div>
                 <label htmlFor="su-paypal" className="label">
-                  PayPal email
+                  PayPal email <span className="font-normal text-ink-3">(optional)</span>
                 </label>
                 <input id="su-paypal" className="field" type="email" value={f.paypalEmail} onChange={set("paypalEmail")} aria-describedby="su-paypal-hint" />
                 <p id="su-paypal-hint" className="hint mt-1.5">
-                  In this demo, buyers pay Mandi&apos;s PayPal merchant account and sellers are paid out from it. Paying you
-                  directly is switched on once your account is verified.
+                  No PayPal account? Leave this empty. After you sign up, connect PayPal from My agent, where you can create a free
+                  PayPal business account without leaving Mandi.
                 </p>
               </div>
               <div>

@@ -23,7 +23,12 @@ const Body = z.discriminatedUnion("role", [
     city: z.string().trim().min(1).max(60),
     country: z.string().trim().length(2).toUpperCase().default("IN"),
     story: z.string().trim().min(10).max(600),
-    paypalEmail: z.string().trim().toLowerCase().email().max(120),
+    // Optional: a seller without PayPal connects (or creates) an account after
+    // signing up, from "Getting paid" on the My agent page.
+    paypalEmail: z.preprocess(
+      (v) => (typeof v === "string" && v.trim() === "" ? undefined : v),
+      z.string().trim().toLowerCase().email().max(120).optional(),
+    ),
     language: z.enum(SELLER_LANGUAGES).default("en"),
     shipByDays: z.number().int().min(1).max(3).default(3),
     transitDays: z.number().int().min(1).max(30).default(7),
@@ -56,7 +61,7 @@ export async function POST(req: Request) {
           city: b.city,
           country: b.country,
           story: b.story,
-          paypalMerchantEmail: b.paypalEmail,
+          paypalMerchantEmail: b.paypalEmail ?? "",
           language: b.language,
           shipByDays: b.shipByDays,
           transitDays: b.transitDays,

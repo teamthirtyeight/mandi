@@ -8,7 +8,7 @@ import { createPayout, getPayout, PaypalError } from "@/lib/paypal/rest";
 import { notifyOrder } from "@/lib/notify";
 
 export { feePct, payoutSplit } from "./payout-split";
-import { feePct, payoutSplit } from "./payout-split";
+import { feePct, payoutReceiver, payoutSplit } from "./payout-split";
 
 const FINAL = new Set(["SUCCESS", "FAILED", "RETURNED", "REFUNDED", "REVERSED", "BLOCKED", "DENIED", "CANCELED", "UNCLAIMED"]);
 
@@ -67,7 +67,7 @@ export async function payOutOrder(orderId: string): Promise<typeof schema.orders
   try {
     const sent = await createPayout({
       senderBatchId: `mandi-order-${orderId}`,
-      receiverEmail: row.seller.paypalMerchantEmail,
+      ...payoutReceiver(row.seller),
       amountMinor: split.payoutMinor,
       currency: claimed.currency,
       subject: `Mandi: payment for ${row.title}`,

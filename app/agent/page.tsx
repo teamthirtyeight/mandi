@@ -4,8 +4,9 @@
 // how firmly it holds the price, what it may offer, and the profile it argues
 // from; buyers set how hard it haggles, how many sellers it talks to, and what
 // matters most when it recommends a deal.
-import { useCallback, useEffect, useId, useState } from "react";
+import { Suspense, useCallback, useEffect, useId, useState } from "react";
 import Link from "next/link";
+import { ConnectPayPal } from "@/components/ConnectPayPal";
 import { LANGUAGE_INFO, SELLER_LANGUAGES, type SellerLanguage } from "@/lib/i18n/seller";
 
 type SellerSettings = {
@@ -124,9 +125,9 @@ function Toggle({ checked, onChange, label, hint }: { checked: boolean; onChange
   );
 }
 
-function Section({ title, body, children }: { title: string; body: string; children: React.ReactNode }) {
+function Section({ title, body, children, id }: { title: string; body: string; children: React.ReactNode; id?: string }) {
   return (
-    <section className="panel p-6">
+    <section className="panel scroll-mt-24 p-6" id={id}>
       <h2 className="title text-xl">{title}</h2>
       <p className="mt-1 text-ink-2">{body}</p>
       <div className="mt-5 space-y-5">{children}</div>
@@ -290,6 +291,14 @@ export default function AgentPage() {
   useEffect(() => {
     fetch("/api/agent-settings").then(async (r) => (r.ok ? setData(await r.json()) : setAuthError((await r.json()).error)));
   }, []);
+
+  // Sections render after the data arrives, so a link like /agent#getting-paid
+  // has to scroll once they exist.
+  const loaded = Boolean(data);
+  useEffect(() => {
+    if (!loaded || !window.location.hash) return;
+    document.getElementById(window.location.hash.slice(1))?.scrollIntoView({ block: "start" });
+  }, [loaded]);
 
   async function save() {
     if (!data) return;
@@ -473,7 +482,14 @@ export default function AgentPage() {
               </p>
             </Section>
 
-            <Section title="Getting paid" body="When a buyer's money is released, Mandi sends your share, minus a 5% fee, to this PayPal account.">
+            <Section
+              id="getting-paid"
+              title="Getting paid"
+              body="When a buyer's money is released, Mandi sends your share, minus a 5% fee, to your PayPal account."
+            >
+              <Suspense>
+                <ConnectPayPal />
+              </Suspense>
               <div>
                 <label htmlFor="paypal-email" className="label">
                   PayPal email for payouts

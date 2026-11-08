@@ -332,6 +332,15 @@ export default function DashboardPage() {
         </div>
       </header>
 
+      {data.seller.canBePaid === false && (
+        <p className="notice flex flex-wrap items-center justify-between gap-3">
+          <span>Connect a PayPal account so Mandi can pay you. No account? You can create one without leaving Mandi.</span>
+          <Link href="/agent#getting-paid" className="btn btn-primary">
+            Connect PayPal
+          </Link>
+        </p>
+      )}
+
       {toShip.length > 0 && (
         <section className="panel overflow-hidden" aria-labelledby="to-ship">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line bg-leaf-soft px-5 py-3">

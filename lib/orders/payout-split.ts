@@ -15,3 +15,15 @@ export function payoutSplit(input: { capturedMinor: number; refundedMinor: numbe
   return { feeMinor, debtUsedMinor, payoutMinor: beforeDebt - debtUsedMinor };
 }
 
+
+/**
+ * Where a seller's payout goes: their PayPal merchant id if they connected
+ * PayPal (PayPal doesn't always share the account's email), else their email.
+ */
+export function payoutReceiver(seller: { paypalMerchantEmail: string; paypalMerchantId: string | null }) {
+  return { receiverEmail: seller.paypalMerchantEmail, receiverPaypalId: seller.paypalMerchantId };
+}
+
+/** Whether Mandi has anywhere to send this seller's money. */
+export const canPaySeller = (seller: { paypalMerchantEmail: string; paypalMerchantId: string | null }) =>
+  Boolean(seller.paypalMerchantId) || seller.paypalMerchantEmail.includes("@");

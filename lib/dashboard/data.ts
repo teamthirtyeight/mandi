@@ -5,6 +5,7 @@ import { db, schema } from "@/lib/db";
 import { toMajor } from "@/lib/engine/negotiation";
 import { weekStart } from "./weeks";
 import { refreshPayouts } from "@/lib/orders/payout";
+import { canPaySeller } from "@/lib/orders/payout-split";
 
 const WEEKS = 8;
 const DAY = 24 * 60 * 60 * 1000;
@@ -83,7 +84,15 @@ export async function getDashboard(sellerId: string, now = new Date()) {
   const ACTIVE = new Set(["OPEN", "OFFERED", "COUNTERED", "AGREED", "AWAITING_BUYER_APPROVAL"]);
 
   return {
-    seller: { id: seller.id, name: seller.name, city: seller.city, language: seller.language, shipByDays: seller.shipByDays },
+    seller: {
+      id: seller.id,
+      name: seller.name,
+      city: seller.city,
+      language: seller.language,
+      shipByDays: seller.shipByDays,
+      // Nowhere to send payouts yet: the dashboard asks them to connect PayPal.
+      canBePaid: canPaySeller(seller),
+    },
     tiles: {
       held: toMajor(heldMinor),
       captured: toMajor(capturedMinor),

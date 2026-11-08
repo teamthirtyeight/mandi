@@ -54,6 +54,11 @@ export const sellers = pgTable("sellers", {
   photoSource: text("photo_source"),
   // Payee for orders: the seller's PayPal sandbox business account.
   paypalMerchantEmail: text("paypal_merchant_email").notNull(),
+  // Set when the seller connects PayPal through PayPal's seller sign-up
+  // (lib/paypal/partner.ts). Email-only sellers have these null.
+  paypalMerchantId: text("paypal_merchant_id"),
+  paypalConnectStatus: text("paypal_connect_status"), // connected | needs_attention | null
+  paypalConnectedAt: timestamp("paypal_connected_at"),
   language: text("language").notNull().default("en"), // lib/i18n/seller.ts SELLER_LANGUAGES
   // WhatsApp alerts (lib/whatsapp.ts): E.164 number and explicit opt-in.
   whatsappNumber: text("whatsapp_number"),

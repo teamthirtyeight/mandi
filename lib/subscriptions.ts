@@ -9,7 +9,7 @@ import { db, schema } from "@/lib/db";
 import { appUrl, notifyUser } from "@/lib/notify";
 import { createPayout } from "@/lib/paypal/rest";
 import { runPlatformTool } from "@/lib/paypal/toolkit";
-import { feePct, payoutSplit } from "@/lib/orders/payout-split";
+import { feePct, payoutReceiver, payoutSplit } from "@/lib/orders/payout-split";
 import { sellerLanguage, SELLER_STRINGS } from "@/lib/i18n/seller";
 import { sendWhatsApp } from "@/lib/whatsapp";
 
@@ -151,7 +151,7 @@ export async function monthlyPaymentReceived(input: { saleId: string; subscripti
   const split = payoutSplit({ capturedMinor: amountMinor, refundedMinor: 0, debtMinor: 0, feePct: feePct() });
   const payout = await createPayout({
     senderBatchId: `mandi-monthly-${input.saleId}`,
-    receiverEmail: artisan.paypalMerchantEmail,
+    ...payoutReceiver(artisan),
     amountMinor: split.payoutMinor,
     currency: input.currency,
     subject: "Mandi Monthly: you're this month's artisan",

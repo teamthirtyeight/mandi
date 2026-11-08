@@ -428,6 +428,8 @@ export async function provideDisputeEvidence(input: {
 export async function createPayout(input: {
   senderBatchId: string;
   receiverEmail: string;
+  /** The seller's PayPal merchant id (from Connect PayPal). Preferred over the email when set. */
+  receiverPaypalId?: string | null;
   amountMinor: number;
   currency: string;
   note: string;
@@ -443,8 +445,8 @@ export async function createPayout(input: {
       sender_batch_header: { sender_batch_id: input.senderBatchId, email_subject: input.subject.slice(0, 255) },
       items: [
         {
-          recipient_type: "EMAIL",
-          receiver: input.receiverEmail,
+          recipient_type: input.receiverPaypalId ? "PAYPAL_ID" : "EMAIL",
+          receiver: input.receiverPaypalId || input.receiverEmail,
           amount: { value: toValue(input.amountMinor), currency: input.currency },
           note: input.note.slice(0, 4000),
           sender_item_id: input.senderBatchId,

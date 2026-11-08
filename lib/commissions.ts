@@ -18,7 +18,7 @@ import { WHATSAPP_REPLIES } from "@/lib/i18n/whatsapp";
 import { appUrl, notifyUser } from "@/lib/notify";
 import { createPayout } from "@/lib/paypal/rest";
 import { runPlatformTool } from "@/lib/paypal/toolkit";
-import { feePct, payoutSplit } from "@/lib/orders/payout-split";
+import { feePct, payoutReceiver, payoutSplit } from "@/lib/orders/payout-split";
 import { sendWhatsApp } from "@/lib/whatsapp";
 
 export class CommissionError extends Error {
@@ -217,7 +217,7 @@ export async function markCommissionPaid(id: string) {
   try {
     await createPayout({
       senderBatchId: `mandi-commission-${id}`,
-      receiverEmail: seller.paypalMerchantEmail,
+      ...payoutReceiver(seller),
       amountMinor: split.payoutMinor,
       currency: paid.currency,
       subject: "Mandi: custom order paid",
