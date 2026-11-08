@@ -58,6 +58,7 @@ async function main() {
       title: "Handwoven Banarasi silk scarf, rose and gold",
       description: "Pure mulberry silk with a zari border, woven on a pit loom.",
       category: "scarf",
+      stock: 10, // demo pieces: rehearsals shouldn't sell them out
       materials: "mulberry silk, zari",
       listPriceMinor: gbp(95),
       floorPriceMinor: gbp(68),
@@ -67,6 +68,7 @@ async function main() {
       title: "Banarasi silk stole, peacock blue",
       description: "Lightweight silk stole with a small butti pattern.",
       category: "scarf",
+      stock: 10, // demo pieces: rehearsals shouldn't sell them out
       materials: "mulberry silk",
       listPriceMinor: gbp(80),
       floorPriceMinor: gbp(60),
@@ -85,6 +87,7 @@ async function main() {
       title: "Indigo block-printed silk scarf",
       description: "Hand block-printed with natural indigo on silk crepe.",
       category: "scarf",
+      stock: 10, // demo pieces: rehearsals shouldn't sell them out
       materials: "silk crepe, natural indigo",
       listPriceMinor: gbp(120),
       floorPriceMinor: gbp(98),
@@ -103,6 +106,7 @@ async function main() {
       title: "Sozni-embroidered silk-wool scarf",
       description: "Hand-embroidered paisley border on a silk-wool blend.",
       category: "scarf",
+      stock: 10, // demo pieces: rehearsals shouldn't sell them out
       materials: "silk, fine wool",
       listPriceMinor: gbp(110),
       floorPriceMinor: gbp(84),
