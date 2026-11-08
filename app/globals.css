@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 /*
-  Mandi design tokens. A neutral base with colours from natural dyes used by
+  Mandix design tokens. A neutral base with colours from natural dyes used by
   the sellers: indigo (ink and actions), haldi/turmeric (the agreed deal), leaf
   (money held), madder (blocks and errors). Every colour is a token, so dark
   mode is one switch.

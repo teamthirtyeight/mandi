@@ -15,7 +15,7 @@ export default function ResetRequest() {
       <AuthShell title="Check your email">
         <div className="panel panel-raised p-6" role="status">
           <p className="text-ink-2">
-            If <span className="font-semibold text-ink">{email}</span> has a Mandi account, a reset link is on its way. The
+            If <span className="font-semibold text-ink">{email}</span> has a Mandix account, a reset link is on its way. The
             link works for 30 minutes.
           </p>
           <Link href="/login" className="btn btn-secondary mt-6 w-full">

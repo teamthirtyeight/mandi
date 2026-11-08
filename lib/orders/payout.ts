@@ -1,6 +1,6 @@
-// Seller payouts. When Mandi is the payee (the default), the buyer's money is
-// captured into Mandi's PayPal account; after capture this sends the seller
-// their share through PayPal Payouts, minus Mandi's fee and minus any refunds
+// Seller payouts. When Mandix is the payee (the default), the buyer's money is
+// captured into Mandix's PayPal account; after capture this sends the seller
+// their share through PayPal Payouts, minus Mandix's fee and minus any refunds
 // made after an earlier payout. Deterministic code only: no agent can call it.
 import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
@@ -70,8 +70,8 @@ export async function payOutOrder(orderId: string): Promise<typeof schema.orders
       receiverEmail: row.seller.paypalMerchantEmail,
       amountMinor: split.payoutMinor,
       currency: claimed.currency,
-      subject: `Mandi: payment for ${row.title}`,
-      note: `Your share of ${row.title}, after Mandi's ${feePct()}% fee. Thank you for your craft.`,
+      subject: `Mandix: payment for ${row.title}`,
+      note: `Your share of ${row.title}, after Mandix's ${feePct()}% fee. Thank you for your craft.`,
       orderId,
     });
     await db
@@ -87,7 +87,7 @@ export async function payOutOrder(orderId: string): Promise<typeof schema.orders
       .where(eq(schema.orders.id, orderId));
     await notifyOrder(orderId, "paid_out", split.payoutMinor);
   } catch (err) {
-    // Give the debt back and record why, so the seller (and Mandi) can see it and retry.
+    // Give the debt back and record why, so the seller (and Mandix) can see it and retry.
     if (split.debtUsedMinor > 0) {
       await db
         .update(schema.sellers)

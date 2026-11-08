@@ -7,7 +7,7 @@
 // which is enough when one process does everything.
 import { EventEmitter } from "node:events";
 
-export type MandiEvent =
+export type MandixEvent =
   | {
       type: "turn";
       id: string;
@@ -29,10 +29,10 @@ export type MandiEvent =
   | { type: "recommendation"; mandate_id: string; recommendation: unknown }
   | { type: "done"; mandate_id: string; status: string };
 
-const g = globalThis as unknown as { mandiBus?: EventEmitter; mandiBusListen?: Promise<boolean> };
-const bus = (g.mandiBus ??= new EventEmitter().setMaxListeners(500));
+const g = globalThis as unknown as { mandixBus?: EventEmitter; mandixBusListen?: Promise<boolean> };
+const bus = (g.mandixBus ??= new EventEmitter().setMaxListeners(500));
 
-export const EVENTS_CHANNEL = "mandi_events";
+export const EVENTS_CHANNEL = "mandix_events";
 // NOTIFY payloads must stay under 8000 bytes; long agent messages are trimmed.
 const MAX_MESSAGE = 3000;
 
@@ -40,13 +40,13 @@ export const channel = (mandateId: string) => `mandate:${mandateId}`;
 
 /** Starts this process's LISTEN once. Resolves true if events cross processes. */
 function listen(): Promise<boolean> {
-  return (g.mandiBusListen ??= (async () => {
+  return (g.mandixBusListen ??= (async () => {
     if (!process.env.DATABASE_URL) return false;
     try {
       const { pg } = await import("@/lib/db");
       await pg.listen(EVENTS_CHANNEL, (raw) => {
         try {
-          const { m, e } = JSON.parse(raw) as { m: string; e: MandiEvent };
+          const { m, e } = JSON.parse(raw) as { m: string; e: MandixEvent };
           bus.emit(channel(m), e);
         } catch (err) {
           console.error("[bus] bad event", err);
@@ -64,12 +64,12 @@ function listen(): Promise<boolean> {
 // (the "done" event never overtakes the last turn).
 let chain: Promise<void> = Promise.resolve();
 
-export function publish(mandateId: string, event: MandiEvent): void {
+export function publish(mandateId: string, event: MandixEvent): void {
   const e = event.type === "turn" && event.message.length > MAX_MESSAGE ? { ...event, message: `${event.message.slice(0, MAX_MESSAGE)}…` } : event;
   chain = chain.then(() => send(mandateId, e));
 }
 
-async function send(mandateId: string, e: MandiEvent): Promise<void> {
+async function send(mandateId: string, e: MandixEvent): Promise<void> {
   await (async () => {
     if (await listen()) {
       const { pg } = await import("@/lib/db");
@@ -87,7 +87,7 @@ async function send(mandateId: string, e: MandiEvent): Promise<void> {
 /** Resolves when every event published so far has gone out (tests, shutdown). */
 export const flushed = () => chain;
 
-export function subscribe(mandateId: string, fn: (e: MandiEvent) => void): () => void {
+export function subscribe(mandateId: string, fn: (e: MandixEvent) => void): () => void {
   void listen();
   bus.on(channel(mandateId), fn);
   return () => bus.off(channel(mandateId), fn);

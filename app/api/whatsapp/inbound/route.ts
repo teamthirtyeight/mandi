@@ -1,4 +1,4 @@
-// Twilio calls this when a seller writes to Mandi's WhatsApp number.
+// Twilio calls this when a seller writes to Mandix's WhatsApp number.
 // Set it as the "When a message comes in" URL (POST) in Twilio. Requests are
 // checked against Twilio's signature, answered at once (Twilio waits only 15 s),
 // and handled in the background; the reply goes out as a normal message.

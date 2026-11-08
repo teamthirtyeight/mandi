@@ -5,13 +5,13 @@ import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 const DAY_MS = 24 * 60 * 60 * 1000;
 export const SESSION_TTL_MS = 14 * DAY_MS;
 
-const g = globalThis as unknown as { mandiDevSecret?: string };
+const g = globalThis as unknown as { mandixDevSecret?: string };
 function secret(): string {
   const s = process.env.SESSION_SECRET;
   if (s && s.length >= 32) return s;
   if (process.env.NODE_ENV === "production") throw new Error("SESSION_SECRET (32+ chars) is required in production");
   // Dev only: a per-process secret, so sessions end when the dev server restarts.
-  return (g.mandiDevSecret ??= randomBytes(32).toString("hex"));
+  return (g.mandixDevSecret ??= randomBytes(32).toString("hex"));
 }
 
 const sign = (payload: string) => createHmac("sha256", secret()).update(payload).digest("base64url");

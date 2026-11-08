@@ -1,8 +1,8 @@
-// Everything a seller reads from Mandi, in their own language: the phone view,
+// Everything a seller reads from Mandix, in their own language: the phone view,
 // in-app alerts and WhatsApp messages share these strings so a sale reads the
 // same everywhere. Client-safe (no server imports).
 //
-// The Indian-language strings were written for Mandi and should be reviewed by
+// The Indian-language strings were written for Mandix and should be reviewed by
 // a native speaker before launch. Amounts stay in Latin digits (₹10,057), as
 // Indian payment apps show them.
 
@@ -56,7 +56,7 @@ export interface SellerStrings {
   voidedBody: string;
   open: string;
   welcome: string;
-  // Payout: the seller's share, sent to their PayPal after Mandi's fee.
+  // Payout: the seller's share, sent to their PayPal after Mandix's fee.
   paidOut: S;
   paidOutBody: string;
 }
@@ -86,10 +86,10 @@ export const SELLER_STRINGS: Record<SellerLanguage, SellerStrings> = {
     complained: "The buyer reported a problem.",
     voidedTitle: "Hold released",
     voidedBody: "Not shipped in time, so the buyer wasn't charged.",
-    open: "Open Mandi",
-    welcome: "Mandi will send your sales updates here.",
+    open: "Open Mandix",
+    welcome: "Mandix will send your sales updates here.",
     paidOut: (amt) => `Sent to your PayPal: ${amt}`,
-    paidOutBody: "Your share after Mandi's fee. It's in your PayPal account now.",
+    paidOutBody: "Your share after Mandix's fee. It's in your PayPal account now.",
   },
   hi: {
     title: "मेरी बिक्री",
@@ -115,10 +115,10 @@ export const SELLER_STRINGS: Record<SellerLanguage, SellerStrings> = {
     complained: "खरीदार ने शिकायत की है।",
     voidedTitle: "होल्ड रद्द हुआ",
     voidedBody: "समय पर नहीं भेजा गया, इसलिए खरीदार से पैसा नहीं लिया गया।",
-    open: "Mandi खोलें",
-    welcome: "Mandi आपकी बिक्री की जानकारी यहाँ भेजेगा।",
+    open: "Mandix खोलें",
+    welcome: "Mandix आपकी बिक्री की जानकारी यहाँ भेजेगा।",
     paidOut: (amt) => `आपके PayPal में भेजा गया: ${amt}`,
-    paidOutBody: "Mandi की फ़ीस के बाद आपका हिस्सा। अब यह आपके PayPal खाते में है।",
+    paidOutBody: "Mandix की फ़ीस के बाद आपका हिस्सा। अब यह आपके PayPal खाते में है।",
   },
   mr: {
     title: "माझी विक्री",
@@ -144,10 +144,10 @@ export const SELLER_STRINGS: Record<SellerLanguage, SellerStrings> = {
     complained: "खरेदीदाराने तक्रार केली आहे.",
     voidedTitle: "होल्ड रद्द झाला",
     voidedBody: "वेळेत पाठवले नाही, म्हणून खरेदीदाराकडून पैसे घेतले नाहीत.",
-    open: "Mandi उघडा",
-    welcome: "Mandi तुमच्या विक्रीच्या बातम्या इथे पाठवेल.",
+    open: "Mandix उघडा",
+    welcome: "Mandix तुमच्या विक्रीच्या बातम्या इथे पाठवेल.",
     paidOut: (amt) => `तुमच्या PayPal मध्ये पाठवले: ${amt}`,
-    paidOutBody: "Mandi च्या शुल्कानंतर तुमचा वाटा. आता तो तुमच्या PayPal खात्यात आहे.",
+    paidOutBody: "Mandix च्या शुल्कानंतर तुमचा वाटा. आता तो तुमच्या PayPal खात्यात आहे.",
   },
   bn: {
     title: "আমার বিক্রি",
@@ -173,10 +173,10 @@ export const SELLER_STRINGS: Record<SellerLanguage, SellerStrings> = {
     complained: "ক্রেতা অভিযোগ করেছেন।",
     voidedTitle: "হোল্ড বাতিল হয়েছে",
     voidedBody: "সময়মতো পাঠানো হয়নি, তাই ক্রেতার কাছ থেকে টাকা নেওয়া হয়নি।",
-    open: "Mandi খুলুন",
-    welcome: "Mandi আপনার বিক্রির খবর এখানে পাঠাবে।",
+    open: "Mandix খুলুন",
+    welcome: "Mandix আপনার বিক্রির খবর এখানে পাঠাবে।",
     paidOut: (amt) => `আপনার PayPal-এ পাঠানো হয়েছে: ${amt}`,
-    paidOutBody: "Mandi-র ফি বাদ দিয়ে আপনার অংশ। এখন এটি আপনার PayPal অ্যাকাউন্টে আছে।",
+    paidOutBody: "Mandix-র ফি বাদ দিয়ে আপনার অংশ। এখন এটি আপনার PayPal অ্যাকাউন্টে আছে।",
   },
   ta: {
     title: "என் விற்பனை",
@@ -202,10 +202,10 @@ export const SELLER_STRINGS: Record<SellerLanguage, SellerStrings> = {
     complained: "வாங்குபவர் புகார் அளித்துள்ளார்.",
     voidedTitle: "ஹோல்ட் ரத்து செய்யப்பட்டது",
     voidedBody: "நேரத்தில் அனுப்பப்படவில்லை, எனவே வாங்குபவரிடம் பணம் எடுக்கப்படவில்லை.",
-    open: "Mandi-ஐத் திறக்கவும்",
-    welcome: "Mandi உங்கள் விற்பனை தகவல்களை இங்கே அனுப்பும்.",
+    open: "Mandix-ஐத் திறக்கவும்",
+    welcome: "Mandix உங்கள் விற்பனை தகவல்களை இங்கே அனுப்பும்.",
     paidOut: (amt) => `உங்கள் PayPal-க்கு அனுப்பப்பட்டது: ${amt}`,
-    paidOutBody: "Mandi கட்டணம் போக உங்கள் பங்கு. இப்போது உங்கள் PayPal கணக்கில் உள்ளது.",
+    paidOutBody: "Mandix கட்டணம் போக உங்கள் பங்கு. இப்போது உங்கள் PayPal கணக்கில் உள்ளது.",
   },
   te: {
     title: "నా అమ్మకాలు",
@@ -231,10 +231,10 @@ export const SELLER_STRINGS: Record<SellerLanguage, SellerStrings> = {
     complained: "కొనుగోలుదారు ఫిర్యాదు చేశారు.",
     voidedTitle: "హోల్డ్ రద్దయింది",
     voidedBody: "సమయానికి పంపలేదు, కాబట్టి కొనుగోలుదారు నుండి డబ్బు తీసుకోలేదు.",
-    open: "Mandi తెరవండి",
-    welcome: "Mandi మీ అమ్మకాల సమాచారాన్ని ఇక్కడ పంపుతుంది.",
+    open: "Mandix తెరవండి",
+    welcome: "Mandix మీ అమ్మకాల సమాచారాన్ని ఇక్కడ పంపుతుంది.",
     paidOut: (amt) => `మీ PayPal కి పంపబడింది: ${amt}`,
-    paidOutBody: "Mandi రుసుము తర్వాత మీ వాటా. ఇప్పుడు ఇది మీ PayPal ఖాతాలో ఉంది.",
+    paidOutBody: "Mandix రుసుము తర్వాత మీ వాటా. ఇప్పుడు ఇది మీ PayPal ఖాతాలో ఉంది.",
   },
   gu: {
     title: "મારું વેચાણ",
@@ -260,10 +260,10 @@ export const SELLER_STRINGS: Record<SellerLanguage, SellerStrings> = {
     complained: "ખરીદનારે ફરિયાદ કરી છે.",
     voidedTitle: "હોલ્ડ રદ થયો",
     voidedBody: "સમયસર મોકલાયું નહીં, તેથી ખરીદનાર પાસેથી પૈસા લેવાયા નથી.",
-    open: "Mandi ખોલો",
-    welcome: "Mandi તમારા વેચાણની માહિતી અહીં મોકલશે.",
+    open: "Mandix ખોલો",
+    welcome: "Mandix તમારા વેચાણની માહિતી અહીં મોકલશે.",
     paidOut: (amt) => `તમારા PayPal માં મોકલ્યા: ${amt}`,
-    paidOutBody: "Mandi ની ફી પછી તમારો હિસ્સો. હવે તે તમારા PayPal ખાતામાં છે.",
+    paidOutBody: "Mandix ની ફી પછી તમારો હિસ્સો. હવે તે તમારા PayPal ખાતામાં છે.",
   },
   kn: {
     title: "ನನ್ನ ಮಾರಾಟ",
@@ -289,10 +289,10 @@ export const SELLER_STRINGS: Record<SellerLanguage, SellerStrings> = {
     complained: "ಖರೀದಿದಾರರು ದೂರು ನೀಡಿದ್ದಾರೆ.",
     voidedTitle: "ಹೋಲ್ಡ್ ರದ್ದಾಗಿದೆ",
     voidedBody: "ಸಮಯಕ್ಕೆ ಕಳುಹಿಸಲಿಲ್ಲ, ಆದ್ದರಿಂದ ಖರೀದಿದಾರರಿಂದ ಹಣ ತೆಗೆದುಕೊಂಡಿಲ್ಲ.",
-    open: "Mandi ತೆರೆಯಿರಿ",
-    welcome: "Mandi ನಿಮ್ಮ ಮಾರಾಟದ ಮಾಹಿತಿಯನ್ನು ಇಲ್ಲಿ ಕಳುಹಿಸುತ್ತದೆ.",
+    open: "Mandix ತೆರೆಯಿರಿ",
+    welcome: "Mandix ನಿಮ್ಮ ಮಾರಾಟದ ಮಾಹಿತಿಯನ್ನು ಇಲ್ಲಿ ಕಳುಹಿಸುತ್ತದೆ.",
     paidOut: (amt) => `ನಿಮ್ಮ PayPal ಗೆ ಕಳುಹಿಸಲಾಗಿದೆ: ${amt}`,
-    paidOutBody: "Mandi ಶುಲ್ಕದ ನಂತರ ನಿಮ್ಮ ಪಾಲು. ಈಗ ಇದು ನಿಮ್ಮ PayPal ಖಾತೆಯಲ್ಲಿದೆ.",
+    paidOutBody: "Mandix ಶುಲ್ಕದ ನಂತರ ನಿಮ್ಮ ಪಾಲು. ಈಗ ಇದು ನಿಮ್ಮ PayPal ಖಾತೆಯಲ್ಲಿದೆ.",
   },
   ml: {
     title: "എന്റെ വിൽപ്പന",
@@ -318,10 +318,10 @@ export const SELLER_STRINGS: Record<SellerLanguage, SellerStrings> = {
     complained: "വാങ്ങുന്നയാൾ പരാതി നൽകി.",
     voidedTitle: "ഹോൾഡ് റദ്ദാക്കി",
     voidedBody: "സമയത്ത് അയച്ചില്ല, അതിനാൽ വാങ്ങുന്നയാളിൽ നിന്ന് പണം എടുത്തിട്ടില്ല.",
-    open: "Mandi തുറക്കുക",
-    welcome: "Mandi നിങ്ങളുടെ വിൽപ്പന വിവരങ്ങൾ ഇവിടെ അയയ്ക്കും.",
+    open: "Mandix തുറക്കുക",
+    welcome: "Mandix നിങ്ങളുടെ വിൽപ്പന വിവരങ്ങൾ ഇവിടെ അയയ്ക്കും.",
     paidOut: (amt) => `നിങ്ങളുടെ PayPal-ലേക്ക് അയച്ചു: ${amt}`,
-    paidOutBody: "Mandi ഫീസ് കഴിഞ്ഞുള്ള നിങ്ങളുടെ വിഹിതം. ഇപ്പോൾ ഇത് നിങ്ങളുടെ PayPal അക്കൗണ്ടിലാണ്.",
+    paidOutBody: "Mandix ഫീസ് കഴിഞ്ഞുള്ള നിങ്ങളുടെ വിഹിതം. ഇപ്പോൾ ഇത് നിങ്ങളുടെ PayPal അക്കൗണ്ടിലാണ്.",
   },
   pa: {
     title: "ਮੇਰੀ ਵਿਕਰੀ",
@@ -347,10 +347,10 @@ export const SELLER_STRINGS: Record<SellerLanguage, SellerStrings> = {
     complained: "ਖਰੀਦਦਾਰ ਨੇ ਸ਼ਿਕਾਇਤ ਕੀਤੀ ਹੈ।",
     voidedTitle: "ਹੋਲਡ ਰੱਦ ਹੋ ਗਿਆ",
     voidedBody: "ਸਮੇਂ ਸਿਰ ਨਹੀਂ ਭੇਜਿਆ, ਇਸ ਲਈ ਖਰੀਦਦਾਰ ਤੋਂ ਪੈਸੇ ਨਹੀਂ ਲਏ ਗਏ।",
-    open: "Mandi ਖੋਲ੍ਹੋ",
-    welcome: "Mandi ਤੁਹਾਡੀ ਵਿਕਰੀ ਦੀ ਜਾਣਕਾਰੀ ਇੱਥੇ ਭੇਜੇਗਾ।",
+    open: "Mandix ਖੋਲ੍ਹੋ",
+    welcome: "Mandix ਤੁਹਾਡੀ ਵਿਕਰੀ ਦੀ ਜਾਣਕਾਰੀ ਇੱਥੇ ਭੇਜੇਗਾ।",
     paidOut: (amt) => `ਤੁਹਾਡੇ PayPal ਵਿੱਚ ਭੇਜਿਆ ਗਿਆ: ${amt}`,
-    paidOutBody: "Mandi ਦੀ ਫ਼ੀਸ ਤੋਂ ਬਾਅਦ ਤੁਹਾਡਾ ਹਿੱਸਾ। ਹੁਣ ਇਹ ਤੁਹਾਡੇ PayPal ਖਾਤੇ ਵਿੱਚ ਹੈ।",
+    paidOutBody: "Mandix ਦੀ ਫ਼ੀਸ ਤੋਂ ਬਾਅਦ ਤੁਹਾਡਾ ਹਿੱਸਾ। ਹੁਣ ਇਹ ਤੁਹਾਡੇ PayPal ਖਾਤੇ ਵਿੱਚ ਹੈ।",
   },
   or: {
     title: "ମୋର ବିକ୍ରି",
@@ -376,9 +376,9 @@ export const SELLER_STRINGS: Record<SellerLanguage, SellerStrings> = {
     complained: "କ୍ରେତା ଅଭିଯୋଗ କରିଛନ୍ତି।",
     voidedTitle: "ହୋଲ୍ଡ ବାତିଲ ହେଲା",
     voidedBody: "ସମୟରେ ପଠାଯାଇନାହିଁ, ତେଣୁ କ୍ରେତାଙ୍କଠାରୁ ଟଙ୍କା ନିଆଯାଇନାହିଁ।",
-    open: "Mandi ଖୋଲନ୍ତୁ",
-    welcome: "Mandi ଆପଣଙ୍କ ବିକ୍ରିର ଖବର ଏଠାକୁ ପଠାଇବ।",
+    open: "Mandix ଖୋଲନ୍ତୁ",
+    welcome: "Mandix ଆପଣଙ୍କ ବିକ୍ରିର ଖବର ଏଠାକୁ ପଠାଇବ।",
     paidOut: (amt) => `ଆପଣଙ୍କ PayPal କୁ ପଠାଗଲା: ${amt}`,
-    paidOutBody: "Mandi ଫି ପରେ ଆପଣଙ୍କ ଅଂଶ। ଏବେ ଏହା ଆପଣଙ୍କ PayPal ଖାତାରେ ଅଛି।",
+    paidOutBody: "Mandix ଫି ପରେ ଆପଣଙ୍କ ଅଂଶ। ଏବେ ଏହା ଆପଣଙ୍କ PayPal ଖାତାରେ ଅଛି।",
   },
 };

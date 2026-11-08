@@ -196,7 +196,7 @@ function SignupForm() {
                 </label>
                 <input id="su-paypal" className="field" type="email" value={f.paypalEmail} onChange={set("paypalEmail")} aria-describedby="su-paypal-hint" />
                 <p id="su-paypal-hint" className="hint mt-1.5">
-                  In this demo, buyers pay Mandi&apos;s PayPal merchant account and sellers are paid out from it. Paying you
+                  In this demo, buyers pay Mandix&apos;s PayPal merchant account and sellers are paid out from it. Paying you
                   directly is switched on once your account is verified.
                 </p>
               </div>

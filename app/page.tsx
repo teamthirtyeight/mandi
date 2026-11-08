@@ -26,7 +26,7 @@ const SELLER_STEPS = [
   { title: "Get alerts on WhatsApp", body: "Every sale, payment and refund arrives on your phone straight away." },
 ];
 
-// A real negotiation from the demo, replayed: the thing Mandi does.
+// A real negotiation from the demo, replayed: the thing Mandix does.
 const HAGGLE: { who: "seller" | "buyer"; text: string; price: number }[] = [
   { who: "seller", text: "Pure mulberry silk with a zari border, woven on a pit loom over four days.", price: 95 },
   { who: "buyer", text: "It's lovely, and it's for my mum. Would you do £70?", price: 70 },
@@ -45,7 +45,7 @@ const SAFEGUARDS = [
   {
     icon: ShieldIcon,
     title: "Limits enforced in code",
-    body: "Mandi checks every offer before it's sent. Budgets and floor prices are never broken or revealed, even by a hijacked agent.",
+    body: "Mandix checks every offer before it's sent. Budgets and floor prices are never broken or revealed, even by a hijacked agent.",
   },
   {
     icon: RefundIcon,
@@ -78,7 +78,7 @@ export default async function Home() {
               </span>
             </h1>
             <p className="lede mt-5 max-w-[34rem] text-lg">
-              Mandi is a marketplace where AI agents negotiate for you. Buyers get a fair price on handmade work, artisans
+              Mandix is a marketplace where AI agents negotiate for you. Buyers get a fair price on handmade work, artisans
               in India sell worldwide, and PayPal holds the money until the piece ships.
             </p>
 
@@ -194,13 +194,13 @@ export default async function Home() {
               <h2 className="title text-3xl">Every maker, ready to sell abroad</h2>
               <p className="lede mt-4">
                 India has millions of weavers, printers and embroiderers who struggle to reach buyers abroad, negotiate
-                fairly and get paid safely. Mandi handles all three, so they can focus on their craft.
+                fairly and get paid safely. Mandix handles all three, so they can focus on their craft.
               </p>
             </div>
             <div className="flex flex-wrap gap-3">
               <TryDemoButton className="btn btn-primary btn-lg" label="Try the demo" />
               <Link href="/signup?role=seller" className="btn btn-secondary btn-lg">
-                Sell on Mandi
+                Sell on Mandix
               </Link>
             </div>
           </div>
@@ -209,7 +209,7 @@ export default async function Home() {
 
       <footer className="border-t border-line">
         <div className="mx-auto flex max-w-[76rem] flex-wrap items-center justify-between gap-4 px-4 py-8 text-sm text-ink-3 sm:px-6">
-          <p>Mandi · Built for the PayPal AI Hackathon</p>
+          <p>Mandix · Built for the PayPal AI Hackathon</p>
           <nav aria-label="Footer" className="flex gap-5">
             <Link href="/browse" className="hover:text-ink">
               Browse

@@ -4,7 +4,7 @@
 // 2. The seller's agent quotes a price and time. Code keeps the price at or
 //    above the listing's private floor (the agent never sees the floor).
 // 3. The artisan approves on WhatsApp ("हाँ") or in the dashboard.
-// 4. Only then does Mandi's code create and send a PayPal invoice (Agent
+// 4. Only then does Mandix's code create and send a PayPal invoice (Agent
 //    Toolkit create_invoice + send_invoice). The buyer pays it in PayPal.
 // 5. When PayPal says it's paid, the seller is paid out (lib/orders/payout.ts).
 import { and, eq } from "drizzle-orm";
@@ -132,7 +132,7 @@ export async function approveCommission(id: string) {
         invoice_number: `MANDI-${id.slice(0, 8).toUpperCase()}`,
         reference: `commission-${id}`,
         note: `Made to order by ${row.seller.name}, ${row.seller.city}. Ready in about ${c.readyInDays} days. PayPal Buyer Protection applies.`,
-        invoicer_business_name: "Mandi",
+        invoicer_business_name: "Mandix",
         primary_recipients: [{ billing_info: { email_address: row.buyer.email, name: { given_name: row.buyer.name } } }],
         items: [
           {
@@ -220,8 +220,8 @@ export async function markCommissionPaid(id: string) {
       receiverEmail: seller.paypalMerchantEmail,
       amountMinor: split.payoutMinor,
       currency: paid.currency,
-      subject: "Mandi: custom order paid",
-      note: `Your share of a custom order, after Mandi's ${feePct()}% fee.`,
+      subject: "Mandix: custom order paid",
+      note: `Your share of a custom order, after Mandix's ${feePct()}% fee.`,
     });
     const lang = sellerLanguage(seller.language);
     const { rate } = await gbpInr();

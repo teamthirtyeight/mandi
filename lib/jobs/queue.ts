@@ -10,7 +10,7 @@ import { db, pg, schema } from "@/lib/db";
 export type Job = typeof schema.jobs.$inferSelect;
 export type JobKind = "negotiate" | "whatsapp";
 
-export const JOBS_CHANNEL = "mandi_jobs";
+export const JOBS_CHANNEL = "mandix_jobs";
 /** A running job whose heartbeat is older than this has lost its worker. */
 export const STALE_AFTER_MS = 60_000;
 

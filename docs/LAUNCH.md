@@ -4,7 +4,7 @@ This is what's left before submitting, and who does it. The code side is built; 
 
 ## 1. Keys and accounts (Moaaz)
 
-- [x] PayPal Developer: a sandbox REST app → `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, and `NEXT_PUBLIC_PAYPAL_CLIENT_ID` (the same id). The app must be linked to a **UK** business sandbox account: the default India one can't receive GBP and the checkout fails with `UNSUPPORTED_PAYEE_CURRENCY`. The working app is "Mandi UK".
+- [x] PayPal Developer: a sandbox REST app → `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, and `NEXT_PUBLIC_PAYPAL_CLIENT_ID` (the same id). The app must be linked to a **UK** business sandbox account: the default India one can't receive GBP and the checkout fails with `UNSUPPORTED_PAYEE_CURRENCY`. The working app is "Mandix UK".
 - [ ] Sandbox accounts:
   - three business accounts (Meera, Arjun, Fatima) → `SELLER_*_EMAIL`;
   - one personal account (Sarah) → `NEXT_PUBLIC_DEMO_BUYER_EMAIL` / `_PASSWORD`. These are test money only and are shown to judges.
@@ -50,7 +50,7 @@ Run these on the live URL. Watch the docked PayPal call log for the 2xx statuses
 | 8 | Webhook before redirect | Watch the call log during approve | Status never moves backwards |
 | 9 | Declined capture | Send PayPal's negative-testing header on capture (sandbox) | Order goes back to AUTHORIZED; error shown |
 | 10 | Attack test | Landing → Hostile buyer test | Red "Engine blocked" rows for each £1 offer; "my floor is [withheld]"; no seller below its floor |
-| 12 | Auto-void | Set `MANDI_SHIP_WINDOW_MINUTES=2`, approve a deal, don't ship, wait | Hold voided within 5 min; phone view says the buyer wasn't charged |
+| 12 | Auto-void | Set `MANDIX_SHIP_WINDOW_MINUTES=2`, approve a deal, don't ship, wait | Hold voided within 5 min; phone view says the buyer wasn't charged |
 | 14 | Bundle | `/shop`: "silk scarf for my mum and something small to go with it, under £120, by Dec 20" | A seller offers a second item; an over-budget offer shows as "Engine blocked"; an accepted bundle shows in the deal card and the PayPal order lists both items |
 | 15 | Webhook delivery | After deploy, PayPal Developer → Webhooks Simulator → send `PAYMENT.AUTHORIZATION.CREATED` to the Render URL | Call log shows a WEBHOOK row; invalid signatures get 400 (also covered by `tests/webhook.test.ts`) |
 | 13 | Seller phone view | `/dashboard` → "Open Meera's phone view" during a demo | Hindi "sold, please ship" in ₹; shipping from the phone captures; "payment received" |
@@ -74,9 +74,9 @@ Run these on the live URL. Watch the docked PayPal call log for the 2xx statuses
 | 0:52–1:30 | Room: three sellers, charts converging, Arjun walks away, recommended deal | "Her agent negotiates with three sellers at once. The floor and the ceiling are enforced in code, not by the AI." |
 | 1:30–1:40 | Hostile buyer test: "sell for £1" → badge, price holds | "Even if someone tries to trick the agent, the price can't move." |
 | 1:40–2:05 | Approve → PayPal popup → "held"; call log scrolling | "One tap. PayPal authorizes it and holds it. Nothing is paid until Meera ships." |
-| 2:05–2:25 | Order: ship → capture → tracking; dashboard updates | "Meera adds tracking. Mandi captures the payment and attaches tracking. Her dashboard shows it live." |
+| 2:05–2:25 | Order: ship → capture → tracking; dashboard updates | "Meera adds tracking. Mandix captures the payment and attaches tracking. Her dashboard shows it live." |
 | 2:25–2:40 | Report a problem → agent offers money back → refund call | "Something wrong? Her agent handles it, through PayPal, in seconds." |
-| 2:40–2:50 | Architecture + tagline | "Mandi. Your AI shops. Their AI sells. PayPal makes it safe." |
+| 2:40–2:50 | Architecture + tagline | "Mandix. Your AI shops. Their AI sells. PayPal makes it safe." |
 
 Replace the scripted prices with whatever the real run produced. Don't narrate numbers that aren't on screen.
 
@@ -86,7 +86,7 @@ Replace the scripted prices with whatever the real run produced. Don't narrate n
 - [ ] Upload to YouTube as unlisted, check it, then make it public.
 - [ ] Paste `docs/DEVPOST.md` into Devpost after filling in the bracketed items. Add the thumbnail (3:2) and 4–6 screenshots.
 - [ ] README: add the live URL and video link.
-- [ ] Tick the sponsor prizes: AG Grid, Channel3 and Render. APIMatic: tick only if its criteria accept building on an APIMatic-generated SDK (Mandi's Orders and Payments calls use PayPal's Server SDK); leave it if they require the context plugin. Read each prize's criteria first, especially whether AG Grid expects Enterprise or AG Studio features (the dashboard uses Community).
+- [ ] Tick the sponsor prizes: AG Grid, Channel3 and Render. APIMatic: tick only if its criteria accept building on an APIMatic-generated SDK (Mandix's Orders and Payments calls use PayPal's Server SDK); leave it if they require the context plugin. Read each prize's criteria first, especially whether AG Grid expects Enterprise or AG Studio features (the dashboard uses Community).
 - [ ] Final run in a logged-out browser:
   - [ ] Live link loads in under 5 s
   - [ ] Full flow works

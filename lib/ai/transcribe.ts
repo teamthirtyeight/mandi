@@ -6,7 +6,7 @@ const MODEL = process.env.OPENAI_TRANSCRIBE_MODEL ?? "gpt-transcribe";
 let client: OpenAI | null = null;
 
 export async function transcribe(audio: File): Promise<string | null> {
-  if (!process.env.OPENAI_API_KEY || process.env.MANDI_FAKE_AI === "1") return null;
+  if (!process.env.OPENAI_API_KEY || (process.env.MANDIX_FAKE_AI ?? process.env.MANDI_FAKE_AI) === "1") return null;
   try {
     client ??= new OpenAI();
     const file = await toFile(Buffer.from(await audio.arrayBuffer()), audio.name || "voice-note.webm", {

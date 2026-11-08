@@ -1,4 +1,4 @@
-// A buyer's key for connecting their own AI assistant to Mandi's MCP server.
+// A buyer's key for connecting their own AI assistant to Mandix's MCP server.
 // GET shows whether one exists (and the connection URL); POST makes a new one,
 // which replaces the old.
 import { NextResponse } from "next/server";

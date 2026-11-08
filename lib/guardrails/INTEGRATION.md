@@ -4,7 +4,7 @@
 
 The app uses the `postgres` driver, while `db/operations.ts` uses `pg`. Both can run side by side with their own connections. `db/schema.sql` also needs reconciling with `lib/db/schema.ts`. Parts of this guide were written before the app existed, so check each step against the current code.
 
-This guide shows how to connect `lib/guardrails` to Mandi's agents, API routes, database, and PayPal client.
+This guide shows how to connect `lib/guardrails` to Mandix's agents, API routes, database, and PayPal client.
 
 - **For a plain-language overview:** [How the guardrails work](HOW-IT-WORKS.md)
 - **For flow diagrams:** [Guardrails architecture](ARCHITECTURE.md)

@@ -10,7 +10,7 @@ describe.skipIf(!TEST_DB)("job queue", () => {
 
   beforeAll(async () => {
     process.env.DATABASE_URL = TEST_DB;
-    process.env.MANDI_FAKE_AI = "1";
+    process.env.MANDIX_FAKE_AI = "1";
     delete process.env.TWILIO_ACCOUNT_SID;
     dbmod = await import("@/lib/db");
     q = await import("@/lib/jobs/queue");

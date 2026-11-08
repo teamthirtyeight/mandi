@@ -113,7 +113,7 @@ export async function listDisputes(): Promise<DisputeSummary[] | null> {
 // ---- Platform toolkit: fixed server code, never an agent ----
 //
 // Invoices, subscriptions, reporting and order lookups run through a second
-// Agent Toolkit instance that only Mandi's own server code calls (no model
+// Agent Toolkit instance that only Mandix's own server code calls (no model
 // chooses these calls). It has its own allowlist: the toolkit must not hand it
 // order-creation, capture, refund or payout tools, and the agents' toolset
 // above never gets any of these.
@@ -219,7 +219,7 @@ export async function runPlatformTool<T = Record<string, unknown>>(
     const parts = failure.split(": ");
     const clean = parts.length === 2 && parts[0].replace(/\.$/, "") === parts[1].replace(/\.$/, "") ? parts[0] : failure;
     if (/insufficient permissions|NOT_AUTHORIZED|PERMISSION_DENIED/i.test(clean)) {
-      throw new ToolkitError(`${FEATURE[name] ?? name} isn't switched on for Mandi's PayPal app yet (PayPal developer dashboard → Apps & Credentials → Features).`);
+      throw new ToolkitError(`${FEATURE[name] ?? name} isn't switched on for Mandix's PayPal app yet (PayPal developer dashboard → Apps & Credentials → Features).`);
     }
     throw new ToolkitError(clean);
   }

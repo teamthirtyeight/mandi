@@ -23,7 +23,7 @@ export const MAKERS: Record<string, Maker> = {
     region: "Uttar Pradesh",
     craft: "Banarasi silk weaving",
     story:
-      "Meera learned to weave on her grandfather's pit loom in Madanpura, the weavers' quarter of Varanasi. A scarf takes her about four days: one to set the warp, three at the loom lifting the zari pattern thread by thread. Power looms now copy Banarasi designs for a fraction of the price, and many of her neighbours have left the trade. Selling abroad through Mandi keeps both of her looms working.",
+      "Meera learned to weave on her grandfather's pit loom in Madanpura, the weavers' quarter of Varanasi. A scarf takes her about four days: one to set the warp, three at the loom lifting the zari pattern thread by thread. Power looms now copy Banarasi designs for a fraction of the price, and many of her neighbours have left the trade. Selling abroad through Mandix keeps both of her looms working.",
     quote: "When the zari catches the light, I know the four days were worth it.",
     photoUrl: "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/13/India_-_Varanasi_loom_-_0985.jpg/1280px-India_-_Varanasi_loom_-_0985.jpg",
     photoCredit: "A handloom in Varanasi. Photo: Jorge Royan, CC BY-SA 3.0",

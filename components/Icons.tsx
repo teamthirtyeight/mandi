@@ -92,13 +92,22 @@ export const BellIcon = (p: IconProps) => (
   </Icon>
 );
 
-/** Mandi's mark: two speech bubbles meeting, for two agents striking a deal. */
+/**
+ * Mandix's mark: a price tag on a string, with the x of Mandix. Fixed colours,
+ * not theme tokens, so the logo looks the same in light and dark mode.
+ * Keep in sync with app/icon.svg.
+ */
 export function LogoMark({ size = 28 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden="true">
-      <rect width="32" height="32" rx="8" fill="var(--indigo)" />
-      <path d="M8 10.5a2.5 2.5 0 012.5-2.5h7a2.5 2.5 0 012.5 2.5v4a2.5 2.5 0 01-2.5 2.5H13l-3 2.5V17h0a2.5 2.5 0 01-2-2.5v-4z" fill="var(--on-indigo)" opacity="0.95" />
-      <path d="M14 18.5a2.5 2.5 0 012.5-2.5h5a2.5 2.5 0 012.5 2.5v3a2.5 2.5 0 01-2 2.45V26l-3-2h-2.5a2.5 2.5 0 01-2.5-2.5v-3z" fill="var(--haldi)" />
+    <svg width={size} height={size} viewBox="0 0 96 96" aria-hidden="true">
+      <rect width="96" height="96" rx="22" fill="#0a0b0f" />
+      <path
+        d="M40 30h32a8 8 0 018 8v32a8 8 0 01-8 8H40a6 6 0 01-4.4-1.9L21 58.1a6 6 0 010-8.2l14.6-18A6 6 0 0140 30z"
+        fill="#ffffff"
+      />
+      <circle cx="37" cy="54" r="5.5" fill="#e9a21b" />
+      <path d="M54 46l16 16M70 46L54 62" stroke="#0a0b0f" strokeWidth="6.5" strokeLinecap="round" />
+      <path d="M37 54C28 40 22 30 14 22" fill="none" stroke="#e9a21b" strokeWidth="4" strokeLinecap="round" />
     </svg>
   );
 }

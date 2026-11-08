@@ -172,7 +172,7 @@ function McpPanel() {
     if (res.ok) setState(await res.json());
     setBusy(false);
   }
-  const claudeCode = state?.key ? `claude mcp add --transport http mandi ${state.endpoint} --header "Authorization: Bearer ${state.key}"` : "";
+  const claudeCode = state?.key ? `claude mcp add --transport http mandix ${state.endpoint} --header "Authorization: Bearer ${state.key}"` : "";
   return (
     <div className="space-y-4">
       {state?.url ? (
@@ -199,7 +199,7 @@ function McpPanel() {
           <p className="well flex gap-2.5 p-4 text-sm text-ink-2">
             <ChatIcon size={16} className="mt-0.5 shrink-0 text-ink-3" />
             <span>
-            Then ask it: &ldquo;Find me a handwoven silk scarf on Mandi for my mum, under £90, by 20 December.&rdquo; It sends your agent, follows the bargaining,
+            Then ask it: &ldquo;Find me a handwoven silk scarf on Mandix for my mum, under £90, by 20 December.&rdquo; It sends your agent, follows the bargaining,
             and hands you the link to approve the deal in PayPal.
             </span>
           </p>
@@ -385,7 +385,7 @@ export default function AgentPage() {
           <h1 className="display mt-3 text-[clamp(1.875rem,4vw,2.5rem)]">My agent</h1>
           <p className="mt-3 text-ink-2">
             {data.role === "seller" ? `${data.name}'s sales agent` : `${data.name}'s shopping agent`} negotiates with these
-            settings. Whatever you choose, Mandi checks every offer against your{" "}
+            settings. Whatever you choose, Mandix checks every offer against your{" "}
             {data.role === "seller" ? "floor price" : "budget"}, and it&apos;s never shown to the other side.
           </p>
         </div>
@@ -509,7 +509,7 @@ export default function AgentPage() {
               </p>
             </Section>
 
-            <Section title="Getting paid" body="When a buyer's money is released, Mandi sends your share, minus a 5% fee, to this PayPal account.">
+            <Section title="Getting paid" body="When a buyer's money is released, Mandix sends your share, minus a 5% fee, to this PayPal account.">
               <div>
                 <label htmlFor="paypal-email" className="label">
                   PayPal email for payouts
@@ -557,7 +557,7 @@ export default function AgentPage() {
                 checked={data.profile.whatsappOptIn}
                 onChange={(v) => setProfile({ whatsappOptIn: v })}
                 label="Send my alerts on WhatsApp"
-                hint="You can turn this off at any time. Alerts still appear in Mandi."
+                hint="You can turn this off at any time. Alerts still appear in Mandix."
               />
               <WhatsAppPanel unsaved={dirty} />
             </Section>
@@ -601,7 +601,7 @@ export default function AgentPage() {
             </Section>
             <Section
               title="Connect your own AI assistant"
-              body="Let Claude, ChatGPT or another AI assistant that accepts custom connectors shop at Mandi for you: search, send your agent to bargain, and follow the deal. It can't pay. Every deal comes back to you to approve in PayPal."
+              body="Let Claude, ChatGPT or another AI assistant that accepts custom connectors shop at Mandix for you: search, send your agent to bargain, and follow the deal. It can't pay. Every deal comes back to you to approve in PayPal."
             >
               <McpPanel />
             </Section>

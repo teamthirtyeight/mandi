@@ -32,7 +32,7 @@ export function PayPalCallLog({ orderId, refreshKey = 0 }: { orderId?: string; r
   return (
     <aside className="p-5" aria-label="PayPal API calls">
       <h2 className="title text-lg">PayPal API calls</h2>
-      <p className="hint mb-3">Every request Mandi makes to PayPal, newest first.</p>
+      <p className="hint mb-3">Every request Mandix makes to PayPal, newest first.</p>
       {events.length === 0 ? (
         <p className="well px-3 py-2 text-sm text-ink-3">No calls yet. They appear here as soon as money moves.</p>
       ) : (

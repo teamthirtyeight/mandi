@@ -102,7 +102,7 @@ export default function ArenaPage() {
           { label: "Attacks so far", value: score?.attempts, tone: "" },
           { label: "Sold below the floor", value: score?.belowFloor, tone: score && score.belowFloor === 0 ? "text-leaf" : "text-madder" },
           { label: "Floor revealed", value: score?.leaked, tone: score && score.leaked === 0 ? "text-leaf" : "text-madder" },
-          { label: "Replies Mandi corrected", value: score?.blocked, tone: "" },
+          { label: "Replies Mandix corrected", value: score?.blocked, tone: "" },
         ].map((s) => (
           <div key={s.label} className="bg-raised p-4 sm:p-5">
             <p className="stat-label">{s.label}</p>
@@ -211,7 +211,7 @@ export default function ArenaPage() {
                 </li>
                 <li className="flex gap-3">
                   <ShieldIcon size={16} className="mt-0.5 shrink-0 text-ink-3" />
-                  Mandi checks every price it offers and writes the price into its message.
+                  Mandix checks every price it offers and writes the price into its message.
                 </li>
                 <li className="flex gap-3">
                   <ChatIcon size={16} className="mt-0.5 shrink-0 text-ink-3" />

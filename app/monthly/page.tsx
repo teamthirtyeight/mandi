@@ -1,6 +1,6 @@
 "use client";
 
-// Mandi Monthly: one handmade piece a month, each from a different artisan,
+// Mandix Monthly: one handmade piece a month, each from a different artisan,
 // as a PayPal subscription (plan, approval, status and cancel all through the
 // PayPal Agent Toolkit). Each payment pays that month's artisan.
 import { Suspense, useEffect, useState } from "react";
@@ -41,7 +41,7 @@ function Monthly() {
     fetch("/api/subscriptions")
       .then((r) => r.json())
       .then(setData)
-      .catch(() => setError("Couldn't load Mandi Monthly."));
+      .catch(() => setError("Couldn't load Mandix Monthly."));
   useEffect(() => {
     load();
   }, []);
@@ -63,7 +63,7 @@ function Monthly() {
   }
 
   async function cancel() {
-    if (!confirm("Cancel Mandi Monthly? You won't be charged again.")) return;
+    if (!confirm("Cancel Mandix Monthly? You won't be charged again.")) return;
     setBusy(true);
     const res = await fetch("/api/subscriptions", { method: "DELETE" });
     setBusy(false);
@@ -80,7 +80,7 @@ function Monthly() {
     <main className="page">
       {/* Intro */}
       <header className="max-w-3xl">
-        <p className="eyebrow">Mandi Monthly</p>
+        <p className="eyebrow">Mandix Monthly</p>
         <h1 className="display mt-3 text-[clamp(2.25rem,5.4vw,3.75rem)]">A different artisan every month.</h1>
         <p className="lede mt-5 max-w-xl">
           One handmade piece a month, from a weaver in Varanasi one month and an embroiderer in Kutch the next. Each month&apos;s payment goes to that
@@ -157,7 +157,7 @@ function Monthly() {
 
           <p className="flex items-start gap-2.5 border-t border-line bg-surface px-5 py-3.5 text-xs text-ink-3 sm:px-6">
             <LockIcon size={15} className="mt-px shrink-0 text-leaf" />
-            You approve the subscription in PayPal. Mandi never sees your card.
+            You approve the subscription in PayPal. Mandix never sees your card.
           </p>
         </section>
 

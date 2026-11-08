@@ -28,7 +28,7 @@ export function AuthShell({
           aria-hidden="true"
         />
         <div className="sticky top-[61px] flex h-[calc(100vh-61px)] max-w-xl flex-col justify-center px-12 py-16 xl:px-16">
-          <p className="eyebrow">Mandi</p>
+          <p className="eyebrow">Mandix</p>
           <p className="display mt-4 text-[2.25rem]">Agents negotiate. PayPal protects. You decide.</p>
           <ul className="mt-10 space-y-6">
             {POINTS.map(({ icon: IconComponent, title: t, body }) => (

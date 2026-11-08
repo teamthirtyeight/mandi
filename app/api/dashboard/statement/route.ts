@@ -1,4 +1,4 @@
-// The seller's PayPal statement (Transaction Search via the Agent Toolkit), matched to Mandi's orders.
+// The seller's PayPal statement (Transaction Search via the Agent Toolkit), matched to Mandix's orders.
 import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/auth/session";
 import { errorResponse } from "@/lib/api/errors";

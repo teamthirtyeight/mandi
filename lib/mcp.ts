@@ -1,5 +1,5 @@
-// Mandi as an MCP server, so a buyer's own AI assistant (Claude, ChatGPT,
-// Cursor, any MCP client) can shop at Mandi: search, send Mandi's buyer agent
+// Mandix as an MCP server, so a buyer's own AI assistant (Claude, ChatGPT,
+// Cursor, any MCP client) can shop at Mandix: search, send Mandix's buyer agent
 // to negotiate, follow the deal, check orders, ask for a custom piece.
 //
 // What it can't do is the point: no tool pays. Every deal ends with a link the
@@ -21,7 +21,7 @@ import { paypalOrderStatus } from "@/lib/reporting";
 import { requestCommission } from "@/lib/commissions";
 
 export const MCP_PROTOCOL_VERSION = "2025-06-18";
-const SERVER_INFO = { name: "mandi", title: "Mandi: handmade from India, bargained by agents", version: "1.0.0" };
+const SERVER_INFO = { name: "mandix", title: "Mandix: handmade from India, bargained by agents", version: "1.0.0" };
 
 type User = typeof schema.users.$inferSelect;
 
@@ -42,7 +42,7 @@ const gbp = (minor: number) => new Intl.NumberFormat("en-GB", { style: "currency
 const TOOLS = [
   {
     name: "search_listings",
-    title: "Search Mandi",
+    title: "Search Mandix",
     description: "Search handmade pieces from artisans in India. Returns titles, makers, list prices in GBP and links. Prices are open to negotiation: use start_shopping to bargain.",
     inputSchema: {
       type: "object",
@@ -55,9 +55,9 @@ const TOOLS = [
   },
   {
     name: "start_shopping",
-    title: "Send Mandi's buyer agent to negotiate",
+    title: "Send Mandix's buyer agent to negotiate",
     description:
-      "Give one sentence with what to buy, the budget in £ and the deadline, e.g. 'silk scarf for my mum, under £90, by 20 Dec'. Mandi's buyer agent bargains with up to three artisans' agents and never goes over the budget. Returns a deal id; call get_deal after about a minute. Nothing is paid: the human approves the final deal in PayPal.",
+      "Give one sentence with what to buy, the budget in £ and the deadline, e.g. 'silk scarf for my mum, under £90, by 20 Dec'. Mandix's buyer agent bargains with up to three artisans' agents and never goes over the budget. Returns a deal id; call get_deal after about a minute. Nothing is paid: the human approves the final deal in PayPal.",
     inputSchema: {
       type: "object",
       properties: { request: { type: "string", description: "One sentence: item, budget in £, deadline." } },
@@ -74,7 +74,7 @@ const TOOLS = [
   {
     name: "get_orders",
     title: "My orders",
-    description: "The human's Mandi orders, with live status from PayPal (held, captured after shipping, refunded) and tracking.",
+    description: "The human's Mandix orders, with live status from PayPal (held, captured after shipping, refunded) and tracking.",
     inputSchema: { type: "object", properties: {} },
   },
   {
@@ -144,7 +144,7 @@ async function startShopping(user: User, args: unknown): Promise<ToolResult> {
   if (!a.success) return fail("Describe what to buy in one sentence, with a budget in £.");
   const draft = await parseMandate(a.data.request);
   if (!draft) return fail('No budget found. Try: "silk scarf for my mum, under £90, by Dec 20".');
-  if (draft.currency !== "GBP") return fail("Mandi's sellers price in pounds for now. Give the budget in £.");
+  if (draft.currency !== "GBP") return fail("Mandix's sellers price in pounds for now. Give the budget in £.");
   const [mandate] = await db
     .insert(schema.mandates)
     .values({
@@ -163,7 +163,7 @@ async function startShopping(user: User, args: unknown): Promise<ToolResult> {
     return fail("No seller can deliver that by the deadline. Try a later date or a broader item.");
   }
   await enqueue("negotiate", { mandateId: mandate.id }, { maxAttempts: 1 });
-  return ok(`Mandi's agent is now negotiating with ${negotiations.length} artisan${negotiations.length === 1 ? "" : "s"}. Call get_deal in about a minute.`, {
+  return ok(`Mandix's agent is now negotiating with ${negotiations.length} artisan${negotiations.length === 1 ? "" : "s"}. Call get_deal in about a minute.`, {
     deal_id: mandate.id,
     understood: { item: draft.item_query, budget: gbp(Math.round(draft.max_price * 100)), deadline: draft.deadline },
     watch_live: `${appUrl()}/deal/${mandate.id}`,
@@ -268,7 +268,7 @@ export async function handleRpc(user: User, req: RpcRequest): Promise<object | n
         capabilities: { tools: { listChanged: false } },
         serverInfo: SERVER_INFO,
         instructions:
-          "Mandi sells handmade pieces from artisans in India. Prices are bargained by agents. You can search and start negotiations, but you cannot pay: always hand the human the approve_url so they approve the payment in PayPal themselves.",
+          "Mandix sells handmade pieces from artisans in India. Prices are bargained by agents. You can search and start negotiations, but you cannot pay: always hand the human the approve_url so they approve the payment in PayPal themselves.",
       });
     case "ping":
       return reply({});

@@ -8,9 +8,9 @@ import { useEffect, useState } from "react";
 
 export type ThemeChoice = "light" | "dark" | "system";
 
-const KEY = "mandi-theme";
+const KEY = "mandix-theme";
 /** Fired on window whenever the applied theme may have changed. */
-export const THEME_EVENT = "mandi-themechange";
+export const THEME_EVENT = "mandix-themechange";
 
 export const THEME_SCRIPT = `(function(){try{var t=localStorage.getItem("${KEY}");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t)}catch(e){}})();`;
 

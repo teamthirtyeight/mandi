@@ -9,7 +9,7 @@ import type { BuyerView, SellerView } from "@/lib/agents/prompts";
 import {
   breaker,
   buyerSystem,
-  mandiModel,
+  mandixModel,
   sellerSystem,
   turnUser,
   type GuardedBuyerView,
@@ -54,8 +54,8 @@ const DAY = 24 * 60 * 60 * 1000;
 const MAX_SELLERS = 3;
 // 6 rounds × 2 agents × up to 2 calls = 24 in the worst case, plus retries after
 // engine blocks; 30 leaves room for those without letting a run go unbounded.
-const MAX_MODEL_CALLS = Number(process.env.MANDI_MAX_MODEL_CALLS ?? 30);
-const turnDelay = () => Number(process.env.MANDI_TURN_DELAY_MS ?? 600);
+const MAX_MODEL_CALLS = Number((process.env.MANDIX_MAX_MODEL_CALLS ?? process.env.MANDI_MAX_MODEL_CALLS) ?? 30);
+const turnDelay = () => Number((process.env.MANDIX_TURN_DELAY_MS ?? process.env.MANDI_TURN_DELAY_MS) ?? 600);
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 type Mandate = typeof schema.mandates.$inferSelect;
@@ -282,7 +282,7 @@ async function runNegotiation(negotiationId: string, referenceMinor: number | nu
   };
 
   let g = createNegotiation({ listMinor: row.listing.listPriceMinor, floorMinor: floor, ceilingMinor: ceiling, currency, maxRounds: MAX_ROUNDS });
-  const model = mandiModel({ calls: MAX_MODEL_CALLS });
+  const model = mandixModel({ calls: MAX_MODEL_CALLS });
   const metrics = emptyMetrics();
   const lines: Line[] = [];
   let hostileSent = false;
@@ -573,7 +573,7 @@ export function turnEvent(
   turn: typeof schema.negotiationTurns.$inferSelect,
   sellerName: string,
   state: string,
-): Extract<import("./bus").MandiEvent, { type: "turn" }> {
+): Extract<import("./bus").MandixEvent, { type: "turn" }> {
   return {
     type: "turn",
     id: turn.id,

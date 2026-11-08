@@ -29,7 +29,7 @@ const SellerProfile = z.object({
     })
     .default(""),
   whatsappOptIn: z.boolean().default(false),
-  // Where Mandi pays the seller (PayPal Payouts). Omitted: unchanged.
+  // Where Mandix pays the seller (PayPal Payouts). Omitted: unchanged.
   paypalEmail: z.preprocess(
     (v) => (typeof v === "string" && v.trim() === "" ? undefined : v),
     z.string().trim().toLowerCase().email("Enter the email address of your PayPal account").max(120).optional(),

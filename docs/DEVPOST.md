@@ -2,10 +2,10 @@
 
 Fill in the bracketed items, check every claim against the live demo, then paste each section into Devpost.
 
-**Project name:** Mandi
+**Project name:** Mandix
 **Tagline (≤ 60 characters):** Your AI shops. Their AI sells. PayPal makes it safe.
 **Links:** [Render URL] · [YouTube URL] · [GitHub repo URL]
-**Sponsor prizes to tick:** AG Grid, Channel3, Render. APIMatic: Mandi's Orders and Payments calls go through PayPal's Server SDK, which APIMatic generates. Tick it only if the prize's criteria accept that; if they require APIMatic's context plugin, leave it.
+**Sponsor prizes to tick:** AG Grid, Channel3, Render. APIMatic: Mandix's Orders and Payments calls go through PayPal's Server SDK, which APIMatic generates. Tick it only if the prize's criteria accept that; if they require APIMatic's context plugin, leave it.
 
 ## Inspiration
 
@@ -13,7 +13,7 @@ Meera weaves silk in Varanasi. Each scarf takes about four days on the loom, and
 
 ## What it does
 
-Mandi gives every small seller an AI sales agent and every shopper an AI buying agent. Meera onboards with photos and a voice note; her agent writes the listing and defends her price. Sarah in London types one sentence, and her agent negotiates with three sellers at once, inside limits enforced in code. Sarah approves one deal, and PayPal holds the money until Meera ships.
+Mandix gives every small seller an AI sales agent and every shopper an AI buying agent. Meera onboards with photos and a voice note; her agent writes the listing and defends her price. Sarah in London types one sentence, and her agent negotiates with three sellers at once, inside limits enforced in code. Sarah approves one deal, and PayPal holds the money until Meera ships.
 
 ## How we built it
 
@@ -55,7 +55,7 @@ The flow runs from discovery to negotiation to mandate, then authorize, capture 
 
 ## Challenges
 
-- **Capture timing.** PayPal captures most reliably within the 3-day honor period, so Mandi gives sellers a 3-day ship-by window. Reauthorization for slower sellers is future work.
+- **Capture timing.** PayPal captures most reliably within the 3-day honor period, so Mandix gives sellers a 3-day ship-by window. Reauthorization for slower sellers is future work.
 - **A negotiation that's dependable on camera.** Structured outputs, an engine that clamps or rejects bad turns, and a rule-based fallback turn mean a model hiccup never stalls the demo.
 
 ## Accomplishments
@@ -66,7 +66,7 @@ The flow runs from discovery to negotiation to mandate, then authorize, capture 
 
 ## What's next
 
-- Connect to PayPal's agentic commerce services (Agent Ready, Store Sync) so Mandi sellers appear in every AI shopping assistant.
+- Connect to PayPal's agentic commerce services (Agent Ready, Store Sync) so Mandix sellers appear in every AI shopping assistant.
 - Reauthorize holds for slower sellers.
 - Onboarding in more languages.
 - Marketplace payouts.

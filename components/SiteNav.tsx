@@ -29,9 +29,9 @@ export async function SiteNav() {
   return (
     <header className="sticky top-0 z-40 border-b border-line bg-paper/80 backdrop-blur-md [--nav-h:61px]">
       <div className="mx-auto flex h-[60px] max-w-[76rem] items-center gap-8 px-4 sm:px-6">
-        <Link href="/" className="flex shrink-0 items-center gap-2.5" aria-label="Mandi home">
+        <Link href="/" className="flex shrink-0 items-center gap-2.5" aria-label="Mandix home">
           <LogoMark size={28} />
-          <span className="text-[1.0625rem] font-semibold tracking-[-0.025em]">Mandi</span>
+          <span className="text-[1.0625rem] font-semibold tracking-[-0.025em]">Mandix</span>
         </Link>
         <NavLinks links={all} />
         <div className="ml-auto flex items-center gap-1.5">

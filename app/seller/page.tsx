@@ -137,7 +137,7 @@ export default function SellerPhone() {
               <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-indigo text-[0.6875rem] font-semibold text-on-indigo" aria-hidden="true">
                 M
               </span>
-              <span className="truncate">Mandi, {data.seller.name}</span>
+              <span className="truncate">Mandix, {data.seller.name}</span>
             </p>
             <span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-ink-2" lang="en">
               <BellIcon size={20} />

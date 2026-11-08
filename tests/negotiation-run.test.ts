@@ -12,8 +12,8 @@ describe.skipIf(!TEST_DB)("negotiation run", () => {
 
   beforeAll(async () => {
     process.env.DATABASE_URL = TEST_DB;
-    process.env.MANDI_FAKE_AI = "1";
-    process.env.MANDI_TURN_DELAY_MS = "0";
+    process.env.MANDIX_FAKE_AI = "1";
+    process.env.MANDIX_TURN_DELAY_MS = "0";
     delete process.env.CHANNEL3_API_KEY;
     dbmod = await import("@/lib/db");
     runner = await import("@/lib/negotiation/runner");
@@ -153,7 +153,7 @@ describe.skipIf(!TEST_DB)("negotiation run", () => {
   it("a cancel mid-run closes every negotiation, even ones that were about to agree", async () => {
     const { eq } = await import("drizzle-orm");
     const { db, schema } = dbmod;
-    process.env.MANDI_TURN_DELAY_MS = "40";
+    process.env.MANDIX_TURN_DELAY_MS = "40";
     try {
       const m = await mandate();
       await runner.openNegotiations(m.id);
@@ -165,7 +165,7 @@ describe.skipIf(!TEST_DB)("negotiation run", () => {
       expect(snap.mandate.status).toBe("cancelled");
       expect(snap.negotiations.every((n) => n.state === "WALKED_AWAY" && n.agreedPrice == null)).toBe(true);
     } finally {
-      process.env.MANDI_TURN_DELAY_MS = "0";
+      process.env.MANDIX_TURN_DELAY_MS = "0";
     }
   });
 });

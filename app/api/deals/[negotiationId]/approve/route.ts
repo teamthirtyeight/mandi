@@ -72,14 +72,14 @@ export async function POST(_req: Request, { params }: { params: Promise<{ negoti
             { name: `${addon.title} (bundle)`, amountMinor: addon.priceMinor },
           ]
         : undefined,
-      description: `Mandi deal with ${row.seller.name}, ${row.seller.city}`,
+      description: `Mandix deal with ${row.seller.name}, ${row.seller.city}`,
       referenceId: order.id,
       orderId: order.id,
     };
     // Paying sellers directly needs each seller's PayPal account to accept the
     // payment. It's off by default (PAYPAL_PAY_SELLERS_DIRECTLY=1 turns it on);
-    // the Mandi merchant is paid instead and pays sellers out (future work).
-    // If PayPal refuses the seller as payee, fall back to the Mandi merchant.
+    // the Mandix merchant is paid instead and pays sellers out (future work).
+    // If PayPal refuses the seller as payee, fall back to the Mandix merchant.
     const payee = process.env.PAYPAL_PAY_SELLERS_DIRECTLY === "1" ? row.seller.paypalMerchantEmail : null;
     let paypal: { id: string };
     let payeeEmail: string | null = payee;

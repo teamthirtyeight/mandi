@@ -1,5 +1,5 @@
 // Image cards for WhatsApp alerts: "Sold! ₹10,057" in the seller's language,
-// with the listing photo (or its woven swatch), in Mandi's colours.
+// with the listing photo (or its woven swatch), in Mandix's colours.
 //
 // Cards are HTML screenshotted by headless Chrome (playwright-core), because
 // Indian scripts need real text shaping that SVG/satori renderers get wrong.
@@ -117,7 +117,7 @@ export function bannerHtml(d: BannerData): string {
 </head>
 <body>
   <main>
-    <div class="brand"><b>Mandi</b><i>मंडी</i><span class="who">${esc(d.sellerName)}</span></div>
+    <div class="brand"><b>Mandix</b><span class="who">${esc(d.sellerName)}</span></div>
     ${d.chip ? `<span class="chip">${esc(d.chip)}</span>` : `<span style="margin-top:56px"></span>`}
     <h1>${esc(d.headline)}</h1>
     ${d.sub ? `<p class="sub">${esc(d.sub)}</p>` : ""}

@@ -43,7 +43,7 @@ export function LoginPanel({ next, compact = false }: { next?: string | null; co
       >
         {compact && (
           <div>
-            <h2 className="text-lg font-semibold tracking-[-0.02em]">Log in to Mandi</h2>
+            <h2 className="text-lg font-semibold tracking-[-0.02em]">Log in to Mandix</h2>
             <p className="mt-0.5 text-sm text-ink-3">Welcome back. Enter your details to continue.</p>
           </div>
         )}
@@ -90,7 +90,7 @@ export function LoginPanel({ next, compact = false }: { next?: string | null; co
           {busy ? "Logging in…" : "Log in"}
         </button>
         <p className="text-center text-sm text-ink-3">
-          New to Mandi?{" "}
+          New to Mandix?{" "}
           <Link href="/signup?role=buyer" className="font-medium text-indigo hover:underline">
             Shop
           </Link>{" "}

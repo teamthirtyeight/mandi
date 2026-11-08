@@ -8,7 +8,7 @@ import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { PayPalCallLog } from "./PayPalCallLog";
 
-const KEY = "mandi-dock-open";
+const KEY = "mandix-dock-open";
 
 export function DockedCallLog({ signedIn }: { signedIn: boolean }) {
   const path = usePathname();

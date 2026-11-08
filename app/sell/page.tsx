@@ -195,7 +195,7 @@ export default function SellPage() {
             <span className="icon-tile" aria-hidden="true">
               <PackageIcon size={18} />
             </span>
-            <h1 className="title mt-4 text-2xl sm:text-3xl">Sell on Mandi</h1>
+            <h1 className="title mt-4 text-2xl sm:text-3xl">Sell on Mandix</h1>
             <p className="mt-2 text-ink-2">
               Listing needs a seller account. Log in, or create one in a minute: you&apos;ll need your PayPal email so buyers can pay you.
             </p>
@@ -514,7 +514,7 @@ export default function SellPage() {
             </div>
           ) : (
             <section className="panel panel-raised">
-              <SectionHead n={3} title="Set your prices" hint="Only the list price is public. Your floor and refund limit stay private, and Mandi checks every offer against them." done={priceReady} />
+              <SectionHead n={3} title="Set your prices" hint="Only the list price is public. Your floor and refund limit stay private, and Mandix checks every offer against them." done={priceReady} />
 
               <div className="space-y-5 p-5">
                 {draft.comps ? (

@@ -486,7 +486,7 @@ function PayPalNow({ orderId, refreshKey }: { orderId: string; refreshKey: numbe
           ))}
         </ul>
       )}
-      <p className="hint mt-2">Checked live with PayPal just now, not from Mandi&apos;s own records.</p>
+      <p className="hint mt-2">Checked live with PayPal just now, not from Mandix&apos;s own records.</p>
     </section>
   );
 }

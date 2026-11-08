@@ -1,9 +1,9 @@
-// Mandi Monthly: one handmade piece a month from a different artisan, as a
+// Mandix Monthly: one handmade piece a month from a different artisan, as a
 // PayPal subscription. Plan, subscription, status and cancellation all go
 // through the PayPal Agent Toolkit (platform toolkit, fixed server code).
 // Each monthly payment pays that month's artisan through PayPal Payouts.
 //
-// The toolkit's subscription plans are priced in USD, so Mandi Monthly is too.
+// The toolkit's subscription plans are priced in USD, so Mandix Monthly is too.
 import { and, asc, desc, eq, isNotNull } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { appUrl, notifyUser } from "@/lib/notify";
@@ -28,20 +28,20 @@ export async function ensurePlan(): Promise<string> {
   const product = await runPlatformTool<{ id: string }>(
     "create_product",
     {
-      name: "Mandi Monthly",
+      name: "Mandix Monthly",
       type: "PHYSICAL",
       description: "One handmade piece a month from a different artisan in India.",
       category: "ARTS_AND_CRAFTS",
       // PayPal accepts only public https links here.
       ...(appUrl().startsWith("https://") ? { home_url: `${appUrl()}/monthly` } : {}),
     },
-    { label: "Mandi Monthly product" },
+    { label: "Mandix Monthly product" },
   );
   const plan = await runPlatformTool<{ id: string }>(
     "create_subscription_plan",
     {
       product_id: product.id,
-      name: "Mandi Monthly",
+      name: "Mandix Monthly",
       description: "A handmade piece every month, shipped from India.",
       billing_cycles: [
         {
@@ -54,7 +54,7 @@ export async function ensurePlan(): Promise<string> {
       ],
       payment_preferences: { auto_bill_outstanding: true, payment_failure_threshold: 2 },
     },
-    { label: "Mandi Monthly plan" },
+    { label: "Mandix Monthly plan" },
   );
   await db.insert(schema.appSettings).values({ key: PLAN_KEY, value: plan.id }).onConflictDoNothing();
   return (await setting(PLAN_KEY)) ?? plan.id;
@@ -81,7 +81,7 @@ export async function subscribe(user: { id: string; name: string; email: string 
       plan_id: planId,
       subscriber: { name: { given_name: user.name }, email_address: user.email },
       application_context: {
-        brand_name: "Mandi",
+        brand_name: "Mandix",
         user_action: "SUBSCRIBE_NOW",
         shipping_preference: "GET_FROM_FILE",
         return_url: `${appUrl()}/monthly?subscribed=1`,
@@ -130,7 +130,7 @@ export async function cancelSubscription(userId: string) {
   if (!sub || !["ACTIVE", "SUSPENDED", "APPROVED"].includes(sub.status)) return sub;
   await runPlatformTool(
     "cancel_subscription",
-    { subscription_id: sub.paypalSubscriptionId, payload: { reason: "Cancelled by the subscriber on Mandi" } },
+    { subscription_id: sub.paypalSubscriptionId, payload: { reason: "Cancelled by the subscriber on Mandix" } },
     { label: "cancel subscription" },
   );
   return refreshSubscription(sub.paypalSubscriptionId);
@@ -154,14 +154,14 @@ export async function monthlyPaymentReceived(input: { saleId: string; subscripti
     receiverEmail: artisan.paypalMerchantEmail,
     amountMinor: split.payoutMinor,
     currency: input.currency,
-    subject: "Mandi Monthly: you're this month's artisan",
-    note: `A Mandi Monthly subscriber's payment, after Mandi's ${feePct()}% fee. Please send them one of your pieces this month.`,
+    subject: "Mandix Monthly: you're this month's artisan",
+    note: `A Mandix Monthly subscriber's payment, after Mandix's ${feePct()}% fee. Please send them one of your pieces this month.`,
   });
   if (artisan.whatsappOptIn && artisan.whatsappNumber) {
     const t = SELLER_STRINGS[sellerLanguage(artisan.language)];
     const usd = new Intl.NumberFormat("en-US", { style: "currency", currency: input.currency }).format(split.payoutMinor / 100);
-    await sendWhatsApp({ sellerId: artisan.id, to: artisan.whatsappNumber, body: `*${t.paidOut(usd)}*\nMandi Monthly. ${t.paidOutBody}` });
+    await sendWhatsApp({ sellerId: artisan.id, to: artisan.whatsappNumber, body: `*${t.paidOut(usd)}*\nMandix Monthly. ${t.paidOutBody}` });
   }
-  await notifyUser(sub.buyerUserId, "Mandi Monthly: payment received", `This month's piece comes from ${artisan.name}, ${artisan.city}.`, "/monthly");
+  await notifyUser(sub.buyerUserId, "Mandix Monthly: payment received", `This month's piece comes from ${artisan.name}, ${artisan.city}.`, "/monthly");
   return { payoutBatchId: payout.batchId, artisan: artisan.name };
 }

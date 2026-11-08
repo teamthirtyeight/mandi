@@ -50,7 +50,7 @@ test("signed-out visitors are asked to log in, then land on the page they wanted
   await expect(page.getByRole("heading", { name: "My orders" })).toBeVisible();
 });
 
-test("a buyer can't open seller pages, and a hostile next link stays on Mandi", async ({ page }) => {
+test("a buyer can't open seller pages, and a hostile next link stays on Mandix", async ({ page }) => {
   await page.goto("/login?next=//evil.example");
   await page.getByRole("button", { name: /Sarah · buyer/ }).click();
   await expect(page).toHaveURL(/\/shop$/);

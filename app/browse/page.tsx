@@ -1,6 +1,6 @@
 "use client";
 
-// Public catalog: what Mandi's makers have for sale, with filters by kind of
+// Public catalog: what Mandix's makers have for sale, with filters by kind of
 // piece and by region, sorting, and keyword search.
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";

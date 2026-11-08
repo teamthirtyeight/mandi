@@ -508,7 +508,7 @@ export default function DealPage({ params }: { params: Promise<{ id: string }> }
                   </div>
                 </dl>
                 {backupReplies > 0 && (
-                  <p className="hint" title="When the AI doesn't give a usable reply, Mandi sends a standard offer within the same limits.">
+                  <p className="hint" title="When the AI doesn't give a usable reply, Mandix sends a standard offer within the same limits.">
                     Includes {backupReplies} standard {backupReplies === 1 ? "offer" : "offers"} sent automatically
                   </p>
                 )}
@@ -546,7 +546,7 @@ export default function DealPage({ params }: { params: Promise<{ id: string }> }
                     : st === "WALKED_AWAY"
                       ? { kind: "walked", text: "No deal this time" }
                       : st === "BLOCKED_BY_GUARDRAIL"
-                        ? { kind: "blocked", text: "Stopped by Mandi's safety checks" }
+                        ? { kind: "blocked", text: "Stopped by Mandix's safety checks" }
                         : st === "EXPIRED"
                           ? { kind: "walked", text: "Ran out of rounds without a deal" }
                           : st === "CANCELLED"

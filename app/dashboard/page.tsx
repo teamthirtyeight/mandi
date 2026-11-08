@@ -309,7 +309,7 @@ export default function DashboardPage() {
     {
       label: "Paid to you",
       value: gbp(data.tiles.paidOut),
-      note: data.tiles.payoutDebt > 0 ? `Sent to your PayPal; ${gbp(data.tiles.payoutDebt)} of refunds comes off the next one` : "Sent to your PayPal after shipping, minus Mandi's fee",
+      note: data.tiles.payoutDebt > 0 ? `Sent to your PayPal; ${gbp(data.tiles.payoutDebt)} of refunds comes off the next one` : "Sent to your PayPal after shipping, minus Mandix's fee",
       tone: "",
     },
     { label: "Refunded", value: gbp(data.tiles.refunded), note: "Returned to buyers", tone: "" },
@@ -701,11 +701,11 @@ interface StatementLine {
   currency: string;
   paypalStatus: string;
   listing: string | null;
-  mandiAmount: number | null;
+  mandixAmount: number | null;
   matches: boolean | null;
 }
 
-/** PayPal's own statement for this seller (Transaction Search via the Agent Toolkit), checked against Mandi's records. */
+/** PayPal's own statement for this seller (Transaction Search via the Agent Toolkit), checked against Mandix's records. */
 function Statement({ theme }: { theme: ReturnType<typeof themeQuartz.withParams> }) {
   const [data, setData] = useState<{ lines: StatementLine[]; unmatched: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -718,7 +718,7 @@ function Statement({ theme }: { theme: ReturnType<typeof themeQuartz.withParams>
       { field: "type", flex: 1, minWidth: 170 },
       { field: "listing", flex: 1, minWidth: 180, valueFormatter: (p) => p.value ?? "–" },
       { field: "amount", headerName: "PayPal", type: "rightAligned", width: 120, valueFormatter: (p) => new Intl.NumberFormat("en-GB", { style: "currency", currency: p.data?.currency ?? "GBP" }).format(p.value ?? 0) },
-      { field: "mandiAmount", headerName: "Mandi", type: "rightAligned", width: 110, valueFormatter: (p) => (p.value == null ? "–" : gbp(p.value)) },
+      { field: "mandixAmount", headerName: "Mandix", type: "rightAligned", width: 110, valueFormatter: (p) => (p.value == null ? "–" : gbp(p.value)) },
       { field: "matches", headerName: "Agrees", width: 100, valueFormatter: (p) => (p.value == null ? "–" : p.value ? "✓" : "Check") },
       { field: "paypalStatus", headerName: "Status", width: 120 },
     ],
@@ -729,7 +729,7 @@ function Statement({ theme }: { theme: ReturnType<typeof themeQuartz.withParams>
   return (
     <div className="space-y-3">
       <p className="hint">
-        From PayPal&apos;s Transaction Search (last 30 days), checked line by line against Mandi&apos;s records. New payments can take up to three hours to appear
+        From PayPal&apos;s Transaction Search (last 30 days), checked line by line against Mandix&apos;s records. New payments can take up to three hours to appear
         here.
       </p>
       {data.lines.length === 0 ? (
