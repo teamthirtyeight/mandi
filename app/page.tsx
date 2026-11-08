@@ -7,14 +7,12 @@ import {
   ArrowRightIcon,
   ChatIcon,
   CheckIcon,
-  GlobeIcon,
   LockIcon,
   PackageIcon,
   RefundIcon,
   ShieldIcon,
   SparkIcon,
 } from "@/components/Icons";
-import { LANGUAGE_INFO, SELLER_LANGUAGES } from "@/lib/i18n/seller";
 
 const BUYER_STEPS = [
   { title: "Say it once", body: "“Silk scarf for my mum, under £90, by Dec 20.” That's the whole brief." },
@@ -23,9 +21,9 @@ const BUYER_STEPS = [
 ];
 
 const SELLER_STEPS = [
-  { title: "List by talking", body: "Photos and a voice note in your own language become a polished English listing." },
+  { title: "List by talking", body: "A few photos and a short voice note become a polished listing in minutes." },
   { title: "Sell while you work", body: "Your agent answers buyers around the clock and never goes below your floor price." },
-  { title: "Get alerts on WhatsApp", body: "Every sale, payment and refund arrives on your phone, with amounts in rupees." },
+  { title: "Get alerts on WhatsApp", body: "Every sale, payment and refund arrives on your phone straight away." },
 ];
 
 // A real negotiation from the demo, replayed: the thing Mandi does.
@@ -47,7 +45,7 @@ const SAFEGUARDS = [
   {
     icon: ShieldIcon,
     title: "Limits enforced in code",
-    body: "A rules engine checks every offer. Budgets and floor prices are never broken or revealed, even by a hijacked agent.",
+    body: "Mandi checks every offer before it's sent. Budgets and floor prices are never broken or revealed, even by a hijacked agent.",
   },
   {
     icon: RefundIcon,
@@ -58,7 +56,6 @@ const SAFEGUARDS = [
 
 export default async function Home() {
   const user = await getUser().catch(() => null);
-  const languages = SELLER_LANGUAGES.filter((code) => code !== "en").map((code) => LANGUAGE_INFO[code].name);
 
   return (
     <main>
@@ -92,7 +89,7 @@ export default async function Home() {
               {[
                 { icon: LockIcon, text: "Payment held until it ships" },
                 { icon: ShieldIcon, text: "Budgets enforced in code" },
-                { icon: GlobeIcon, text: `Sellers in ${languages.length} languages` },
+                { icon: CheckIcon, text: "You approve every deal" },
               ].map(({ icon: IconComponent, text }) => (
                 <li key={text} className="flex items-center gap-2.5 text-sm font-medium text-ink-2">
                   <IconComponent size={17} className="shrink-0 text-indigo" />
@@ -191,9 +188,8 @@ export default async function Home() {
             <div className="max-w-2xl">
               <h2 className="title text-3xl">Every maker, ready to sell abroad</h2>
               <p className="lede mt-4">
-                India has millions of weavers, printers and embroiderers held back by language, haggling and trust. Mandi
-                handles all three. Sellers can already work in {languages.slice(0, -1).join(", ")} and{" "}
-                {languages[languages.length - 1]}.
+                India has millions of weavers, printers and embroiderers who struggle to reach buyers abroad, negotiate
+                fairly and get paid safely. Mandi handles all three, so they can focus on their craft.
               </p>
             </div>
             <div className="flex flex-wrap gap-3">

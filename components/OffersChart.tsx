@@ -89,16 +89,16 @@ export function OffersChart({ turns, budget }: { turns: Point[]; budget: number 
       <AgCharts options={options} />
       <ul className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-3" aria-hidden="true">
         <li className="flex items-center gap-1.5">
-          <span className="h-0.5 w-4 bg-ink" />
-          Seller asks
+          <span className="h-0.5 w-3.5 rounded bg-ink" />
+          Seller
         </li>
         <li className="flex items-center gap-1.5">
-          <span className="h-0.5 w-4 bg-indigo" />
-          Your agent offers
+          <span className="h-0.5 w-3.5 rounded bg-indigo" />
+          Your agent
         </li>
         <li className="flex items-center gap-1.5">
-          <span className="h-0 w-4 border-t-2 border-dashed border-haldi" />
-          Your budget
+          <span className="h-0 w-3.5 border-t-2 border-dashed border-haldi" />
+          Budget
         </li>
       </ul>
     </div>

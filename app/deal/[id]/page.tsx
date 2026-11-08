@@ -88,6 +88,8 @@ export default function DealPage({ params }: { params: Promise<{ id: string }> }
   const [denied, setDenied] = useState<string | null>(null);
   const [chosenId, setChosenId] = useState<string | null>(null);
   const [confirmCancel, setConfirmCancel] = useState(false);
+  // On phones the sellers show as tabs, one conversation at a time.
+  const [mobileSeller, setMobileSeller] = useState<string | null>(null);
 
   useEffect(() => {
     let es: EventSource | null = null;
@@ -196,6 +198,7 @@ export default function DealPage({ params }: { params: Promise<{ id: string }> }
   const lastPrice = (ts: Turn[], who: "buyer" | "seller") =>
     [...ts].reverse().find((t) => t.from === who && t.final_price != null && !t.guardrail_result.startsWith("ADDON"))?.final_price ?? null;
 
+  const shownSeller = mobileSeller ?? best?.negotiationId ?? snap.negotiations[0]?.id;
   const agreedCount = snap.negotiations.filter((n) => {
     const s = states[n.id]?.state ?? n.state;
     return s === "AGREED" || s === "AWAITING_BUYER_APPROVAL" || s === "ORDERED";
@@ -384,7 +387,7 @@ export default function DealPage({ params }: { params: Promise<{ id: string }> }
                 </PayPalScriptProvider>
               </div>
             ) : (
-              <p className="notice text-sm">Set NEXT_PUBLIC_PAYPAL_CLIENT_ID to approve with PayPal.</p>
+              <p className="notice text-sm">PayPal checkout isn&apos;t available right now. Please try again shortly.</p>
             )}
             {!held && clientId && (
               <div className="mt-2">
@@ -416,6 +419,40 @@ export default function DealPage({ params }: { params: Promise<{ id: string }> }
         </div>
       )}
 
+      {snap.negotiations.length > 1 && (
+        <div className="-mx-4 overflow-x-auto px-4 lg:hidden [scrollbar-width:none]">
+          <div className="inline-flex gap-1 rounded-lg border border-line bg-surface p-1" role="tablist" aria-label="Sellers">
+            {snap.negotiations.map((n) => {
+              const selected = n.id === shownSeller;
+              const s = states[n.id]?.state ?? n.state;
+              return (
+                <button
+                  key={n.id}
+                  role="tab"
+                  aria-selected={selected}
+                  onClick={() => setMobileSeller(n.id)}
+                  className={`flex min-h-9 items-center gap-2 whitespace-nowrap rounded-md px-3 text-sm font-medium ${
+                    selected ? "bg-raised text-ink shadow-[var(--shadow-sm)]" : "text-ink-2"
+                  }`}
+                >
+                  {n.seller.name}
+                  <span
+                    className={`h-1.5 w-1.5 rounded-full ${
+                      s === "AGREED" || s === "AWAITING_BUYER_APPROVAL" || s === "ORDERED"
+                        ? "bg-haldi"
+                        : s === "OPEN" || s === "OFFERED" || s === "COUNTERED"
+                          ? "bg-indigo"
+                          : "bg-line-strong"
+                    }`}
+                    aria-hidden="true"
+                  />
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       <div className="grid items-start gap-4 lg:grid-cols-3">
         {snap.negotiations.map((n: Neg) => {
           const ts = bySeller.get(n.id) ?? [];
@@ -435,7 +472,9 @@ export default function DealPage({ params }: { params: Promise<{ id: string }> }
           return (
             <section
               key={n.id}
-              className={`panel flex flex-col overflow-hidden ${isBest ? "border-haldi shadow-[0_0_0_1px_var(--haldi),var(--shadow-md)]" : ""}`}
+              className={`panel flex-col overflow-hidden ${n.id === shownSeller ? "flex" : "hidden lg:flex"} ${
+                isBest ? "border-haldi shadow-[0_0_0_1px_var(--haldi),var(--shadow-md)]" : ""
+              }`}
               aria-label={`Negotiation with ${n.seller.name}`}
             >
               <header className="space-y-4 border-b border-line p-4">
@@ -469,8 +508,8 @@ export default function DealPage({ params }: { params: Promise<{ id: string }> }
                   </div>
                 </dl>
                 {backupReplies > 0 && (
-                  <p className="hint" title="The AI didn't give a usable reply, so Mandi's rules engine replied instead.">
-                    {backupReplies} {backupReplies === 1 ? "reply" : "replies"} from the rules engine
+                  <p className="hint" title="When the AI doesn't give a usable reply, Mandi sends a standard offer within the same limits.">
+                    Includes {backupReplies} standard {backupReplies === 1 ? "offer" : "offers"} sent automatically
                   </p>
                 )}
                 {!held &&
@@ -507,7 +546,7 @@ export default function DealPage({ params }: { params: Promise<{ id: string }> }
                     : st === "WALKED_AWAY"
                       ? { kind: "walked", text: "No deal this time" }
                       : st === "BLOCKED_BY_GUARDRAIL"
-                        ? { kind: "blocked", text: "Stopped by the rules engine" }
+                        ? { kind: "blocked", text: "Stopped by Mandi's safety checks" }
                         : st === "EXPIRED"
                           ? { kind: "walked", text: "Ran out of rounds without a deal" }
                           : st === "CANCELLED"

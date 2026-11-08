@@ -6,6 +6,7 @@
 // matters most when it recommends a deal.
 import { useCallback, useEffect, useId, useState } from "react";
 import Link from "next/link";
+import { ChatIcon, LockIcon, SparkIcon } from "@/components/Icons";
 import { LANGUAGE_INFO, SELLER_LANGUAGES, type SellerLanguage } from "@/lib/i18n/seller";
 
 type SellerSettings = {
@@ -73,9 +74,9 @@ function Choice<T extends string>({
             aria-checked={on}
             key={o.v}
             onClick={() => onChange(o.v)}
-            className={`rounded-xl border px-4 py-3 text-left ${on ? "border-indigo bg-indigo-soft ring-1 ring-indigo" : "border-line-strong bg-raised hover:border-ink-3"}`}
+            className={`rounded-[0.625rem] border px-3.5 py-3 text-left transition-colors ${on ? "border-indigo bg-indigo-soft ring-1 ring-indigo" : "border-line bg-raised shadow-[var(--shadow-xs)] hover:border-line-strong hover:bg-surface"}`}
           >
-            <span className={`flex items-center gap-2 font-semibold ${on ? "text-indigo" : ""}`}>
+            <span className={`flex items-center gap-2 text-sm font-semibold ${on ? "text-indigo" : "text-ink"}`}>
               <span
                 aria-hidden="true"
                 className={`flex h-4 w-4 items-center justify-center rounded-full border-2 ${on ? "border-indigo" : "border-line-strong"}`}
@@ -84,7 +85,7 @@ function Choice<T extends string>({
               </span>
               {o.label}
             </span>
-            {o.hint && <span className="mt-1 block text-sm text-ink-2">{o.hint}</span>}
+            {o.hint && <span className="mt-1 block text-[0.8125rem] leading-snug text-ink-2">{o.hint}</span>}
           </button>
         );
       })}
@@ -96,8 +97,8 @@ function Toggle({ checked, onChange, label, hint }: { checked: boolean; onChange
   const id = useId();
   return (
     <div className="flex items-start justify-between gap-4">
-      <div>
-        <p id={`${id}-l`} className="font-semibold">
+      <div className="min-w-0">
+        <p id={`${id}-l`} className="text-sm font-semibold text-ink">
           {label}
         </p>
         {hint && (
@@ -113,12 +114,16 @@ function Toggle({ checked, onChange, label, hint }: { checked: boolean; onChange
         aria-labelledby={`${id}-l`}
         aria-describedby={hint ? `${id}-h` : undefined}
         onClick={() => onChange(!checked)}
-        className={`relative mt-0.5 h-7 w-12 shrink-0 rounded-full transition-colors ${checked ? "bg-indigo" : "bg-line-strong"}`}
+        className="group -my-2 inline-flex h-10 w-12 shrink-0 items-center justify-center rounded-full"
       >
         <span
           aria-hidden="true"
-          className={`absolute top-1 h-5 w-5 rounded-full bg-paper shadow transition-[left] ${checked ? "left-6" : "left-1"}`}
-        />
+          className={`relative block h-6 w-11 rounded-full transition-colors ${checked ? "bg-indigo" : "bg-line-strong group-hover:bg-ink-3"}`}
+        >
+          <span
+            className={`absolute top-0.5 h-5 w-5 rounded-full bg-paper shadow-[var(--shadow-sm)] transition-[left] ${checked ? "left-[1.375rem]" : "left-0.5"}`}
+          />
+        </span>
       </button>
     </div>
   );
@@ -126,10 +131,12 @@ function Toggle({ checked, onChange, label, hint }: { checked: boolean; onChange
 
 function Section({ title, body, children }: { title: string; body: string; children: React.ReactNode }) {
   return (
-    <section className="panel p-6">
-      <h2 className="title text-xl">{title}</h2>
-      <p className="mt-1 text-ink-2">{body}</p>
-      <div className="mt-5 space-y-5">{children}</div>
+    <section className="grid gap-4 border-t border-line py-8 first:border-t-0 first:pt-0 lg:grid-cols-[16rem_minmax(0,1fr)] lg:gap-10">
+      <div>
+        <h2 className="title text-base">{title}</h2>
+        <p className="mt-1.5 text-sm leading-relaxed text-ink-2">{body}</p>
+      </div>
+      <div className="panel min-w-0 space-y-6 p-5 sm:p-6">{children}</div>
     </section>
   );
 }
@@ -174,7 +181,7 @@ function McpPanel() {
             <p className="label">Connector URL (Claude, ChatGPT and other apps)</p>
             <div className="flex gap-2">
               <input className="field money text-sm" readOnly value={state.url} onFocus={(e) => e.currentTarget.select()} aria-label="Connector URL" />
-              <button type="button" className="btn btn-secondary btn-sm" onClick={() => copy("url", state.url!)}>
+              <button type="button" className="btn btn-secondary btn-sm min-h-10 shrink-0" onClick={() => copy("url", state.url!)}>
                 {copied === "url" ? "Copied" : "Copy"}
               </button>
             </div>
@@ -184,20 +191,23 @@ function McpPanel() {
             <p className="label">Claude Code</p>
             <div className="flex gap-2">
               <input className="field money text-sm" readOnly value={claudeCode} onFocus={(e) => e.currentTarget.select()} aria-label="Claude Code command" />
-              <button type="button" className="btn btn-secondary btn-sm" onClick={() => copy("cc", claudeCode)}>
+              <button type="button" className="btn btn-secondary btn-sm min-h-10 shrink-0" onClick={() => copy("cc", claudeCode)}>
                 {copied === "cc" ? "Copied" : "Copy"}
               </button>
             </div>
           </div>
-          <p className="well p-4 text-sm text-ink-2">
+          <p className="well flex gap-2.5 p-4 text-sm text-ink-2">
+            <ChatIcon size={16} className="mt-0.5 shrink-0 text-ink-3" />
+            <span>
             Then ask it: &ldquo;Find me a handwoven silk scarf on Mandi for my mum, under £90, by 20 December.&rdquo; It sends your agent, follows the bargaining,
             and hands you the link to approve the deal in PayPal.
+            </span>
           </p>
         </>
       ) : (
-        <p className="text-ink-2">No assistant connected yet.</p>
+        <p className="text-sm text-ink-2">No assistant connected yet.</p>
       )}
-      <button type="button" className="btn btn-secondary btn-sm" disabled={busy} onClick={create}>
+      <button type="button" className="btn btn-secondary btn-sm min-h-10" disabled={busy} onClick={create}>
         {state?.key ? "Make a new key" : "Create a connection key"}
       </button>
     </div>
@@ -229,12 +239,12 @@ function WhatsAppPanel({ unsaved }: { unsaved: boolean }) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-ink-2">
           {state?.live
-            ? "Messages are sent through Twilio's WhatsApp service."
-            : "WhatsApp isn't connected on this server yet, so messages are recorded here instead of sent."}
+            ? "Messages are sent on WhatsApp."
+            : "WhatsApp sending isn't switched on yet, so messages are recorded here instead of sent."}
         </p>
         <button
           type="button"
-          className="btn btn-secondary btn-sm"
+          className="btn btn-secondary btn-sm min-h-10"
           disabled={busy || unsaved}
           title={unsaved ? "Save your changes first" : undefined}
           onClick={async () => {
@@ -259,12 +269,12 @@ function WhatsAppPanel({ unsaved }: { unsaved: boolean }) {
       {state && state.messages.length > 0 && (
         <ul className="space-y-2" aria-label="Recent WhatsApp messages">
           {state.messages.map((m) => (
-            <li key={m.id} className="rounded-xl bg-raised p-3 text-sm">
+            <li key={m.id} className="rounded-[0.5rem] border border-line bg-raised p-3 text-sm">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="money text-ink-3">{m.to}</span>
+                <span className="num text-ink-3">{m.to}</span>
                 <span className="flex items-center gap-2">
                   <span className={`chip ${STATUS[m.status].cls}`}>{STATUS[m.status].label}</span>
-                  <time className="text-ink-3" dateTime={m.createdAt}>
+                  <time className="num text-xs text-ink-3" dateTime={m.createdAt}>
                     {new Date(m.createdAt).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
                   </time>
                 </span>
@@ -310,10 +320,13 @@ export default function AgentPage() {
   if (authError)
     return (
       <main className="page-narrow">
-        <div className="panel p-6">
-          <p className="title text-xl">{authError}</p>
+        <div className="panel p-6 sm:p-8">
+          <span className="icon-tile">
+            <LockIcon />
+          </span>
+          <p className="title mt-4 text-xl">{authError}</p>
           <p className="mt-1 text-ink-2">Log in to change how your agent negotiates.</p>
-          <Link href="/login?next=/agent" className="btn btn-primary mt-5">
+          <Link href="/login?next=/agent" className="btn btn-primary mt-6">
             Log in
           </Link>
         </div>
@@ -321,9 +334,26 @@ export default function AgentPage() {
     );
   if (!data)
     return (
-      <main className="page-narrow" aria-busy="true">
-        <div className="h-10 w-64 animate-pulse rounded-lg bg-surface" />
-        <div className="mt-8 h-48 animate-pulse rounded-[1.25rem] bg-surface" />
+      <main className="page max-w-5xl" aria-busy="true">
+        <span className="sr-only">Loading your agent settings</span>
+        <div className="h-4 w-20 animate-pulse rounded bg-surface" />
+        <div className="mt-3 h-9 w-48 animate-pulse rounded-lg bg-surface" />
+        <div className="mt-3 h-5 w-full max-w-xl animate-pulse rounded bg-surface" />
+        <div className="mt-10 border-t border-line pt-8">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="grid gap-4 border-t border-line py-8 first:border-t-0 first:pt-0 lg:grid-cols-[16rem_minmax(0,1fr)] lg:gap-10">
+              <div className="space-y-2">
+                <div className="h-4 w-36 animate-pulse rounded bg-surface" />
+                <div className="h-3 w-full animate-pulse rounded bg-surface" />
+                <div className="h-3 w-2/3 animate-pulse rounded bg-surface" />
+              </div>
+              <div className="panel space-y-3 p-6">
+                <div className="h-4 w-1/3 animate-pulse rounded bg-surface" />
+                <div className="h-10 w-full animate-pulse rounded-lg bg-surface" />
+              </div>
+            </div>
+          ))}
+        </div>
       </main>
     );
 
@@ -345,17 +375,23 @@ export default function AgentPage() {
   };
 
   return (
-    <main className="page-narrow pb-32">
-      <header>
-        <h1 className="display text-4xl">My agent</h1>
-        <p className="mt-3 text-lg text-ink-2">
-          {data.role === "seller" ? `${data.name}'s sales agent` : `${data.name}'s shopping agent`} negotiates with these
-          settings. Whatever you choose, your {data.role === "seller" ? "floor price" : "budget"} is enforced by Mandi&apos;s
-          rules engine and is never shown to the other side.
-        </p>
+    <main className="page max-w-5xl pb-32">
+      <header className="flex flex-wrap items-start justify-between gap-4 border-b border-line pb-8">
+        <div className="max-w-2xl">
+          <p className="eyebrow flex items-center gap-1.5">
+            <SparkIcon size={14} className="text-indigo" />
+            {data.role === "seller" ? "Sales agent" : "Shopping agent"}
+          </p>
+          <h1 className="display mt-3 text-[clamp(1.875rem,4vw,2.5rem)]">My agent</h1>
+          <p className="mt-3 text-ink-2">
+            {data.role === "seller" ? `${data.name}'s sales agent` : `${data.name}'s shopping agent`} negotiates with these
+            settings. Whatever you choose, Mandi checks every offer against your{" "}
+            {data.role === "seller" ? "floor price" : "budget"}, and it&apos;s never shown to the other side.
+          </p>
+        </div>
       </header>
 
-      <div className="mt-8 space-y-6">
+      <div className="mt-8">
         {data.role === "seller" ? (
           <>
             <Section title="How firmly it holds your price" body="How quickly your agent comes down from the list price towards your floor.">
@@ -377,7 +413,7 @@ export default function AgentPage() {
               />
               {data.settings.offerBundles && (
                 <div className="well p-4">
-                  <label htmlFor="bundle-discount" className="label flex justify-between">
+                  <label htmlFor="bundle-discount" className="label mb-0 flex justify-between">
                     <span>Largest bundle discount</span>
                     <span className="money text-indigo">{data.settings.maxBundleDiscountPct}%</span>
                   </label>
@@ -389,9 +425,9 @@ export default function AgentPage() {
                     value={data.settings.maxBundleDiscountPct}
                     onChange={(e) => setSeller({ maxBundleDiscountPct: Number(e.target.value) })}
                     aria-valuetext={`${data.settings.maxBundleDiscountPct}%`}
-                    className="block w-full accent-[var(--indigo)]"
+                    className="block h-10 w-full cursor-pointer accent-[var(--indigo)]"
                   />
-                  <p className="hint mt-1">The bundle price never goes below the second item&apos;s floor.</p>
+                  <p className="hint">The bundle price never goes below the second item&apos;s floor.</p>
                 </div>
               )}
               <div>
@@ -429,7 +465,7 @@ export default function AgentPage() {
                   <select id="language" className="field" value={data.profile.language} onChange={(e) => setProfile({ language: e.target.value as SellerLanguage })}>
                     {SELLER_LANGUAGES.map((code) => (
                       <option key={code} value={code}>
-                        {code === "en" ? "English" : `${LANGUAGE_INFO[code].native} (${LANGUAGE_INFO[code].name})`}
+                        {LANGUAGE_INFO[code].name}
                       </option>
                     ))}
                   </select>
@@ -536,7 +572,7 @@ export default function AgentPage() {
             </Section>
             <Section title="Scope" body="How widely your agent shops for each request.">
               <div>
-                <label htmlFor="max-sellers" className="label flex justify-between">
+                <label htmlFor="max-sellers" className="label mb-0 flex justify-between">
                   <span>Sellers to negotiate with at once</span>
                   <span className="money text-indigo">{data.settings.maxSellers}</span>
                 </label>
@@ -548,9 +584,9 @@ export default function AgentPage() {
                   value={data.settings.maxSellers}
                   onChange={(e) => setBuyer({ maxSellers: Number(e.target.value) })}
                   aria-valuetext={`${data.settings.maxSellers} seller${data.settings.maxSellers === 1 ? "" : "s"}`}
-                  className="block w-full accent-[var(--indigo)]"
+                  className="block h-10 w-full cursor-pointer accent-[var(--indigo)]"
                 />
-                <p className="hint mt-1">More sellers means more choice; each one is a separate negotiation.</p>
+                <p className="hint">More sellers means more choice; each one is a separate negotiation.</p>
               </div>
               <Toggle
                 checked={data.settings.acceptBundles}
@@ -558,11 +594,14 @@ export default function AgentPage() {
                 label="Accept bundles"
                 hint="Your agent may add a second item from the same seller if it fits your request and budget."
               />
-              <p className="notice text-sm">You always approve the final deal yourself, in PayPal.</p>
+              <p className="notice flex items-center gap-2 text-sm">
+                <LockIcon size={16} className="shrink-0 text-leaf" />
+                You always approve the final deal yourself, in PayPal.
+              </p>
             </Section>
             <Section
               title="Connect your own AI assistant"
-              body="Let Claude, ChatGPT or any assistant that supports MCP shop at Mandi for you: search, send your agent to bargain, and follow the deal. It can't pay. Every deal comes back to you to approve in PayPal."
+              body="Let Claude, ChatGPT or another AI assistant that accepts custom connectors shop at Mandi for you: search, send your agent to bargain, and follow the deal. It can't pay. Every deal comes back to you to approve in PayPal."
             >
               <McpPanel />
             </Section>
@@ -570,15 +609,18 @@ export default function AgentPage() {
         )}
       </div>
 
-      <div className="sticky bottom-4 z-30 mt-8">
-        <div className="panel flex flex-wrap items-center gap-x-4 gap-y-2 p-3 pl-5 shadow-[0_12px_40px_-12px_rgb(21_25_53/0.35)]">
-          <p className="flex-1 text-sm" role="status" aria-live="polite">
+      <div className="sticky bottom-4 z-30 mt-4 lg:ml-[calc(16rem+2.5rem)]">
+        <div className="panel flex flex-wrap items-center gap-x-4 gap-y-2 p-2.5 pl-4 shadow-[var(--shadow-lg)]">
+          <p className="flex min-w-0 flex-1 items-center gap-2 text-sm" role="status" aria-live="polite">
             {error ? (
               <span className="text-madder">{error}</span>
             ) : saved ? (
-              <span className="font-semibold text-leaf">Saved. Your agent uses this from its next negotiation.</span>
+              <span className="font-medium text-leaf">Saved. Your agent uses this from its next negotiation.</span>
             ) : dirty ? (
-              <span className="text-ink-2">You have unsaved changes.</span>
+              <>
+                <span aria-hidden="true" className="h-2 w-2 shrink-0 rounded-full bg-haldi" />
+                <span className="text-ink-2">You have unsaved changes.</span>
+              </>
             ) : (
               <span className="text-ink-3">Changes apply to new negotiations.</span>
             )}

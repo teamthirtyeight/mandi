@@ -3,6 +3,7 @@
 import { use, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { AuthShell } from "@/components/AuthShell";
 
 export default function ResetConfirm({ params }: { params: Promise<{ token: string }> }) {
   const { token } = use(params);
@@ -12,11 +13,9 @@ export default function ResetConfirm({ params }: { params: Promise<{ token: stri
   const [error, setError] = useState<string | null>(null);
   const short = password.length > 0 && password.length < 8;
   return (
-    <main className="page-narrow max-w-md">
-      <h1 className="display text-4xl">Choose a new password</h1>
-      <p className="mt-2 text-ink-2">You&apos;ll be logged in as soon as it&apos;s set.</p>
+    <AuthShell title="Choose a new password" subtitle="You'll be logged in as soon as it's set.">
       <form
-        className="panel mt-8 space-y-5 p-6"
+        className="panel panel-raised space-y-5 p-6"
         onSubmit={async (e) => {
           e.preventDefault();
           setBusy(true);
@@ -58,10 +57,10 @@ export default function ResetConfirm({ params }: { params: Promise<{ token: stri
             </Link>
           </div>
         )}
-        <button disabled={busy} className="btn btn-primary btn-lg w-full">
+        <button disabled={busy} className="btn btn-primary w-full">
           {busy ? "Saving…" : "Set password and log in"}
         </button>
       </form>
-    </main>
+    </AuthShell>
   );
 }

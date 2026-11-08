@@ -41,10 +41,12 @@ export function LoginPanel({ next, compact = false }: { next?: string | null; co
           go("/api/auth/login", { email, password });
         }}
       >
-        <div>
-          <h2 className="text-lg font-semibold tracking-[-0.02em]">Log in to Mandi</h2>
-          <p className="mt-0.5 text-sm text-ink-3">Welcome back. Enter your details to continue.</p>
-        </div>
+        {compact && (
+          <div>
+            <h2 className="text-lg font-semibold tracking-[-0.02em]">Log in to Mandi</h2>
+            <p className="mt-0.5 text-sm text-ink-3">Welcome back. Enter your details to continue.</p>
+          </div>
+        )}
         <div>
           <label htmlFor="login-email" className="label">
             Email

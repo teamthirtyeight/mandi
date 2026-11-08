@@ -301,7 +301,7 @@ export default function DashboardPage() {
   const avgMargin = deals.length ? deals.reduce((a, n) => a + (n.marginAboveFloor ?? 0), 0) / deals.length : null;
   const toShip = data.orders.filter((o) => o.status === "AUTHORIZED");
   const stats = [
-    { label: "Money held", value: gbp(data.tiles.held), note: "Paid by buyers, released when you ship", tone: "text-leaf" },
+    { label: "Money held", value: gbp(data.tiles.held), note: "Paid by buyers, released when you ship", tone: data.tiles.held > 0 ? "text-leaf" : "" },
     {
       label: "Paid to you",
       value: gbp(data.tiles.paidOut),
@@ -425,10 +425,12 @@ export default function DashboardPage() {
           </div>
         ))}
       </section>
-      <p className="hint -mt-2">
-        PayPal disputes:{" "}
-        {disputes?.available ? `${disputes.count} open, checked through the PayPal Agent Toolkit.` : "not checked (needs PayPal keys)."}
-      </p>
+      {disputes?.available && disputes.count === 0 && (
+        <p className="hint -mt-2 flex items-center gap-1.5">
+          <span className="h-1.5 w-1.5 rounded-full bg-leaf" aria-hidden="true" />
+          No open PayPal disputes
+        </p>
+      )}
 
       <section className="space-y-3">
         <div
@@ -458,7 +460,46 @@ export default function DashboardPage() {
         {tab === "custom" && <SellerCommissions />}
         {tab === "statement" && <Statement theme={theme} />}
         <div className={`grid gap-4 lg:grid-cols-[1fr_auto] ${tab === "custom" || tab === "statement" ? "hidden" : ""}`}>
-          <div className="min-w-0 overflow-x-auto">
+          {/* Phones get simple cards; the full grid starts at tablet width. */}
+          <ul className="space-y-2 sm:hidden">
+            {tab === "orders" &&
+              data.orders.map((o) => (
+                <MobileRow
+                  key={o.id}
+                  href={`/order/${o.id}`}
+                  title={o.listing}
+                  meta={`${o.buyer} · held ${when(o.authorizedAt)}`}
+                  status={o.status}
+                  amount={gbp(o.amount)}
+                />
+              ))}
+            {tab === "negotiations" &&
+              data.negotiations.map((n) => (
+                <MobileRow
+                  key={n.id}
+                  onClick={() => setSelected(n)}
+                  title={n.listing}
+                  meta={`${n.buyer} · ${n.rounds} rounds · started ${when(n.createdAt)}`}
+                  status={n.state}
+                  amount={gbp(n.agreed ?? n.ask)}
+                />
+              ))}
+            {tab === "listings" &&
+              data.listings.map((l) => (
+                <MobileRow
+                  key={l.id}
+                  href={`/listings/${l.id}/edit`}
+                  title={l.title}
+                  meta={`Floor ${gbp(l.floorPrice)} · ${l.negotiations} negotiations · ${l.stock} in stock`}
+                  status={l.status}
+                  amount={gbp(l.listPrice)}
+                />
+              ))}
+            {data[tab as "orders" | "negotiations" | "listings"]?.length === 0 && (
+              <li className="well p-5 text-center text-sm text-ink-3">Nothing here yet.</li>
+            )}
+          </ul>
+          <div className="hidden min-w-0 overflow-x-auto sm:block">
             <div style={{ minWidth: 640 }}>
               {tab === "orders" && (
                 <AgGridReact<Order> theme={theme} rowData={data.orders} columnDefs={orderCols} defaultColDef={defaultColDef} domLayout="autoHeight" getRowId={(p) => p.data.id} />
@@ -527,6 +568,51 @@ export default function DashboardPage() {
         </div>
       </section>
     </main>
+  );
+}
+
+function MobileRow({
+  title,
+  meta,
+  status,
+  amount,
+  href,
+  onClick,
+}: {
+  title: string;
+  meta: string;
+  status: string;
+  amount: string;
+  href?: string;
+  onClick?: () => void;
+}) {
+  const body = (
+    <>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-sm font-medium">{title}</span>
+        <span className="mt-0.5 block truncate text-xs text-ink-3">{meta}</span>
+      </span>
+      <span className="flex shrink-0 flex-col items-end gap-1">
+        <span className="stat-value text-sm">{amount}</span>
+        <span className={`chip ${TONE[status] ?? ""}`}>
+          {LABEL[status] ?? status.charAt(0).toUpperCase() + status.slice(1).toLowerCase().replaceAll("_", " ")}
+        </span>
+      </span>
+    </>
+  );
+  const cls = "panel flex w-full items-center gap-3 p-3.5 text-left hover:border-line-strong";
+  return (
+    <li>
+      {href ? (
+        <Link href={href} className={cls}>
+          {body}
+        </Link>
+      ) : (
+        <button type="button" onClick={onClick} className={cls}>
+          {body}
+        </button>
+      )}
+    </li>
   );
 }
 

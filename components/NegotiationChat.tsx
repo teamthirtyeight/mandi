@@ -30,6 +30,10 @@ export type ChatOutcome =
   | { kind: "blocked"; text: string }
   | null;
 
+/** True for replies like "I can do £84.20." that add nothing beyond the price. */
+const onlyStatesPrice = (text: string) =>
+  /^(i can do|how about|would you (do|take|accept)|my offer is|offer:?)\s*[£$€₹]?\s?[\d,]+(\.\d+)?\s*[.?!]?$/i.test(text.trim());
+
 const money = (n: number, currency: string) =>
   new Intl.NumberFormat("en-GB", { style: "currency", currency, maximumFractionDigits: Number.isInteger(n) ? 0 : 2 }).format(n);
 
@@ -128,22 +132,23 @@ export function NegotiationChat({
               )}
             </li>
           ) : (
-            <li key={l.id} className={`chat-line flex items-end gap-3 ${l.from === "buyer" ? "flex-row-reverse" : ""}`} style={delay(i)}>
+            <li key={l.id} className={`chat-line flex ${l.from === "buyer" ? "justify-end" : ""}`} style={delay(i)}>
               <div
-                className={`max-w-[78%] rounded-2xl px-3.5 py-2 text-sm leading-relaxed ${
+                className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed ${
                   l.from === "seller" ? "rounded-bl-md border border-line bg-surface" : "rounded-br-md bg-indigo-soft"
                 }`}
               >
-                <p>{l.text}</p>
+                {/* The price leads each offer, so a reply that only restates it isn't repeated. */}
+                {l.price != null && (
+                  <p className={`money text-base leading-tight ${l.from === "buyer" ? "text-indigo" : ""}`}>{money(l.price, currency)}</p>
+                )}
+                {!(l.price != null && onlyStatesPrice(l.text)) && <p className={l.price != null ? "mt-1 text-ink-2" : ""}>{l.text}</p>}
                 {l.notes && l.notes.length > 0 && (
-                  <p className={`mt-1 text-xs ${l.notes.some((n) => /inject|withheld/i.test(n)) ? "font-semibold text-madder" : "text-ink-3"}`}>
+                  <p className={`mt-1.5 text-xs ${l.notes.some((n) => /inject|withheld/i.test(n)) ? "font-semibold text-madder" : "text-ink-3"}`}>
                     {l.notes.join(", ")}
                   </p>
                 )}
               </div>
-              {l.price != null && (
-                <span className={`money shrink-0 pb-1.5 text-base ${l.from === "buyer" ? "text-indigo" : ""}`}>{money(l.price, currency)}</span>
-              )}
             </li>
           ),
         )}

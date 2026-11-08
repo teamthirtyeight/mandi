@@ -6,6 +6,7 @@
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { CheckIcon, LockIcon, PackageIcon, ShieldIcon } from "@/components/Icons";
 
 interface Data {
   price: string;
@@ -22,6 +23,12 @@ const STATUS: Record<string, { label: string; chip: string }> = {
   CANCELLED: { label: "Cancelled", chip: "" },
   EXPIRED: { label: "Ended", chip: "" },
 };
+
+const INCLUDED = [
+  { icon: PackageIcon, text: "One handmade piece every month" },
+  { icon: CheckIcon, text: "A different artisan each time" },
+  { icon: ShieldIcon, text: "Each payment goes to that month's artisan" },
+];
 
 function Monthly() {
   const params = useSearchParams();
@@ -67,33 +74,66 @@ function Monthly() {
   const sub = data?.subscription;
   const active = sub && ["ACTIVE", "APPROVED"].includes(sub.status);
   const price = data ? new Intl.NumberFormat("en-US", { style: "currency", currency: data.currency }).format(Number(data.price)) : "";
+  const loading = !data && !error;
 
   return (
     <main className="page">
-      <div className="grid items-start gap-10 lg:grid-cols-[1.1fr_1fr]">
-        <section className="space-y-6">
-          <h1 className="display text-5xl sm:text-6xl">A different artisan every month.</h1>
-          <p className="max-w-xl text-lg text-ink-2">
-            One handmade piece a month, from a weaver in Varanasi one month and an embroiderer in Kutch the next. Each month&apos;s payment goes to that
-            month&apos;s artisan, through PayPal.
-          </p>
-          <div className="panel max-w-xl space-y-4 p-5 sm:p-6">
-            <p className="flex items-baseline gap-2">
-              <span className="money text-4xl">{price || "–"}</span>
-              <span className="text-ink-3">a month, shipping included. Cancel any time.</span>
+      {/* Intro */}
+      <header className="max-w-3xl">
+        <p className="eyebrow">Mandi Monthly</p>
+        <h1 className="display mt-3 text-[clamp(2.25rem,5.4vw,3.75rem)]">A different artisan every month.</h1>
+        <p className="lede mt-5 max-w-xl">
+          One handmade piece a month, from a weaver in Varanasi one month and an embroiderer in Kutch the next. Each month&apos;s payment goes to that
+          month&apos;s artisan, through PayPal.
+        </p>
+      </header>
+
+      <div className="mt-10 grid grid-cols-[minmax(0,1fr)] items-start gap-8 lg:grid-cols-[minmax(0,1fr)_25rem] lg:gap-12">
+        {/* Plan card: first on phones, sticky on the right on desktop */}
+        <section className="panel panel-raised overflow-hidden lg:sticky lg:top-24 lg:col-start-2 lg:row-start-1" aria-labelledby="plan-heading">
+          <div className="border-b border-line px-5 py-5 sm:px-6">
+            <h2 id="plan-heading" className="text-sm font-semibold text-ink-2">
+              Monthly subscription
+            </h2>
+            <p className="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-1">
+              {loading ? (
+                <span className="inline-block h-10 w-28 animate-pulse rounded-lg bg-surface" aria-hidden="true" />
+              ) : (
+                <span className="money text-[2.5rem] leading-none">{price || "–"}</span>
+              )}
+              <span className="text-sm text-ink-3">a month, shipping included. Cancel any time.</span>
             </p>
+          </div>
+
+          <div className="space-y-4 px-5 py-5 sm:px-6">
+            <ul className="space-y-2.5 text-sm text-ink-2">
+              {INCLUDED.map(({ icon: IconComponent, text }) => (
+                <li key={text} className="flex items-start gap-2.5">
+                  <IconComponent size={16} className="mt-0.5 shrink-0 text-leaf" />
+                  {text}
+                </li>
+              ))}
+            </ul>
+
             {params.get("subscribed") && !active && sub?.status === "APPROVAL_PENDING" && (
-              <p className="notice">PayPal hasn&apos;t confirmed it yet. This page updates once it does.</p>
+              <p className="notice text-sm">PayPal hasn&apos;t confirmed it yet. This page updates once it does.</p>
             )}
             {sub && (
-              <p className="flex flex-wrap items-center gap-2">
-                <span className={`chip ${STATUS[sub.status]?.chip ?? ""}`}>{STATUS[sub.status]?.label ?? sub.status}</span>
-                <span className="text-sm text-ink-3">PayPal subscription {sub.id}</span>
+              <div className="well space-y-1.5 p-3.5">
+                <p className="stat-label">Your subscription</p>
+                <p className="flex flex-wrap items-center gap-2">
+                  <span className={`chip ${STATUS[sub.status]?.chip ?? ""}`}>{STATUS[sub.status]?.label ?? sub.status}</span>
+                </p>
+                <p className="num break-all text-xs text-ink-3">PayPal subscription {sub.id}</p>
+              </div>
+            )}
+            {error && (
+              <p role="alert" className="notice notice-bad text-sm">
+                {error}
               </p>
             )}
-            {error && <p className="notice notice-bad">{error}</p>}
             {needsLogin && (
-              <p className="notice">
+              <p className="notice text-sm">
                 <Link href="/login?next=/monthly" className="font-semibold underline">
                   Log in as a buyer
                 </Link>{" "}
@@ -101,39 +141,71 @@ function Monthly() {
               </p>
             )}
             {active ? (
-              <button className="btn btn-secondary" disabled={busy} onClick={cancel}>
+              <button className="btn btn-secondary btn-lg w-full" disabled={busy} onClick={cancel}>
                 Cancel subscription
               </button>
             ) : sub?.status === "APPROVAL_PENDING" && sub.approveUrl ? (
-              <a className="btn btn-primary" href={sub.approveUrl}>
+              <a className="btn btn-primary btn-lg w-full" href={sub.approveUrl}>
                 Approve in PayPal
               </a>
             ) : (
-              <button className="btn btn-primary" disabled={busy || !data} onClick={subscribe}>
+              <button className="btn btn-primary btn-lg w-full" disabled={busy || !data} onClick={subscribe}>
                 {busy ? "Opening PayPal…" : "Subscribe with PayPal"}
               </button>
             )}
-            <p className="hint">You approve the subscription in PayPal. Mandi never sees your card.</p>
           </div>
+
+          <p className="flex items-start gap-2.5 border-t border-line bg-surface px-5 py-3.5 text-xs text-ink-3 sm:px-6">
+            <LockIcon size={15} className="mt-px shrink-0 text-leaf" />
+            You approve the subscription in PayPal. Mandi never sees your card.
+          </p>
         </section>
 
-        {data?.artisan && (
-          <section className="panel overflow-hidden" aria-label="This month's artisan">
-            {data.artisan.photoUrl && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={data.artisan.photoUrl} alt={data.artisan.craft ?? data.artisan.name} className="aspect-[4/3] w-full object-cover" />
-            )}
-            <div className="space-y-3 p-5 sm:p-6">
-              <p className="text-sm text-ink-3">This month&apos;s artisan</p>
-              <h2 className="title text-3xl">
-                {data.artisan.name}, {data.artisan.city}
-              </h2>
-              {data.artisan.craft && <p className="text-ink-2">{data.artisan.craft}</p>}
-              {data.artisan.quote && <blockquote className="border-l-2 border-haldi pl-4 text-lg">&ldquo;{data.artisan.quote}&rdquo;</blockquote>}
-              {data.artisan.photoCredit && <p className="text-xs text-ink-3">Photo: {data.artisan.photoCredit}</p>}
+        {/* This month's artisan */}
+        <div className="min-w-0 lg:col-start-1 lg:row-start-1">
+          {loading ? (
+            <div className="panel overflow-hidden" aria-busy="true">
+              <p className="sr-only" role="status">
+                Loading this month&apos;s artisan
+              </p>
+              <div className="aspect-[16/10] w-full animate-pulse bg-surface" />
+              <div className="space-y-3 p-5 sm:p-8">
+                <div className="h-3 w-32 animate-pulse rounded bg-surface" />
+                <div className="h-8 w-2/3 animate-pulse rounded-lg bg-surface" />
+                <div className="h-4 w-1/3 animate-pulse rounded bg-surface" />
+              </div>
             </div>
-          </section>
-        )}
+          ) : data?.artisan ? (
+            <section className="panel overflow-hidden" aria-label="This month's artisan">
+              {data.artisan.photoUrl && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={data.artisan.photoUrl} alt={data.artisan.craft ?? data.artisan.name} className="aspect-[16/10] w-full bg-surface object-cover" />
+              )}
+              <div className="p-5 sm:p-8">
+                <p className="eyebrow">This month&apos;s artisan</p>
+                <h2 className="title mt-2 text-2xl sm:text-3xl">
+                  {data.artisan.name}, {data.artisan.city}
+                </h2>
+                {data.artisan.craft && <p className="chip chip-agreed mt-3">{data.artisan.craft}</p>}
+                {data.artisan.quote && (
+                  <blockquote className="well mt-6 border-l-[3px] border-haldi p-4 sm:p-5">
+                    <p className="title text-lg sm:text-xl">&ldquo;{data.artisan.quote}&rdquo;</p>
+                    <footer className="hint mt-1.5">{data.artisan.name}</footer>
+                  </blockquote>
+                )}
+                {data.artisan.photoCredit && <p className="mt-6 text-xs text-ink-3">Photo: {data.artisan.photoCredit}</p>}
+              </div>
+            </section>
+          ) : !data ? (
+            <div className="well flex flex-col items-center px-6 py-12 text-center">
+              <span className="icon-tile h-12 w-12">
+                <PackageIcon size={22} />
+              </span>
+              <p className="title mt-4 text-lg">We couldn&apos;t load this month&apos;s artisan</p>
+              <p className="mt-1 text-sm text-ink-2">Refresh the page to try again.</p>
+            </div>
+          ) : null}
+        </div>
       </div>
     </main>
   );
