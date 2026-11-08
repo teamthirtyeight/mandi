@@ -8,6 +8,8 @@ import { Suspense, useState } from "react";
 import Link from "next/link";
 import { LANGUAGE_INFO, SELLER_LANGUAGES } from "@/lib/i18n/seller";
 import { useRouter, useSearchParams } from "next/navigation";
+import { AuthShell } from "@/components/AuthShell";
+import { ChatIcon, PackageIcon } from "@/components/Icons";
 
 type Role = "buyer" | "seller";
 
@@ -58,32 +60,38 @@ function SignupForm() {
   const passwordShort = f.password.length > 0 && f.password.length < 8;
 
   return (
-    <main className="page-narrow">
-      <h1 className="display text-4xl">Create an account</h1>
-      <p className="mt-2 text-ink-2">Free to join. You only pay when you approve a deal in PayPal.</p>
-
-      <fieldset className="mt-8">
+    <AuthShell wide title="Create your account" subtitle="Free to join. You only pay when you approve a deal in PayPal.">
+      <fieldset>
         <legend className="label">Account type</legend>
         <div role="radiogroup" className="grid gap-2 sm:grid-cols-2">
-          {ROLES.map((r) => (
-            <button
-              key={r.value}
-              type="button"
-              role="radio"
-              aria-checked={role === r.value}
-              onClick={() => setRole(r.value)}
-              className={`rounded-xl border px-4 py-3 text-left ${
-                role === r.value ? "border-indigo bg-indigo-soft ring-1 ring-indigo" : "border-line-strong bg-raised hover:border-ink-3"
-              }`}
-            >
-              <span className={`block font-semibold ${role === r.value ? "text-indigo" : ""}`}>{r.title}</span>
-              <span className="block text-sm text-ink-2">{r.body}</span>
-            </button>
-          ))}
+          {ROLES.map((r) => {
+            const on = role === r.value;
+            const RoleIcon = r.value === "buyer" ? ChatIcon : PackageIcon;
+            return (
+              <button
+                key={r.value}
+                type="button"
+                role="radio"
+                aria-checked={on}
+                onClick={() => setRole(r.value)}
+                className={`flex items-start gap-3 rounded-lg border px-4 py-3.5 text-left shadow-[var(--shadow-xs)] transition-colors ${
+                  on ? "border-indigo bg-indigo-soft ring-1 ring-indigo" : "border-line-strong bg-raised hover:bg-surface"
+                }`}
+              >
+                <span className={`mt-0.5 ${on ? "text-indigo" : "text-ink-3"}`}>
+                  <RoleIcon size={18} />
+                </span>
+                <span>
+                  <span className={`block text-sm font-semibold ${on ? "text-indigo" : ""}`}>{r.title}</span>
+                  <span className="mt-0.5 block text-sm text-ink-2">{r.body}</span>
+                </span>
+              </button>
+            );
+          })}
         </div>
       </fieldset>
 
-      <form onSubmit={submit} className="panel mt-6 space-y-6 p-6">
+      <form onSubmit={submit} className="panel panel-raised mt-6 space-y-6 p-6">
         <div className="space-y-5">
           <div>
             <label htmlFor="su-name" className="label">
@@ -133,7 +141,7 @@ function SignupForm() {
           <>
             <div className="space-y-5 border-t border-line pt-6">
               <div>
-                <h2 className="title text-xl">Your shop</h2>
+                <h2 className="text-base font-semibold tracking-[-0.015em]">Your shop</h2>
                 <p className="hint mt-1">Your agent uses this to tell buyers about you and to defend your price.</p>
               </div>
               <div className="grid grid-cols-[1fr_7rem] gap-3">
@@ -170,7 +178,7 @@ function SignupForm() {
                 <select id="su-language" className="field" value={f.language} onChange={set("language")}>
                   {SELLER_LANGUAGES.map((code) => (
                     <option key={code} value={code}>
-                      {code === "en" ? "English" : `${LANGUAGE_INFO[code].native} (${LANGUAGE_INFO[code].name})`}
+                      {LANGUAGE_INFO[code].name}
                     </option>
                   ))}
                 </select>
@@ -180,7 +188,7 @@ function SignupForm() {
 
             <div className="space-y-5 border-t border-line pt-6">
               <div>
-                <h2 className="title text-xl">Getting paid</h2>
+                <h2 className="text-base font-semibold tracking-[-0.015em]">Getting paid</h2>
               </div>
               <div>
                 <label htmlFor="su-paypal" className="label">
@@ -189,7 +197,7 @@ function SignupForm() {
                 <input id="su-paypal" className="field" type="email" value={f.paypalEmail} onChange={set("paypalEmail")} aria-describedby="su-paypal-hint" />
                 <p id="su-paypal-hint" className="hint mt-1.5">
                   No PayPal account? Leave this empty. After you sign up, connect PayPal from My agent, where you can create a free
-                  PayPal business account without leaving Mandi.
+                  PayPal business account without leaving Mandix.
                 </p>
               </div>
               <div>
@@ -207,7 +215,7 @@ function SignupForm() {
             </div>
 
             <div className="space-y-5 border-t border-line pt-6">
-              <h2 className="title text-xl">Shipping</h2>
+              <h2 className="text-base font-semibold tracking-[-0.015em]">Shipping</h2>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label htmlFor="su-shipby" className="label">
@@ -238,17 +246,17 @@ function SignupForm() {
             {error}
           </p>
         )}
-        <button disabled={busy} className="btn btn-primary btn-lg w-full">
+        <button disabled={busy} className="btn btn-primary w-full">
           {busy ? "Creating your account…" : role === "seller" ? "Create seller account" : "Create account"}
         </button>
-        <p className="text-center text-sm text-ink-2">
+        <p className="text-center text-sm text-ink-3">
           Already have an account?{" "}
-          <Link href="/login" className="link">
+          <Link href="/login" className="font-medium text-indigo hover:underline">
             Log in
           </Link>
         </p>
       </form>
-    </main>
+    </AuthShell>
   );
 }
 

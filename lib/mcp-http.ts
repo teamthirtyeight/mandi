@@ -7,7 +7,7 @@ export async function mcpPost(req: Request, keyFromPath: string | null) {
   const user = await userForKey(keyFromPath ?? bearer);
   if (!user) {
     return NextResponse.json(
-      { jsonrpc: "2.0", id: null, error: { code: -32001, message: "Unknown Mandi key. Create one on Mandi under My agent → Connect your AI assistant." } },
+      { jsonrpc: "2.0", id: null, error: { code: -32001, message: "Unknown Mandix key. Create one on Mandix under My agent → Connect your AI assistant." } },
       { status: 401 },
     );
   }
@@ -21,5 +21,5 @@ export async function mcpPost(req: Request, keyFromPath: string | null) {
   return out ? NextResponse.json(out) : new Response(null, { status: 202 });
 }
 
-/** MCP clients may open a GET stream for server messages; Mandi has none to send. */
-export const mcpGet = () => new Response("Mandi's MCP server answers POST requests only.", { status: 405, headers: { Allow: "POST" } });
+/** MCP clients may open a GET stream for server messages; Mandix has none to send. */
+export const mcpGet = () => new Response("Mandix's MCP server answers POST requests only.", { status: 405, headers: { Allow: "POST" } });

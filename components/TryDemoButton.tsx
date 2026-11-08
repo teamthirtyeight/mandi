@@ -3,7 +3,16 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-export function TryDemoButton({ hostile = false, label = "Try the demo" }: { hostile?: boolean; label?: string }) {
+export function TryDemoButton({
+  hostile = false,
+  label = "Try the demo",
+  className,
+}: {
+  hostile?: boolean;
+  label?: string;
+  /** Replaces the default button style. */
+  className?: string;
+}) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -23,7 +32,7 @@ export function TryDemoButton({ hostile = false, label = "Try the demo" }: { hos
           router.push(`/deal/${body.mandateId}`);
           router.refresh(); // the nav picks up the demo sign-in
         }}
-        className={hostile ? "btn btn-secondary" : "btn btn-primary btn-lg"}
+        className={className ?? (hostile ? "btn btn-secondary" : "btn btn-primary btn-lg")}
       >
         {busy ? "Starting the agents…" : label}
       </button>

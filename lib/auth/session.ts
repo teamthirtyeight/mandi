@@ -5,7 +5,7 @@ import { eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { createToken, readSession, SESSION_TTL_MS } from "./token";
 
-export const SESSION_COOKIE = "mandi_session";
+export const SESSION_COOKIE = "mandix_session";
 
 export type SessionUser = typeof schema.users.$inferSelect;
 

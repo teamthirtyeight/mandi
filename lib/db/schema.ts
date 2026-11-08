@@ -96,7 +96,7 @@ export const users = pgTable("users", {
   maxSellers: integer("max_sellers").notNull().default(3),
   acceptBundles: boolean("accept_bundles").notNull().default(true),
   priority: text("priority").notNull().default("balanced"), // price | balanced | delivery
-  // Buyers: key for the Mandi MCP server, so their own AI assistant can shop (app/api/mcp).
+  // Buyers: key for the Mandix MCP server, so their own AI assistant can shop (app/api/mcp).
   apiKey: text("api_key"),
   // Sessions issued before this moment are no longer accepted (set when the password changes).
   sessionsValidAfter: timestamp("sessions_valid_after"),
@@ -218,7 +218,7 @@ export const orders = pgTable("orders", {
   status: orderStatus("status").notNull().default("CREATED"),
   trackingNumber: text("tracking_number"),
   carrier: text("carrier"),
-  // Who PayPal pays: the seller's own account, or null for the Mandi merchant.
+  // Who PayPal pays: the seller's own account, or null for the Mandix merchant.
   payeeEmail: text("payee_email"),
   // Stock was taken for this order's item(s); given back if the hold is voided.
   stockReserved: boolean("stock_reserved").notNull().default(false),
@@ -278,7 +278,7 @@ export const passwordResets = pgTable("password_resets", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
-// Every WhatsApp message Mandi sends (or would send, without Twilio keys), so
+// Every WhatsApp message Mandix sends (or would send, without Twilio keys), so
 // sellers and judges can see exactly what went out.
 export const whatsappMessages = pgTable("whatsapp_messages", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -320,7 +320,7 @@ export const commissions = pgTable("commissions", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
-// Mandi Monthly: a PayPal subscription for one craft piece a month.
+// Mandix Monthly: a PayPal subscription for one craft piece a month.
 export const subscriptions = pgTable("subscriptions", {
   id: uuid("id").primaryKey().defaultRandom(),
   buyerUserId: uuid("buyer_user_id")
@@ -332,7 +332,7 @@ export const subscriptions = pgTable("subscriptions", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
-// Values Mandi creates once in PayPal and reuses, such as the Mandi Monthly plan id.
+// Values Mandix creates once in PayPal and reuses, such as the Mandix Monthly plan id.
 export const appSettings = pgTable("app_settings", {
   key: text("key").primaryKey(),
   value: text("value").notNull(),

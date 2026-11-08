@@ -3,21 +3,30 @@ import { getUser } from "@/lib/auth/session";
 import { LoginPanel } from "@/components/LoginPanel";
 import { TryDemoButton } from "@/components/TryDemoButton";
 import { NegotiationChat } from "@/components/NegotiationChat";
-import { LANGUAGE_INFO, SELLER_LANGUAGES } from "@/lib/i18n/seller";
+import {
+  ArrowRightIcon,
+  ChatIcon,
+  CheckIcon,
+  LockIcon,
+  PackageIcon,
+  RefundIcon,
+  ShieldIcon,
+  SparkIcon,
+} from "@/components/Icons";
 
-const BUYERS = [
+const BUYER_STEPS = [
   { title: "Say it once", body: "“Silk scarf for my mum, under £90, by Dec 20.” That's the whole brief." },
-  { title: "Your agent haggles", body: "It bargains with several makers at once, and never goes over your budget or tells them what it is." },
-  { title: "Pay when it ships", body: "You approve the best deal in PayPal. The money is held, not paid, until the seller ships." },
+  { title: "Your agent haggles", body: "It bargains with several makers at once and never goes over your budget or reveals it." },
+  { title: "Approve and pay when it ships", body: "You approve the best deal in PayPal. The money is held until the seller ships." },
 ];
 
-const SELLERS = [
-  { title: "List by talking", body: "Photos and a voice note in Hindi, Tamil or Bengali become an English listing in a minute." },
-  { title: "Sell while you weave", body: "Your agent answers buyers around the clock and never goes below your floor price." },
-  { title: "Hear it on WhatsApp", body: "Every sale, payment and refund arrives on your phone, in your language, in rupees." },
+const SELLER_STEPS = [
+  { title: "List by talking", body: "A few photos and a short voice note become a polished listing in minutes." },
+  { title: "Sell while you work", body: "Your agent answers buyers around the clock and never goes below your floor price." },
+  { title: "Get alerts on WhatsApp", body: "Every sale, payment and refund arrives on your phone straight away." },
 ];
 
-// A real negotiation from the demo, replayed: the thing Mandi does.
+// A real negotiation from the demo, replayed: the thing Mandix does.
 const HAGGLE: { who: "seller" | "buyer"; text: string; price: number }[] = [
   { who: "seller", text: "Pure mulberry silk with a zari border, woven on a pit loom over four days.", price: 95 },
   { who: "buyer", text: "It's lovely, and it's for my mum. Would you do £70?", price: 70 },
@@ -27,18 +36,21 @@ const HAGGLE: { who: "seller" | "buyer"; text: string; price: number }[] = [
   { who: "buyer", text: "£80 with the wrapping and I'll buy it now.", price: 80 },
 ];
 
-const SAFETY = [
+const SAFEGUARDS = [
   {
+    icon: LockIcon,
     title: "Agents talk, people decide",
-    body: "No agent can move money. You approve the payment in PayPal; the seller is paid only when they ship with tracking.",
+    body: "No agent can move money. Buyers approve every payment in PayPal, and sellers are paid only after they ship with tracking.",
   },
   {
-    title: "Limits that can't be argued away",
-    body: "A rules engine checks every offer. Budgets and floor prices are never broken or revealed, even by a hijacked agent.",
+    icon: ShieldIcon,
+    title: "Limits enforced in code",
+    body: "Mandix checks every offer before it's sent. Budgets and floor prices are never broken or revealed, even by a hijacked agent.",
   },
   {
-    title: "Problems get sorted",
-    body: "Report an issue with a photo. The seller's agent refunds small amounts at once; bigger ones go to the seller.",
+    icon: RefundIcon,
+    title: "Problems get resolved",
+    body: "Report an issue with a photo. Small refunds are handled at once, and larger ones go to the seller to approve.",
   },
 ];
 
@@ -47,118 +59,212 @@ export default async function Home() {
 
   return (
     <main>
-      {/* Why Mandi, with login on the right */}
-      <section className="mx-auto grid max-w-6xl gap-10 px-4 pb-16 pt-10 sm:px-6 lg:grid-cols-[1fr_24rem] lg:gap-16 lg:pt-16">
-        <div>
-          <h1 className="display text-[clamp(2.75rem,6.5vw,4.5rem)]">Send an agent to the bazaar.</h1>
-          <p className="mt-5 max-w-[36rem] text-xl text-ink-2">
-            Mandi is a market where AI agents bargain for you. Buyers get a fair price on handmade work; artisans in India
-            sell abroad in their own language. PayPal holds the money until the piece ships.
-          </p>
+      {/* Hero, with login on the right */}
+      <section className="relative overflow-hidden border-b border-line">
+        <div
+          className="pointer-events-none absolute inset-0 opacity-60 [background-image:radial-gradient(var(--line)_1px,transparent_1px)] [background-size:22px_22px] [mask-image:linear-gradient(to_bottom,black,transparent_85%)]"
+          aria-hidden="true"
+        />
+        <div className="relative mx-auto grid max-w-[76rem] gap-12 px-4 pb-20 pt-14 sm:px-6 lg:grid-cols-[1fr_25rem] lg:gap-16 lg:pt-20">
+          <div className="max-w-[40rem]">
+            <span className="chip chip-progress">
+              <SparkIcon size={13} />
+              Agent-to-agent commerce, settled by PayPal
+            </span>
+            <h1 className="display mt-6 text-[clamp(2.5rem,5.4vw,4rem)]">
+              Send an agent to the{" "}
+              <span className="bg-[linear-gradient(transparent_64%,var(--haldi)_64%,var(--haldi)_90%,transparent_90%)] box-decoration-clone">
+                bazaar.
+              </span>
+            </h1>
+            <p className="lede mt-5 max-w-[34rem] text-lg">
+              Mandix is a marketplace where AI agents negotiate for you. Buyers get a fair price on handmade work, artisans
+              in India sell worldwide, and PayPal holds the money until the piece ships.
+            </p>
 
-          <div className="mt-10 grid gap-8 sm:grid-cols-2">
-            <Audience heading="If you're buying" tone="indigo" points={BUYERS} />
-            <Audience heading="If you're selling" tone="haldi" points={SELLERS} />
+            <div className="mt-8 flex flex-wrap items-start gap-3">
+              <TryDemoButton className="btn btn-primary btn-lg" label="Watch a live negotiation" />
+              <Link href="/browse" className="btn btn-secondary btn-lg">
+                Browse the work
+                <ArrowRightIcon size={16} />
+              </Link>
+            </div>
+
+            <ul className="mt-10 grid gap-4 border-t border-line pt-6 sm:grid-cols-3">
+              {[
+                { icon: LockIcon, text: "Payment held until it ships" },
+                { icon: ShieldIcon, text: "Budgets enforced in code" },
+                { icon: CheckIcon, text: "You approve every deal" },
+              ].map(({ icon: IconComponent, text }) => (
+                <li key={text} className="flex items-center gap-2.5 text-sm font-medium text-ink-2">
+                  <IconComponent size={17} className="shrink-0 text-indigo" />
+                  {text}
+                </li>
+              ))}
+            </ul>
           </div>
-        </div>
 
-        <aside className="lg:sticky lg:top-24 lg:self-start" aria-label={user ? "Your account" : "Log in"}>
-          {user ? <SignedIn name={user.name} role={user.role} /> : <LoginPanel compact />}
-        </aside>
+          <aside className="lg:self-start" aria-label={user ? "Your account" : "Log in"}>
+            {user ? <SignedIn name={user.name} role={user.role} /> : <LoginPanel compact />}
+          </aside>
+        </div>
       </section>
 
       {/* Proof: a real deal, end to end */}
-      <section className="border-y border-line bg-surface">
-        <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
-          <h2 className="title text-3xl">One request, start to finish</h2>
-          <p className="mt-2 max-w-2xl text-ink-2">
-            Sarah asked for a silk scarf under £90. Her agent bargained with three sellers at once. Here is Meera&apos;s side
-            of it, and the message Meera got when it sold.
-          </p>
-          <div className="mt-8 grid items-start gap-8 lg:grid-cols-[1fr_1fr]">
+      <section className="bg-surface">
+        <div className="mx-auto max-w-[76rem] px-4 py-20 sm:px-6">
+          <div className="grid items-center gap-12 lg:grid-cols-[22rem_1fr] lg:gap-16">
+            <div>
+              <p className="eyebrow">See it work</p>
+              <h2 className="title mt-3 text-3xl">One request, start to finish</h2>
+              <p className="lede mt-4">
+                Sarah asked for a silk scarf under £90. Her agent negotiated with three sellers at once and closed with
+                Meera at £80, with gift wrapping included.
+              </p>
+              <ul className="mt-6 space-y-3 text-sm text-ink-2">
+                {[
+                  "Six messages from first offer to agreement",
+                  "£10 under budget, which Meera's agent never saw",
+                  "Meera was alerted on WhatsApp the moment it sold",
+                ].map((item) => (
+                  <li key={item} className="flex items-start gap-2.5">
+                    <CheckIcon size={16} className="mt-0.5 shrink-0 text-leaf" />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
             <HaggleReplay />
-            <figure className="space-y-3">
-              <div className="rounded-[1.25rem] bg-[#e7ded3] p-4 dark:bg-[#1f2a2a]">
-                <div className="ml-auto max-w-[92%] overflow-hidden rounded-xl rounded-tr-sm bg-white shadow-sm dark:bg-[#1e3a33]">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src="/whatsapp-sold-card.png"
-                    alt="WhatsApp card in Hindi: बिक गया! ₹10,057, £80.00, Handwoven Banarasi silk scarf, please ship within 2 days, the money is held safely by PayPal."
-                    width={1200}
-                    height={750}
-                    className="block h-auto w-full"
-                  />
-                  <p lang="hi" className="px-3 pb-2 pt-2 text-[0.9375rem] leading-snug text-[#111b21] dark:text-[#e9edef]">
-                    <b>बिक गया! ₹10,057 (£80.00)</b>
-                    <br />
-                    कृपया 2 दिन में भेजें। पैसा PayPal में सुरक्षित है।
-                  </p>
-                </div>
-              </div>
-              <figcaption className="hint">
-                What Meera received on WhatsApp, in Hindi and rupees. She ships, adds tracking, and PayPal pays her.
-              </figcaption>
-            </figure>
           </div>
+        </div>
+      </section>
+
+      {/* How it works */}
+      <section className="mx-auto max-w-[76rem] px-4 py-20 sm:px-6">
+        <div className="max-w-2xl">
+          <p className="eyebrow">How it works</p>
+          <h2 className="title mt-3 text-3xl">Built for both sides of the deal</h2>
+        </div>
+        <div className="mt-10 grid gap-6 md:grid-cols-2">
+          <Steps icon={ChatIcon} heading="For buyers" steps={BUYER_STEPS} href="/signup?role=buyer" cta="Start shopping" />
+          <Steps
+            icon={PackageIcon}
+            heading="For artisans"
+            steps={SELLER_STEPS}
+            href="/signup?role=seller"
+            cta="Start selling"
+          />
         </div>
       </section>
 
       {/* Why it's safe */}
-      <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
-        <h2 className="title text-3xl">Built so nobody gets cheated</h2>
-        <div className="mt-8 grid gap-8 md:grid-cols-3">
-          {SAFETY.map((s) => (
-            <div key={s.title}>
-              <h3 className="title text-xl">{s.title}</h3>
-              <p className="mt-2 text-ink-2">{s.body}</p>
+      <section className="border-y border-line bg-surface">
+        <div className="mx-auto max-w-[76rem] px-4 py-20 sm:px-6">
+          <div className="flex flex-wrap items-end justify-between gap-6">
+            <div className="max-w-2xl">
+              <p className="eyebrow">Trust and safety</p>
+              <h2 className="title mt-3 text-3xl">Built so nobody gets cheated</h2>
             </div>
-          ))}
-        </div>
-        <div className="mt-8 flex flex-wrap items-center gap-3">
-          <TryDemoButton hostile label="Run the attack test" />
-          <span className="hint">A hijacked seller agent tries to make the buyer overpay. Watch the engine stop it.</span>
+            <div className="flex items-center gap-3">
+              <TryDemoButton hostile label="Run the attack test" />
+            </div>
+          </div>
+          <div className="mt-10 grid gap-5 md:grid-cols-3">
+            {SAFEGUARDS.map(({ icon: IconComponent, title, body }) => (
+              <div key={title} className="panel p-6">
+                <span className="icon-tile">
+                  <IconComponent size={18} />
+                </span>
+                <h3 className="mt-5 font-semibold tracking-[-0.015em]">{title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-ink-2">{body}</p>
+              </div>
+            ))}
+          </div>
+          <p className="hint mt-6">
+            The attack test hijacks a seller agent and tries to make the buyer overpay, so you can watch the engine stop it.
+          </p>
         </div>
       </section>
 
-      {/* The potential: every maker, every language */}
-      <section className="border-t border-line">
-        <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
-          <h2 className="title text-3xl">Every maker, in their own language</h2>
-          <p className="mt-2 max-w-2xl text-ink-2">
-            India has millions of weavers, printers and embroiderers who can&apos;t sell abroad because of language, haggling
-            and trust. Mandi&apos;s agents handle all three. Sellers can already work in:
-          </p>
-          <ul className="mt-6 flex flex-wrap gap-2.5" aria-label="Seller languages">
-            {SELLER_LANGUAGES.map((code) => (
-              <li key={code} lang={code} className="rounded-full border border-line bg-raised px-4 py-1.5 text-lg">
-                {LANGUAGE_INFO[code].native}
-              </li>
-            ))}
-          </ul>
-          <div className="mt-10 flex flex-wrap items-start gap-3">
-            <TryDemoButton />
-            <Link href="/browse" className="btn btn-secondary btn-lg">
-              Browse the work
-            </Link>
+      {/* Reach */}
+      <section className="mx-auto max-w-[76rem] px-4 py-20 sm:px-6">
+        <div className="panel panel-raised overflow-hidden">
+          <div className="grid gap-10 p-8 sm:p-12 lg:grid-cols-[1fr_auto] lg:items-center">
+            <div className="max-w-2xl">
+              <h2 className="title text-3xl">Every maker, ready to sell abroad</h2>
+              <p className="lede mt-4">
+                India has millions of weavers, printers and embroiderers who struggle to reach buyers abroad, negotiate
+                fairly and get paid safely. Mandix handles all three, so they can focus on their craft.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <TryDemoButton className="btn btn-primary btn-lg" label="Try the demo" />
+              <Link href="/signup?role=seller" className="btn btn-secondary btn-lg">
+                Sell on Mandix
+              </Link>
+            </div>
           </div>
         </div>
       </section>
+
+      <footer className="border-t border-line">
+        <div className="mx-auto flex max-w-[76rem] flex-wrap items-center justify-between gap-4 px-4 py-8 text-sm text-ink-3 sm:px-6">
+          <p>Mandix · Send an agent to the bazaar</p>
+          <nav aria-label="Footer" className="flex gap-5">
+            <Link href="/browse" className="hover:text-ink">
+              Browse
+            </Link>
+            <Link href="/arena" className="hover:text-ink">
+              Break the agent
+            </Link>
+            <Link href="/login" className="hover:text-ink">
+              Log in
+            </Link>
+          </nav>
+        </div>
+      </footer>
     </main>
   );
 }
 
-function Audience({ heading, tone, points }: { heading: string; tone: "indigo" | "haldi"; points: { title: string; body: string }[] }) {
+function Steps({
+  icon: IconComponent,
+  heading,
+  steps,
+  href,
+  cta,
+}: {
+  icon: typeof ChatIcon;
+  heading: string;
+  steps: { title: string; body: string }[];
+  href: string;
+  cta: string;
+}) {
   return (
-    <div>
-      <h2 className={`title border-l-4 pl-3 text-xl ${tone === "indigo" ? "border-indigo" : "border-haldi"}`}>{heading}</h2>
-      <ul className="mt-4 space-y-4">
-        {points.map((p) => (
-          <li key={p.title}>
-            <p className="font-semibold">{p.title}</p>
-            <p className="text-ink-2">{p.body}</p>
+    <div className="panel flex flex-col p-6 sm:p-8">
+      <div className="flex items-center gap-3">
+        <span className="icon-tile">
+          <IconComponent size={18} />
+        </span>
+        <h3 className="text-lg font-semibold tracking-[-0.02em]">{heading}</h3>
+      </div>
+      <ol className="mt-6 flex-1 space-y-5">
+        {steps.map((s, i) => (
+          <li key={s.title} className="flex gap-4">
+            <span className="num flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-line-strong text-xs font-semibold text-ink-2">
+              {i + 1}
+            </span>
+            <div>
+              <p className="font-medium">{s.title}</p>
+              <p className="mt-0.5 text-sm leading-relaxed text-ink-2">{s.body}</p>
+            </div>
           </li>
         ))}
-      </ul>
+      </ol>
+      <Link href={href} className="link mt-7 inline-flex items-center gap-1.5 self-start text-sm no-underline">
+        {cta}
+        <ArrowRightIcon size={15} />
+      </Link>
     </div>
   );
 }
@@ -166,10 +272,10 @@ function Audience({ heading, tone, points }: { heading: string; tone: "indigo" |
 function SignedIn({ name, role }: { name: string; role: string }) {
   const seller = role === "seller";
   return (
-    <div className="panel p-5">
-      <p className="text-ink-2">Welcome back,</p>
-      <p className="title text-2xl">{name}</p>
-      <div className="mt-5 grid gap-2">
+    <div className="panel panel-raised p-6">
+      <p className="text-sm text-ink-3">Welcome back</p>
+      <p className="title mt-0.5 text-2xl">{name}</p>
+      <div className="mt-6 grid gap-2">
         <Link href={seller ? "/dashboard" : "/shop"} className="btn btn-primary btn-lg w-full">
           {seller ? "Open your dashboard" : "Send your agent shopping"}
         </Link>
@@ -186,24 +292,26 @@ function SignedIn({ name, role }: { name: string; role: string }) {
 
 function HaggleReplay() {
   return (
-    <figure className="panel relative overflow-hidden p-5 sm:p-6" aria-label="An example negotiation between two agents">
-      <figcaption className="flex items-center justify-between gap-4 border-b border-line pb-4">
-        <div>
-          <p className="font-semibold">Handwoven Banarasi silk scarf</p>
-          <p className="text-sm text-ink-3">Varanasi to London, negotiated by two AI agents</p>
+    <figure className="panel panel-raised overflow-hidden" aria-label="An example negotiation between two agents">
+      <figcaption className="panel-head bg-raised">
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold">Handwoven Banarasi silk scarf</p>
+          <p className="text-xs text-ink-3">Varanasi to London · negotiated by two AI agents</p>
         </div>
-        <p className="text-right text-sm text-ink-3">
-          Budget <span className="money block text-base text-ink">£90</span>
-        </p>
+        <div className="text-right">
+          <p className="stat-label">Budget</p>
+          <p className="stat-value text-sm">£90</p>
+        </div>
       </figcaption>
-      <NegotiationChat
-        className="mt-4"
-        stagger
-        left="Meera's agent"
-        right="Sarah's agent"
-        lines={HAGGLE.map((m, i) => ({ id: String(i), from: m.who, text: m.text, price: m.price }))}
-        outcome={{ kind: "agreed", price: 80, held: "£80 held by PayPal until it ships" }}
-      />
+      <div className="p-5 sm:p-6">
+        <NegotiationChat
+          stagger
+          left="Meera's agent"
+          right="Sarah's agent"
+          lines={HAGGLE.map((m, i) => ({ id: String(i), from: m.who, text: m.text, price: m.price }))}
+          outcome={{ kind: "agreed", price: 80, held: "£80 held by PayPal until it ships" }}
+        />
+      </div>
     </figure>
   );
 }

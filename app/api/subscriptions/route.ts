@@ -1,4 +1,4 @@
-// Mandi Monthly for the signed-in buyer: see it (GET), start it (POST, returns
+// Mandix Monthly for the signed-in buyer: see it (GET), start it (POST, returns
 // PayPal's approval link), or cancel it (DELETE). All through the Agent Toolkit.
 import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/auth/session";

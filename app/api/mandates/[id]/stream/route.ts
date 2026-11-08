@@ -1,7 +1,7 @@
 // Server-Sent Events for the negotiation room. Sends a snapshot first, then
 // every turn, state change and the final recommendation as they happen.
 import { UUID } from "@/lib/api/errors";
-import { ready, subscribe, type MandiEvent } from "@/lib/negotiation/bus";
+import { ready, subscribe, type MandixEvent } from "@/lib/negotiation/bus";
 import { getMandateSnapshot } from "@/lib/negotiation/snapshot";
 import { AuthError, requireUser } from "@/lib/auth/session";
 import { assertMandateOwner } from "@/lib/auth/access";
@@ -38,7 +38,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 
       // Subscribe before reading the snapshot so nothing falls in the gap;
       // the client de-duplicates turns by id.
-      const buffered: MandiEvent[] = [];
+      const buffered: MandixEvent[] = [];
       let live = false;
       const unsubscribe = subscribe(id, (e) => {
         if (!live) return void buffered.push(e);

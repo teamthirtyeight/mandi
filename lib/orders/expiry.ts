@@ -8,9 +8,9 @@ import { voidOrder } from "./service";
 const DAY_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_SHIP_BY_DAYS = 3;
 
-/** Ship-by window for an order. MANDI_SHIP_WINDOW_MINUTES overrides it (for demos). */
+/** Ship-by window for an order. MANDIX_SHIP_WINDOW_MINUTES overrides it (for demos). */
 function windowMs(shipByDays: number | null): number {
-  const override = Number(process.env.MANDI_SHIP_WINDOW_MINUTES);
+  const override = Number((process.env.MANDIX_SHIP_WINDOW_MINUTES ?? process.env.MANDI_SHIP_WINDOW_MINUTES));
   if (override > 0) return override * 60 * 1000;
   return (shipByDays ?? DEFAULT_SHIP_BY_DAYS) * DAY_MS;
 }

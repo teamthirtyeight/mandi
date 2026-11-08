@@ -24,8 +24,8 @@ const RESULT: Record<string, { text: string; tone: "" | "notice-bad" }> = {
   connected: { text: "PayPal is connected. Your payouts go to this account.", tone: "" },
   needs_attention: { text: "PayPal account linked. Confirm your email in PayPal so it can receive money, then check again.", tone: "" },
   pending: { text: "PayPal hasn't confirmed your sign-up yet. If you finished it, check again in a minute.", tone: "" },
-  declined: { text: "You didn't give Mandi permission in PayPal, so nothing was connected.", tone: "notice-bad" },
-  mismatch: { text: "That PayPal sign-up belongs to a different Mandi account, so it wasn't connected.", tone: "notice-bad" },
+  declined: { text: "You didn't give Mandix permission in PayPal, so nothing was connected.", tone: "notice-bad" },
+  mismatch: { text: "That PayPal sign-up belongs to a different Mandix account, so it wasn't connected.", tone: "notice-bad" },
   error: { text: "PayPal couldn't confirm the account just now. Try again in a minute.", tone: "notice-bad" },
 };
 
@@ -127,7 +127,7 @@ export function ConnectPayPal() {
           {conn.status === "needs_attention" && (
             <p className="hint">
               Linked{conn.merchantId ? ` (PayPal account ${conn.merchantId})` : ""}, but PayPal hasn&apos;t finished setting it up: usually the email isn&apos;t
-              confirmed or ID checks are still to do. Mandi can already send your payouts there; PayPal releases them once it&apos;s done.
+              confirmed or ID checks are still to do. Mandix can already send your payouts there; PayPal releases them once it&apos;s done.
             </p>
           )}
           {checked && !conn.status && <p className="notice text-sm">PayPal hasn&apos;t linked an account to you yet. Finish sign-up in the PayPal window first.</p>}

@@ -1,5 +1,5 @@
 // Seller sends proof of shipment for a PayPal dispute: the tracking and a short
-// summary of the deal from Mandi's records (agreed price, problem report, refund).
+// summary of the deal from Mandix's records (agreed price, problem report, refund).
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { and, eq } from "drizzle-orm";
@@ -29,7 +29,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     if (!row.order.trackingNumber) return NextResponse.json({ error: "This order has no tracking to send" }, { status: 409 });
 
     const notes = [
-      `Mandi order for "${row.title}", ${row.order.currency} ${(row.order.amountMinor / 100).toFixed(2)}, agreed by the buyer's own agent and approved by the buyer.`,
+      `Mandix order for "${row.title}", ${row.order.currency} ${(row.order.amountMinor / 100).toFixed(2)}, agreed by the buyer's own agent and approved by the buyer.`,
       `Shipped with ${row.order.carrier} ${row.order.trackingNumber}.`,
       row.order.problemNote ? `Buyer reported: "${row.order.problemNote}". Seller's reply: "${row.order.agentRefundMessage}".` : null,
       row.order.refundedMinor > 0 ? `Refunded so far: ${row.order.currency} ${(row.order.refundedMinor / 100).toFixed(2)}.` : null,

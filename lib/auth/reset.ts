@@ -23,7 +23,7 @@ export async function requestReset(email: string, origin: string): Promise<void>
       body: JSON.stringify({
         from: process.env.MAIL_FROM,
         to: email,
-        subject: "Reset your Mandi password",
+        subject: "Reset your Mandix password",
         text: `Reset your password within 30 minutes: ${link}\n\nIf you didn't ask for this, ignore this email.`,
       }),
     });

@@ -1,4 +1,4 @@
-// Two-way WhatsApp, custom orders (invoices), Mandi Monthly (subscriptions),
+// Two-way WhatsApp, custom orders (invoices), Mandix Monthly (subscriptions),
 // the PayPal statement, the red-team arena and the MCP server. PayPal is mocked:
 // REST at fetch, the Agent Toolkit at runPlatformTool. Needs TEST_DATABASE_URL.
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -62,10 +62,10 @@ describe("WhatsApp words", () => {
 describe("Twilio signatures", () => {
   it("accepts Twilio's signature and rejects a changed message", () => {
     const params = { From: "whatsapp:+919876543210", Body: "हाँ" };
-    const sig = twilioSignature("token", "https://mandi.test/api/whatsapp/inbound", params);
-    expect(validTwilioSignature("token", sig, "https://mandi.test/api/whatsapp/inbound", params)).toBe(true);
-    expect(validTwilioSignature("token", sig, "https://mandi.test/api/whatsapp/inbound", { ...params, Body: "नहीं" })).toBe(false);
-    expect(validTwilioSignature("token", null, "https://mandi.test/api/whatsapp/inbound", params)).toBe(false);
+    const sig = twilioSignature("token", "https://mandix.test/api/whatsapp/inbound", params);
+    expect(validTwilioSignature("token", sig, "https://mandix.test/api/whatsapp/inbound", params)).toBe(true);
+    expect(validTwilioSignature("token", sig, "https://mandix.test/api/whatsapp/inbound", { ...params, Body: "नहीं" })).toBe(false);
+    expect(validTwilioSignature("token", null, "https://mandix.test/api/whatsapp/inbound", params)).toBe(false);
   });
 });
 
@@ -79,7 +79,7 @@ describe.skipIf(!TEST_DB)("features on the database", () => {
     process.env.DATABASE_URL = TEST_DB;
     process.env.PAYPAL_CLIENT_ID = "test-id";
     process.env.PAYPAL_CLIENT_SECRET = "test-secret";
-    process.env.MANDI_FAKE_AI = "1";
+    process.env.MANDIX_FAKE_AI = "1";
     delete process.env.TWILIO_ACCOUNT_SID;
     dbmod = await import("@/lib/db");
   });
@@ -156,7 +156,7 @@ describe.skipIf(!TEST_DB)("features on the database", () => {
       expect(s.language).toBe("ta");
     });
 
-    it("ignores numbers that aren't a Mandi seller", async () => {
+    it("ignores numbers that aren't a Mandix seller", async () => {
       const { handleInbound } = await import("@/lib/whatsapp-inbound");
       expect(await handleInbound({ from: "whatsapp:+447700900123", body: "hello" })).toBeNull();
     });
@@ -202,7 +202,7 @@ describe.skipIf(!TEST_DB)("features on the database", () => {
     });
   });
 
-  describe("Mandi Monthly", () => {
+  describe("Mandix Monthly", () => {
     it("creates the plan once, subscribes through PayPal, and pays the month's artisan per payment", async () => {
       const subs = await import("@/lib/subscriptions");
       const { buyer } = await sellerWithOrder(dbmod, { seller: { photoUrl: "https://x/y.jpg", craft: "Silk weaving" } });
@@ -222,7 +222,7 @@ describe.skipIf(!TEST_DB)("features on the database", () => {
   });
 
   describe("PayPal statement", () => {
-    it("shows only this seller's lines and marks each one that matches Mandi's record", async () => {
+    it("shows only this seller's lines and marks each one that matches Mandix's record", async () => {
       const { statementFor } = await import("@/lib/reporting");
       const { seller } = await sellerWithOrder(dbmod, { order: { status: "CAPTURED", captureId: "CAP-MINE", payoutBatchId: "BATCH-MINE", payoutMinor: 17100 } });
       transactions = [
@@ -275,7 +275,7 @@ describe.skipIf(!TEST_DB)("features on the database", () => {
       const { handleRpc } = await import("@/lib/mcp");
       const { user } = await keyed();
       const init = (await handleRpc(user, { jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-06-18" } })) as { result: { serverInfo: { name: string } } };
-      expect(init.result.serverInfo.name).toBe("mandi");
+      expect(init.result.serverInfo.name).toBe("mandix");
       expect(await handleRpc(user, { jsonrpc: "2.0", method: "notifications/initialized" })).toBeNull();
       const list = (await handleRpc(user, { jsonrpc: "2.0", id: 2, method: "tools/list" })) as { result: { tools: { name: string }[] } };
       expect(list.result.tools.map((t) => t.name)).toEqual(["search_listings", "start_shopping", "get_deal", "get_orders", "request_custom_piece"]);

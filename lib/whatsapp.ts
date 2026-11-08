@@ -1,7 +1,7 @@
 // WhatsApp alerts for sellers, sent through Twilio's WhatsApp API.
 //
 // With TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN and TWILIO_WHATSAPP_FROM set, each
-// message is sent for real. Without them, Mandi records the message as "logged"
+// message is sent for real. Without them, Mandix records the message as "logged"
 // instead, so the flow works (and can be demoed) before an account exists.
 // Every message, sent or not, is saved in whatsapp_messages.
 //

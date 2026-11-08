@@ -92,7 +92,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   return new NextResponse(JSON.stringify(pack, null, 2), {
     headers: {
       "Content-Type": "application/json",
-      "Content-Disposition": `attachment; filename="mandi-evidence-${order.paypalOrderId ?? order.id}.json"`,
+      "Content-Disposition": `attachment; filename="mandix-evidence-${order.paypalOrderId ?? order.id}.json"`,
     },
   });
 }

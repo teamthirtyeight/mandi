@@ -171,7 +171,7 @@ export interface CreateOrderInput {
   /** Line items when the order has more than one (e.g. a bundle). Must sum to amountMinor. */
   items?: { name: string; amountMinor: number }[];
   description?: string;
-  /** Seller's sandbox business account. Omit to pay the Mandi merchant itself. */
+  /** Seller's sandbox business account. Omit to pay the Mandix merchant itself. */
   payeeEmail?: string;
   referenceId: string;
   requestId: string;

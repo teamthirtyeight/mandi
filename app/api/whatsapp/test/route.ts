@@ -42,7 +42,7 @@ export async function POST() {
     const message = await sendWhatsApp({
       sellerId: seller.id,
       to: seller.whatsappNumber,
-      body: `*Mandi*\n${t.welcome}\n\n${t.open}: ${appUrl()}/seller`,
+      body: `*Mandix*\n${t.welcome}\n\n${t.open}: ${appUrl()}/seller`,
       mediaUrl: await preparedBannerUrl("welcome", seller.id),
     });
     return NextResponse.json({ message }, { status: message.status === "failed" ? 502 : 200 });

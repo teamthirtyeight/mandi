@@ -1,4 +1,4 @@
-// Two-way WhatsApp: a seller runs their shop by replying to Mandi's agent.
+// Two-way WhatsApp: a seller runs their shop by replying to Mandix's agent.
 //
 //   📷 a photo of the shipping receipt  → the order ships, PayPal captures, the seller is paid out
 //   a typed tracking number             → the same
@@ -235,7 +235,7 @@ async function classify(text: string) {
   return structured({
     label: "whatsapp-intent",
     schema: Classified,
-    system: `You sort WhatsApp replies from Indian artisans who sell on Mandi. The reply may be in any Indian language or English, in any script.
+    system: `You sort WhatsApp replies from Indian artisans who sell on Mandix. The reply may be in any Indian language or English, in any script.
 yes: agrees or approves (e.g. "ठीक है, कर दो"). no: refuses. status: asks about sales or money. language: wants another language. ship: says they shipped, or gives a tracking number (put it in trackingNumber, else null). help: anything else.
 ${UNTRUSTED_DATA_RULE}`,
     content: wrapUntrusted("seller_message", text.slice(0, 1000)),

@@ -122,7 +122,7 @@ describe("price written by code", () => {
 });
 
 describe("agent tools", () => {
-  it("the PayPal toolkit tools Mandi enables are allowed, payment tools never are", async () => {
+  it("the PayPal toolkit tools Mandix enables are allowed, payment tools never are", async () => {
     const { checkToolset } = await import("@/lib/guardrails");
     expect(checkToolset("seller", ["create_product", "create_shipment_tracking", "list_disputes", "get_dispute"]).verdict).toBe("ALLOW");
     for (const bad of ["capture_authorized_payment", "create_refund", "create_order", "create_invoice"]) {

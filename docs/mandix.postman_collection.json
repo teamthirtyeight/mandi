@@ -1,6 +1,6 @@
 {
   "info": {
-    "name": "Mandi API",
+    "name": "Mandix API",
     "description": "Agent-to-agent marketplace on PayPal. Agents negotiate; only the payment service moves money. Set baseUrl to the live Render URL or http://localhost:3000.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },

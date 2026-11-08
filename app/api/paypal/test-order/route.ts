@@ -9,7 +9,7 @@ const TEST_DEAL = {
   amountMinor: 7200,
   currency: "GBP",
   itemName: "Handwoven Banarasi silk scarf, rose and gold",
-  description: "Mandi test deal with Meera, Varanasi",
+  description: "Mandix test deal with Meera, Varanasi",
 };
 
 const Body = z.object({ requestKey: z.string().uuid() });

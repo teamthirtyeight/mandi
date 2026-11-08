@@ -22,7 +22,7 @@ async function welcomeBanner(sellerId: string): Promise<BannerData | null> {
 
 /**
  * Draws the card now and returns its public link, or null (send text only) if
- * Mandi isn't publicly reachable or the card can't be drawn. Twilio fails the
+ * Mandix isn't publicly reachable or the card can't be drawn. Twilio fails the
  * whole message when its image can't be fetched, so a card is only attached
  * once it exists.
  */

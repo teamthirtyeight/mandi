@@ -1,4 +1,4 @@
-// What Mandi's agent says when a seller writes to it on WhatsApp, in each
+// What Mandix's agent says when a seller writes to it on WhatsApp, in each
 // seller language. Like lib/i18n/seller.ts, the Indian-language strings should
 // be reviewed by a native speaker before launch.
 import type { SellerLanguage } from "./seller";

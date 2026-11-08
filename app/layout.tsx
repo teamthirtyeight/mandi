@@ -10,16 +10,19 @@ import {
   Anek_Odia,
   Anek_Tamil,
   Anek_Telugu,
+  Inter,
 } from "next/font/google";
 import "./globals.css";
 import { SiteNav } from "@/components/SiteNav";
 import { DockedCallLog } from "@/components/DockedCallLog";
+import { THEME_SCRIPT } from "@/components/ThemeToggle";
 import { getUser } from "@/lib/auth/session";
 
-// Anek: one Indian-designed family for Latin and Devanagari, with a width
-// axis used for the wide headlines.
-const anek = Anek_Latin({ variable: "--font-anek", subsets: ["latin", "latin-ext"], axes: ["wdth"] });
-const anekDev = Anek_Devanagari({ variable: "--font-anek-dev", subsets: ["devanagari"], axes: ["wdth"] });
+// Inter for all Latin text. Anek, an Indian-designed family, covers Devanagari
+// and the other Indian scripts sellers write in.
+const inter = Inter({ variable: "--font-inter", subsets: ["latin", "latin-ext"], axes: ["opsz"], display: "swap" });
+const anek = Anek_Latin({ variable: "--font-anek", subsets: ["latin", "latin-ext"], preload: false });
+const anekDev = Anek_Devanagari({ variable: "--font-anek-dev", subsets: ["devanagari"] });
 // Other Indian scripts for sellers' languages. Not preloaded: a page only
 // downloads the script it actually shows.
 const anekBn = Anek_Bangla({ variable: "--font-anek-bn", subsets: ["bengali"], preload: false });
@@ -33,7 +36,7 @@ const anekOr = Anek_Odia({ variable: "--font-anek-or", subsets: ["oriya"], prelo
 const scripts = [anekBn, anekTa, anekTe, anekGu, anekKn, anekMl, anekPa, anekOr];
 
 export const metadata: Metadata = {
-  title: "Mandi",
+  title: "Mandix · Send an agent to the bazaar",
   description: "Your agent haggles with artisan sellers' agents. PayPal holds the money until it ships.",
 };
 
@@ -44,8 +47,12 @@ export default async function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        {/* Applies a saved theme before the first paint, so it never flashes. */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+      </head>
       <body
-        className={`${anek.variable} ${anekDev.variable} ${scripts.map((f) => f.variable).join(" ")} min-h-screen antialiased`}
+        className={`${inter.variable} ${anek.variable} ${anekDev.variable} ${scripts.map((f) => f.variable).join(" ")} min-h-screen antialiased`}
       >
         <SiteNav />
         {children}

@@ -4,7 +4,7 @@ import { payoutSplit } from "@/lib/orders/payout-split";
 import { sellerWithOrder, TRUNCATE_ALL } from "./helpers/fixtures";
 
 describe("payout split", () => {
-  it("takes Mandi's fee, then any refund debt, and never goes below zero", () => {
+  it("takes Mandix's fee, then any refund debt, and never goes below zero", () => {
     expect(payoutSplit({ capturedMinor: 18000, refundedMinor: 0, debtMinor: 0, feePct: 5 })).toEqual({ feeMinor: 900, debtUsedMinor: 0, payoutMinor: 17100 });
     expect(payoutSplit({ capturedMinor: 18000, refundedMinor: 0, debtMinor: 2000, feePct: 5 })).toEqual({ feeMinor: 900, debtUsedMinor: 2000, payoutMinor: 15100 });
     expect(payoutSplit({ capturedMinor: 1000, refundedMinor: 0, debtMinor: 5000, feePct: 5 })).toEqual({ feeMinor: 50, debtUsedMinor: 950, payoutMinor: 0 });
@@ -22,8 +22,8 @@ describe.skipIf(!TEST_DB)("seller payouts", () => {
     process.env.DATABASE_URL = TEST_DB;
     process.env.PAYPAL_CLIENT_ID = "test-id";
     process.env.PAYPAL_CLIENT_SECRET = "test-secret";
-    process.env.MANDI_FAKE_AI = "1";
-    delete process.env.MANDI_FEE_PCT;
+    process.env.MANDIX_FAKE_AI = "1";
+    delete process.env.MANDIX_FEE_PCT;
     delete process.env.TWILIO_ACCOUNT_SID;
     dbmod = await import("@/lib/db");
   });

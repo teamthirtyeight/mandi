@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 560" font-family="Inter, Helvetica, Arial, sans-serif">
-  <title>Mandi architecture: agents negotiate, only deterministic code moves money</title>
+  <title>Mandix architecture: agents negotiate, only deterministic code moves money</title>
   <rect width="960" height="560" fill="#ffffff"/>
   <defs>
     <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
@@ -19,7 +19,7 @@
 
   <!-- Server -->
   <rect x="40" y="170" width="880" height="230" rx="12" fill="#f5f5f4" stroke="#d6d3d1"/>
-  <text x="480" y="194" font-size="14" font-weight="600" fill="#44403c" text-anchor="middle">Mandi server · Next.js + Postgres on Render</text>
+  <text x="480" y="194" font-size="14" font-weight="600" fill="#44403c" text-anchor="middle">Mandix server · Next.js + Postgres on Render</text>
 
   <rect x="64" y="214" width="220" height="80" rx="10" fill="#fff" stroke="#d4d4d4"/>
   <text x="80" y="240" font-size="14" font-weight="600" fill="#171717">Seller agent</text>

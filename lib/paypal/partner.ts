@@ -78,12 +78,12 @@ async function partnerRequest(method: "GET" | "POST", path: string, summary: (ok
 export async function partnerMerchantId(): Promise<string> {
   if (process.env.PAYPAL_PARTNER_MERCHANT_ID) return process.env.PAYPAL_PARTNER_MERCHANT_ID;
   if (cachedPartnerId) return cachedPartnerId;
-  const order = await partnerRequest("POST", "/v2/checkout/orders", (ok) => (ok ? "Looked up Mandi's platform merchant id" : "Platform id lookup failed"), {
+  const order = await partnerRequest("POST", "/v2/checkout/orders", (ok) => (ok ? "Looked up Mandix's platform merchant id" : "Platform id lookup failed"), {
     intent: "CAPTURE",
     purchase_units: [{ amount: { currency_code: "GBP", value: "1.00" } }],
   });
   const id = order?.purchase_units?.[0]?.payee?.merchant_id;
-  if (!id) throw new PaypalError("PayPal didn't return Mandi's platform merchant id", 502, order);
+  if (!id) throw new PaypalError("PayPal didn't return Mandix's platform merchant id", 502, order);
   cachedPartnerId = id as string;
   return cachedPartnerId;
 }
@@ -98,7 +98,7 @@ export async function sellerSignupLink(input: { sellerId: string; email?: string
       tracking_id: input.sellerId,
       ...(input.email ? { email: input.email } : {}),
       preferred_language_code: input.language === "hi" ? "en-IN" : "en-GB",
-      partner_config_override: { return_url: input.returnUrl, return_url_description: "Back to Mandi" },
+      partner_config_override: { return_url: input.returnUrl, return_url_description: "Back to Mandix" },
       operations: [
         {
           operation: "API_INTEGRATION",

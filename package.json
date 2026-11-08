@@ -1,5 +1,5 @@
 {
-  "name": "mandi",
+  "name": "mandix",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -14,7 +14,7 @@
     "paypal:webhook": "tsx scripts/register-webhook.ts",
     "test:e2e": "playwright test",
     "test:guardrails": "vitest run lib/guardrails",
-    "test:db": "docker compose -f docker-compose.test.yml up -d --wait && TEST_DATABASE_URL=postgres://mandi_test:mandi_test@127.0.0.1:55432/mandi_test vitest run lib/guardrails/db; status=$?; docker compose -f docker-compose.test.yml down; exit $status",
+    "test:db": "docker compose -f docker-compose.test.yml up -d --wait && TEST_DATABASE_URL=postgres://mandix_test:mandix_test@127.0.0.1:55432/mandix_test vitest run lib/guardrails/db; status=$?; docker compose -f docker-compose.test.yml down; exit $status",
     "eval:guardrails": "tsx lib/guardrails/eval/run.ts",
     "worker": "tsx scripts/worker.ts"
   },

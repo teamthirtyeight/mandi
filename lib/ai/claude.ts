@@ -1,12 +1,12 @@
-// One place where Mandi calls Claude. Returns null instead of throwing when
+// One place where Mandix calls Claude. Returns null instead of throwing when
 // the model is unavailable, refuses, or returns output that fails the schema,
 // so every caller can fall back to deterministic rules and the demo never stalls.
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import type { z } from "zod";
 
-// The build plan names "Claude Sonnet (latest)"; override with MANDI_MODEL.
-export const MODEL = process.env.MANDI_MODEL ?? "claude-sonnet-5-5";
+// The build plan names "Claude Sonnet (latest)"; override with MANDIX_MODEL.
+export const MODEL = (process.env.MANDIX_MODEL ?? process.env.MANDI_MODEL) ?? "claude-sonnet-5-5";
 
 let client: Anthropic | null = null;
 function getClient(): Anthropic {
@@ -14,9 +14,9 @@ function getClient(): Anthropic {
   return client;
 }
 
-/** MANDI_FAKE_AI=1 skips the model entirely (tests, offline demos). */
+/** MANDIX_FAKE_AI=1 skips the model entirely (tests, offline demos). */
 export const aiEnabled = () =>
-  process.env.MANDI_FAKE_AI !== "1" && Boolean(process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN);
+  (process.env.MANDIX_FAKE_AI ?? process.env.MANDI_FAKE_AI) !== "1" && Boolean(process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN);
 
 export interface StructuredCall<T extends z.ZodType> {
   label: string;

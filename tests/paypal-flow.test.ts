@@ -20,7 +20,7 @@ describe.skipIf(!TEST_DB)("PayPal money flow", () => {
     process.env.DATABASE_URL = TEST_DB;
     process.env.PAYPAL_CLIENT_ID = "test-id";
     process.env.PAYPAL_CLIENT_SECRET = "test-secret";
-    process.env.MANDI_FAKE_AI = "1";
+    process.env.MANDIX_FAKE_AI = "1";
     dbmod = await import("@/lib/db");
     svc = await import("@/lib/orders/service");
   });

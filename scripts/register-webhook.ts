@@ -1,4 +1,4 @@
-// Registers Mandi's PayPal webhook for a deployed URL and prints its id for
+// Registers Mandix's PayPal webhook for a deployed URL and prints its id for
 // PAYPAL_WEBHOOK_ID. Run once after deploying:
 //   PUBLIC_URL=https://mandi.onrender.com npm run paypal:webhook
 // Reads PAYPAL_CLIENT_ID / PAYPAL_CLIENT_SECRET / PAYPAL_ENV from the environment.
@@ -10,7 +10,7 @@ const EVENTS = [
   "PAYMENT.AUTHORIZATION.VOIDED",
   "PAYMENT.CAPTURE.COMPLETED",
   "PAYMENT.CAPTURE.REFUNDED",
-  // Custom orders, Mandi Monthly and seller payouts.
+  // Custom orders, Mandix Monthly and seller payouts.
   "INVOICING.INVOICE.PAID",
   "BILLING.SUBSCRIPTION.ACTIVATED",
   "BILLING.SUBSCRIPTION.CANCELLED",

@@ -1,22 +1,22 @@
-# Mandi
+# Mandix
 
-**Your AI shops. Their AI sells. PayPal makes it safe.**
+**Send an agent to the bazaar.**
 
-Mandi is an agent-to-agent marketplace built for the PayPal AI Hackathon. Every small seller gets an AI sales agent, and every shopper can send an AI buying agent. The two agents haggle within limits that code enforces. PayPal holds the buyer's money until the seller ships.
+Mandix is an agent-to-agent marketplace built for the PayPal AI Hackathon. Every small seller gets an AI sales agent, and every shopper can send an AI buying agent. The two agents haggle within limits that code enforces. PayPal holds the buyer's money until the seller ships.
 
-*Mandi* is the Hindi word for a traditional market where buyers and sellers haggle face to face.
+The name comes from *mandi*, the Hindi word for a traditional market where buyers and sellers haggle face to face.
 
 - **Live demo:** _add the Render URL_
 - **Video:** _add the YouTube link_
 - **Try it:** open the live demo and click **Try the demo**. Approve the deal with the sandbox buyer login shown next to the PayPal button.
 
-![Mandi architecture](docs/architecture.svg)
+![Mandix architecture](docs/architecture.svg)
 
 ## The problem
 
 AI shopping agents buy from merchants that have structured catalogs. Artisans, home businesses and micro-exporters have no catalog, no website and no time to answer buyers. As shopping moves to agents, they become invisible.
 
-## What Mandi does
+## What Mandix does
 
 1. **Seller onboarding in a minute.** Meera, a handloom weaver in Varanasi, uploads photos and records a voice note, in Hindi if she likes.
    - Her agent writes an English listing.
@@ -26,7 +26,7 @@ AI shopping agents buy from merchants that have structured catalogs. Artisans, h
 3. **Parallel negotiation, visible.** Sarah's agent negotiates with up to three sellers at once. The negotiation room streams every turn with a price chart per seller. It shows both the price an agent proposed and the price the engine allowed.
    After a deal is agreed, the seller agent may offer one more of the seller's items as a bundle. The engine checks that the item clears its own floor and that the order total stays within the buyer's budget; the buyer agent accepts only if it fits the request.
 4. **One tap.** The buyer agent recommends one deal with its reasons. Sarah approves it, and PayPal authorizes the amount and holds it.
-5. **Ship, then get paid.** The seller adds tracking, Mandi captures the payment, and the tracking is attached to the PayPal order.
+5. **Ship, then get paid.** The seller adds tracking, Mandix captures the payment, and the tracking is attached to the PayPal order.
 6. **Problems handled.** Sarah reports a problem, optionally with a photo. The seller's agent proposes a refund; anything within the seller's cap is refunded through PayPal at once, and anything above it waits for the seller's approval. For a formal PayPal dispute, the order page downloads an evidence pack: listing, chat log, tracking and photo.
 
 Meera follows all of this on a phone-sized view in Hindi with rupee amounts (`/seller`): "बिक गया! … कृपया भेजें", then "भुगतान मिल गया". Sellers can pick any of 11 languages (English, Hindi, Marathi, Bengali, Tamil, Telugu, Gujarati, Kannada, Malayalam, Punjabi, Odia) for the phone view and alerts, and turn on WhatsApp alerts in My agent: their agent then messages them each sale, payment, refund request and released hold, in their language (`lib/whatsapp.ts`, Twilio; without Twilio keys messages are recorded in the app instead of sent).
@@ -81,7 +81,7 @@ Every call is written to `paypal_events`, which feeds the docked "PayPal API cal
 | Layer | Choice |
 | --- | --- |
 | App | Next.js 15 (App Router), TypeScript, Tailwind |
-| Agents | Claude (`claude-sonnet-5-5`, set with `MANDI_MODEL`) through the Anthropic TypeScript SDK, structured output with Zod; vision for listings and refund checks |
+| Agents | Claude (`claude-sonnet-5-5`, set with `MANDIX_MODEL`) through the Anthropic TypeScript SDK, structured output with Zod; vision for listings and refund checks |
 | Speech-to-text | OpenAI `gpt-transcribe` |
 | Product data | Channel3 (`@channel3/sdk`) |
 | Payments | PayPal Orders v2 + Payments v2 via PayPal Server SDK (APIMatic-generated), Payouts via REST, PayPal Agent Toolkit, PayPal JS SDK |
@@ -136,16 +136,16 @@ This runs the unit tests: guardrails, order states, prompt isolation, mandate pa
 The money-flow and full-negotiation tests need a Postgres with the schema pushed. They empty that database's tables on each run:
 
 ```bash
-createdb mandi_test
-DATABASE_URL=postgres://localhost:5432/mandi_test npx drizzle-kit push
-TEST_DATABASE_URL=postgres://localhost:5432/mandi_test npm test
+createdb mandix_test
+DATABASE_URL=postgres://localhost:5432/mandix_test npx drizzle-kit push
+TEST_DATABASE_URL=postgres://localhost:5432/mandix_test npm test
 ```
 
-End-to-end UI tests run in your installed Chrome against a separate `mandi_e2e` database with the model off:
+End-to-end UI tests run in your installed Chrome against a separate `mandix_e2e` database with the model off:
 
 ```bash
-createdb mandi_e2e
-DATABASE_URL=postgres://localhost:5432/mandi_e2e npx drizzle-kit push
+createdb mandix_e2e
+DATABASE_URL=postgres://localhost:5432/mandix_e2e npx drizzle-kit push
 npm run test:e2e
 ```
 
@@ -181,7 +181,7 @@ docs/             architecture, Postman collection, Devpost draft, launch checkl
 
 - **Shipping address:** the address the buyer chooses in the PayPal popup is read at authorization and shown to the seller on the order page and the phone view.
 - **One-of-a-kind stock:** stock is taken just before PayPal authorizes, so two buyers can't both pay for the last piece. A sold-out listing drops out of search; a voided hold puts it back.
-- **Payouts:** by default PayPal pays the Mandi merchant, which pays sellers out (marketplace payouts are future work). `PAYPAL_PAY_SELLERS_DIRECTLY=1` pays each seller's PayPal account instead, falling back to Mandi if PayPal refuses a seller as payee.
+- **Payouts:** by default PayPal pays the Mandix merchant, which pays sellers out (marketplace payouts are future work). `PAYPAL_PAY_SELLERS_DIRECTLY=1` pays each seller's PayPal account instead, falling back to Mandix if PayPal refuses a seller as payee.
 - **Holds:** the seller can renew a hold (PayPal reauthorize, allowed after the 3-day honor period); an unshipped hold is voided automatically.
 - **Interrupted runs:** negotiations run in the web server; after a restart, runs that were in flight are marked interrupted and the buyer is told nothing was charged.
 - **Buyer choice:** the buyer can approve any agreed deal, not only the recommended one, or cancel the request.
@@ -201,7 +201,7 @@ docs/             architecture, Postman collection, Devpost draft, launch checkl
 
 ## What's next
 
-- Connect Mandi sellers to PayPal's agentic commerce services, so they appear inside AI shopping assistants.
+- Connect Mandix sellers to PayPal's agentic commerce services, so they appear inside AI shopping assistants.
 - Reauthorize holds for sellers who need more than 3 days to ship.
 - Onboarding in more Indian languages.
 - Marketplace payouts.

@@ -87,7 +87,7 @@ export async function sellerBanner(orderId: string, event: OrderEvent, extraMino
   }
 }
 
-/** Signed link Twilio downloads the card from; null when Mandi isn't publicly reachable. */
+/** Signed link Twilio downloads the card from; null when Mandix isn't publicly reachable. */
 export function bannerUrl(kind: string, id: string, extraMinor = 0): string | null {
   const base = appUrl();
   if (!base.startsWith("https://")) return null; // Twilio can't download from localhost
@@ -118,7 +118,7 @@ function buyerText(e: OrderEvent, title: string, amountMinor: number, extraMinor
       };
     case "refund_pending":
     case "paid_out":
-      return null; // the buyer already sees "waiting for the seller"; payouts are between Mandi and the seller
+      return null; // the buyer already sees "waiting for the seller"; payouts are between Mandix and the seller
   }
 }
 

@@ -4,15 +4,15 @@ services:
   postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: mandi_test
-      POSTGRES_PASSWORD: mandi_test
-      POSTGRES_DB: mandi_test
+      POSTGRES_USER: mandix_test
+      POSTGRES_PASSWORD: mandix_test
+      POSTGRES_DB: mandix_test
     ports:
       - "127.0.0.1:55432:5432"
     tmpfs:
       - /var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U mandi_test"]
+      test: ["CMD-SHELL", "pg_isready -U mandix_test"]
       interval: 1s
       timeout: 3s
       retries: 30

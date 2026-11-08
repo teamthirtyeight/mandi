@@ -20,7 +20,7 @@ test("the attack test shows engine blocks and a withheld floor", async ({ page }
 
 test("a seller logs in, sees their dashboard and their Hindi phone view", async ({ page }) => {
   await page.goto("/login");
-  await page.getByRole("button", { name: /Meera · seller/ }).click();
+  await page.getByRole("button", { name: /^Meera Seller/ }).click();
   await expect(page).toHaveURL(/\/dashboard/);
   await expect(page.getByRole("heading", { name: "Meera, Varanasi" })).toBeVisible();
   await page.goto("/seller");
@@ -34,7 +34,7 @@ test("a seller can't open a buyer's negotiation room", async ({ page }) => {
   const dealUrl = page.url();
   await page.getByRole("button", { name: "Log out" }).click();
   await page.goto("/login");
-  await page.getByRole("button", { name: /Meera · seller/ }).click();
+  await page.getByRole("button", { name: /^Meera Seller/ }).click();
   await expect(page).toHaveURL(/\/dashboard/);
   await page.goto(dealUrl);
   // Stopped on the server: sent to log in with a buyer account instead.
@@ -45,14 +45,14 @@ test("a seller can't open a buyer's negotiation room", async ({ page }) => {
 test("signed-out visitors are asked to log in, then land on the page they wanted", async ({ page }) => {
   await page.goto("/orders");
   await expect(page).toHaveURL(/\/login\?next=%2Forders/);
-  await page.getByRole("button", { name: /Sarah · buyer/ }).click();
+  await page.getByRole("button", { name: /^Sarah Buyer/ }).click();
   await expect(page).toHaveURL(/\/orders$/);
   await expect(page.getByRole("heading", { name: "My orders" })).toBeVisible();
 });
 
-test("a buyer can't open seller pages, and a hostile next link stays on Mandi", async ({ page }) => {
+test("a buyer can't open seller pages, and a hostile next link stays on Mandix", async ({ page }) => {
   await page.goto("/login?next=//evil.example");
-  await page.getByRole("button", { name: /Sarah · buyer/ }).click();
+  await page.getByRole("button", { name: /^Sarah Buyer/ }).click();
   await expect(page).toHaveURL(/\/shop$/);
   await page.goto("/dashboard");
   await expect(page).toHaveURL(/needs=seller/);
@@ -80,7 +80,7 @@ test("anyone can attack Meera's agent in the arena and the floor holds", async (
 
 test("a seller sees custom orders and the PayPal statement tabs", async ({ page }) => {
   await page.goto("/login");
-  await page.getByRole("button", { name: /Meera · seller/ }).click();
+  await page.getByRole("button", { name: /^Meera Seller/ }).click();
   await expect(page).toHaveURL(/\/dashboard/);
   await page.getByRole("tab", { name: "Custom orders" }).click();
   await expect(page.getByText(/No custom requests yet|asks for/).first()).toBeVisible();

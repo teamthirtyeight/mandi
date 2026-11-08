@@ -34,7 +34,7 @@ export async function POST(req: Request) {
 
   if (draft.currency !== "GBP") {
     return NextResponse.json(
-      { error: "Mandi's sellers price in pounds for now. Please give your budget in £." },
+      { error: "Mandix's sellers price in pounds for now. Please give your budget in £." },
       { status: 422 },
     );
   }

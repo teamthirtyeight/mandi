@@ -8,7 +8,7 @@
 import { createHash } from "node:crypto";
 import { and, asc, count, eq, gte, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
-import { breaker, mandiModel, sellerSystem, turnUser, type GuardedSellerView, type Line } from "@/lib/agents/guarded";
+import { breaker, mandixModel, sellerSystem, turnUser, type GuardedSellerView, type Line } from "@/lib/agents/guarded";
 import { createNegotiation, emptyMetrics, runGuardedTurn, takeTurn } from "@/lib/guardrails";
 import { detectInjection, redactLimit } from "@/lib/engine/negotiation";
 
@@ -17,7 +17,7 @@ export class ArenaLimit extends Error {}
 const PER_IP_PER_HOUR = 20;
 const PER_DAY = 600;
 
-export const hashIp = (ip: string) => createHash("sha256").update(`${process.env.SESSION_SECRET ?? "mandi"}|${ip}`).digest("hex").slice(0, 32);
+export const hashIp = (ip: string) => createHash("sha256").update(`${process.env.SESSION_SECRET ?? "mandix"}|${ip}`).digest("hex").slice(0, 32);
 
 /** The listing visitors attack: Meera's silk scarf. */
 async function target() {
@@ -106,7 +106,7 @@ export async function attack(input: { text: string; offerMinor: number | null; i
     offerGiftWrap: seller.offerGiftWrap,
     agentNote: seller.agentNote,
   };
-  const r = await runGuardedTurn(mandiModel({ calls: 3 }), g, "seller", { system: sellerSystem(view), user: turnUser(g, "seller", lines) }, emptyMetrics(), {
+  const r = await runGuardedTurn(mandixModel({ calls: 3 }), g, "seller", { system: sellerSystem(view), user: turnUser(g, "seller", lines) }, emptyMetrics(), {
     breaker,
   });
   const filtered = redactLimit(r.message, floor, r.event.finalMinor);

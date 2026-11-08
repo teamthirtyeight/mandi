@@ -31,7 +31,7 @@ export const breaker = new CircuitBreaker();
  * without counting as an outage, so the library's rule-based backup plays the
  * turn; an unusable reply is "bad_output", which it retries once.
  */
-export function mandiModel(budget: { calls: number }): AgentModel {
+export function mandixModel(budget: { calls: number }): AgentModel {
   return {
     async complete<T>(request: ModelRequest<T>): Promise<T> {
       if (!aiEnabled()) throw new ModelFailure("AI is turned off", "circuit_open");

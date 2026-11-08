@@ -1,7 +1,7 @@
-// PayPal's own record, next to Mandi's.
+// PayPal's own record, next to Mandix's.
 //
 // statementFor(): the seller's PayPal statement, from the Transaction Search API
-// (Agent Toolkit list_transactions), matched line by line to Mandi's orders, so
+// (Agent Toolkit list_transactions), matched line by line to Mandix's orders, so
 // the seller can see the two agree.
 // paypalOrderStatus(): one order as PayPal sees it right now (toolkit get_order).
 import { eq } from "drizzle-orm";
@@ -32,11 +32,11 @@ export interface StatementLine {
   amount: number;
   currency: string;
   paypalStatus: string;
-  /** The Mandi order this line belongs to, if any. */
+  /** The Mandix order this line belongs to, if any. */
   orderId: string | null;
   listing: string | null;
-  /** Mandi's amount for the same thing, and whether the two agree to the penny. */
-  mandiAmount: number | null;
+  /** Mandix's amount for the same thing, and whether the two agree to the penny. */
+  mandixAmount: number | null;
   matches: boolean | null;
 }
 
@@ -52,7 +52,7 @@ interface TxInfo {
 const cache = new Map<string, { at: number; value: { lines: StatementLine[]; unmatched: number } }>();
 
 /**
- * The seller's lines from PayPal's statement for the last 30 days. Mandi's
+ * The seller's lines from PayPal's statement for the last 30 days. Mandix's
  * merchant account is shared, so only lines that match one of this seller's
  * orders (capture, refund or payout) are shown.
  */
@@ -67,7 +67,7 @@ export async function statementFor(sellerId: string, now = new Date()): Promise<
     .innerJoin(schema.listings, eq(schema.listings.id, schema.negotiations.listingId))
     .where(eq(schema.listings.sellerId, sellerId));
 
-  // Each PayPal id Mandi recorded, mapped to the order and Mandi's amount for it.
+  // Each PayPal id Mandix recorded, mapped to the order and Mandix's amount for it.
   const known = new Map<string, { orderId: string; title: string; kind: "capture" | "refund" | "payout"; minor: number | null }>();
   for (const { o, title } of orders) {
     if (o.captureId) known.set(o.captureId, { orderId: o.id, title, kind: "capture", minor: o.amountMinor });
@@ -92,7 +92,7 @@ export async function statementFor(sellerId: string, now = new Date()): Promise<
     }
     const value = Number(t.transaction_amount?.value ?? 0);
     const code = t.transaction_event_code ?? "";
-    const mandiAmount = match.minor != null ? match.minor / 100 : null;
+    const mandixAmount = match.minor != null ? match.minor / 100 : null;
     lines.push({
       id: t.transaction_id,
       date: t.transaction_initiation_date ?? "",
@@ -103,9 +103,9 @@ export async function statementFor(sellerId: string, now = new Date()): Promise<
       paypalStatus: STATUS[t.transaction_status ?? ""] ?? t.transaction_status ?? "",
       orderId: match.orderId,
       listing: match.title,
-      mandiAmount,
-      // Payouts and refunds show as negative on Mandi's statement.
-      matches: mandiAmount == null ? null : Math.abs(Math.abs(value) - mandiAmount) < 0.005,
+      mandixAmount,
+      // Payouts and refunds show as negative on Mandix's statement.
+      matches: mandixAmount == null ? null : Math.abs(Math.abs(value) - mandixAmount) < 0.005,
     });
   }
   lines.sort((a, b) => b.date.localeCompare(a.date));
