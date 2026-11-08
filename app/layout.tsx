@@ -36,7 +36,7 @@ const anekOr = Anek_Odia({ variable: "--font-anek-or", subsets: ["oriya"], prelo
 const scripts = [anekBn, anekTa, anekTe, anekGu, anekKn, anekMl, anekPa, anekOr];
 
 export const metadata: Metadata = {
-  title: "Mandix",
+  title: "Mandix · Send an agent to the bazaar",
   description: "Your agent haggles with artisan sellers' agents. PayPal holds the money until it ships.",
 };
 

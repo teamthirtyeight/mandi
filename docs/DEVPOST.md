@@ -3,7 +3,7 @@
 Fill in the bracketed items, check every claim against the live demo, then paste each section into Devpost.
 
 **Project name:** Mandix
-**Tagline (≤ 60 characters):** Your AI shops. Their AI sells. PayPal makes it safe.
+**Tagline (≤ 60 characters):** Send an agent to the bazaar.
 **Links:** [Render URL] · [YouTube URL] · [GitHub repo URL]
 **Sponsor prizes to tick:** AG Grid, Channel3, Render. APIMatic: Mandix's Orders and Payments calls go through PayPal's Server SDK, which APIMatic generates. Tick it only if the prize's criteria accept that; if they require APIMatic's context plugin, leave it.
 

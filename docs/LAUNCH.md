@@ -76,7 +76,7 @@ Run these on the live URL. Watch the docked PayPal call log for the 2xx statuses
 | 1:40–2:05 | Approve → PayPal popup → "held"; call log scrolling | "One tap. PayPal authorizes it and holds it. Nothing is paid until Meera ships." |
 | 2:05–2:25 | Order: ship → capture → tracking; dashboard updates | "Meera adds tracking. Mandix captures the payment and attaches tracking. Her dashboard shows it live." |
 | 2:25–2:40 | Report a problem → agent offers money back → refund call | "Something wrong? Her agent handles it, through PayPal, in seconds." |
-| 2:40–2:50 | Architecture + tagline | "Mandix. Your AI shops. Their AI sells. PayPal makes it safe." |
+| 2:40–2:50 | Architecture + tagline | "Mandix. Send an agent to the bazaar." |
 
 Replace the scripted prices with whatever the real run produced. Don't narrate numbers that aren't on screen.
 

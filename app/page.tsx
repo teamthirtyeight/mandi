@@ -209,7 +209,7 @@ export default async function Home() {
 
       <footer className="border-t border-line">
         <div className="mx-auto flex max-w-[76rem] flex-wrap items-center justify-between gap-4 px-4 py-8 text-sm text-ink-3 sm:px-6">
-          <p>Mandix · Built for the PayPal AI Hackathon</p>
+          <p>Mandix · Send an agent to the bazaar</p>
           <nav aria-label="Footer" className="flex gap-5">
             <Link href="/browse" className="hover:text-ink">
               Browse

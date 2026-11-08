@@ -1,10 +1,10 @@
 # Mandix
 
-**Your AI shops. Their AI sells. PayPal makes it safe.**
+**Send an agent to the bazaar.**
 
 Mandix is an agent-to-agent marketplace built for the PayPal AI Hackathon. Every small seller gets an AI sales agent, and every shopper can send an AI buying agent. The two agents haggle within limits that code enforces. PayPal holds the buyer's money until the seller ships.
 
-*Mandix* is the Hindi word for a traditional market where buyers and sellers haggle face to face.
+The name comes from *mandi*, the Hindi word for a traditional market where buyers and sellers haggle face to face.
 
 - **Live demo:** _add the Render URL_
 - **Video:** _add the YouTube link_
