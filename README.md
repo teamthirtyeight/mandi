@@ -51,7 +51,7 @@ For judges, `/login` has one-click demo accounts (Sarah the buyer; Meera, Arjun 
 | No backtracking, 6 rounds | A seller can't raise its own offer and a buyer can't lower its own; a negotiation expires after 6 rounds |
 | Information isolation | The floor never enters buyer prompts and the ceiling never enters seller prompts (`tests/agents.test.ts`) |
 | Prompt injection | Counterparty messages reach the other agent as `<counterparty_message>` data. Injection attempts are labelled. The attack test (landing page) also simulates a seller agent that falls for it: its £1 offer is blocked and its leaked floor is withheld |
-| AI never touches money | Authorize, capture, refund and void live in `lib/paypal/rest.ts` and `lib/orders/service.ts`. No agent can call them. The Agent Toolkit gets only products and shipment tracking |
+| AI never touches money | Authorize, capture, refund and void live in `lib/paypal/rest.ts` (on PayPal's Server SDK, `lib/paypal/sdk.ts`) and `lib/orders/service.ts`. No agent can call them. The Agent Toolkit gets only products and shipment tracking |
 | Human approval | No PayPal order exists without the buyer's tap; refunds above the seller's per-listing cap need the seller's tap |
 | Bundles | A bundle add-on must clear its own floor, and main price plus add-on must stay within the buyer's ceiling. The PayPal order lists both items |
 | Holds expire | A hold the seller hasn't shipped within their ship-by window is voided automatically, so the buyer is never charged |
@@ -84,7 +84,7 @@ Every call is written to `paypal_events`, which feeds the docked "PayPal API cal
 | Agents | Claude (`claude-sonnet-5-5`, set with `MANDI_MODEL`) through the Anthropic TypeScript SDK, structured output with Zod; vision for listings and refund checks |
 | Speech-to-text | OpenAI `gpt-transcribe` |
 | Product data | Channel3 (`@channel3/sdk`) |
-| Payments | PayPal Orders v2 + Payments v2 (REST), PayPal Agent Toolkit, PayPal JS SDK |
+| Payments | PayPal Orders v2 + Payments v2 via PayPal Server SDK (APIMatic-generated), Payouts via REST, PayPal Agent Toolkit, PayPal JS SDK |
 | Database | Postgres + Drizzle ORM |
 | Live updates | Server-Sent Events |
 | Dashboard | AG Grid Community + AG Charts |

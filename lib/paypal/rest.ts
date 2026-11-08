@@ -1,8 +1,15 @@
-// Deterministic PayPal money calls (Orders v2 + Payments v2). No LLM ever
-// imports this module; agents can only propose, the payment service acts.
-// Every POST carries a PayPal-Request-Id so retries can't double-charge.
+// Deterministic PayPal money calls. No LLM ever imports this module; agents can
+// only propose, the payment service acts. Every money POST carries a
+// PayPal-Request-Id so retries can't double-charge.
+//
+// Orders v2 and Payments v2 (create, authorize, show, track, capture, refund,
+// void, reauthorize) go through PayPal's Server SDK, @paypal/paypal-server-sdk,
+// which APIMatic generates (see ./sdk.ts). Payouts, disputes and webhook
+// verification aren't in that SDK, so they stay as direct REST calls below.
 import { randomUUID } from "node:crypto";
+import { CheckoutPaymentIntent, ItemCategory, ShipmentCarrier } from "@paypal/paypal-server-sdk";
 import { logPaypalEvent } from "./log";
+import { controllers, runSdk, type SdkOutcome } from "./sdk";
 
 const BASE_URL =
   process.env.PAYPAL_ENV === "live" ? "https://api-m.paypal.com" : "https://api-m.sandbox.paypal.com";
@@ -116,6 +123,45 @@ async function paypalRequest<T = PaypalBody>(opts: RequestOpts): Promise<T> {
   return body as T;
 }
 
+// ---- SDK call helper (Orders + Payments) ----
+
+interface SdkOpts {
+  method: "GET" | "POST";
+  /** Path for the log, e.g. /v2/checkout/orders/{id}/authorize. */
+  path: string;
+  orderId?: string | null;
+  /** Idempotency key for SDK methods that take no paypalRequestId of their own. */
+  requestId?: string;
+  summary: (ok: boolean, body: PaypalBody) => string;
+  call: (c: ReturnType<typeof controllers>) => Promise<{ statusCode: number; body: unknown }>;
+}
+
+async function sdkRequest<T = PaypalBody>(opts: SdkOpts): Promise<T> {
+  const send = async (): Promise<SdkOutcome> => runSdk(async () => opts.call(controllers(await getAccessToken(), opts.requestId ? { "PayPal-Request-Id": opts.requestId } : {})));
+  let res = await send();
+  // Revoked or expired token: new token, one more try (same request id, so still safe).
+  if (res.status === 401) {
+    cachedToken = null;
+    res = await send();
+  }
+  const ok = res.status >= 200 && res.status < 300;
+  await logPaypalEvent({
+    direction: "call",
+    method: opts.method,
+    endpoint: opts.path,
+    httpStatus: res.status,
+    orderId: opts.orderId,
+    summary: `${opts.summary(ok, res.body)} (PayPal Server SDK)`,
+  });
+  if (!ok) {
+    const detail = res.body?.details?.[0]?.issue ?? res.body?.name ?? res.status;
+    throw new PaypalError(`PayPal ${opts.method} ${opts.path} failed: ${detail}`, res.status, res.body);
+  }
+  return res.body as T;
+}
+
+const PREFER = "return=representation";
+
 // ---- Orders v2 ----
 
 export interface CreateOrderInput {
@@ -138,32 +184,36 @@ export async function createAuthorizeOrder(input: CreateOrderInput) {
   if (lines.reduce((sum, l) => sum + l.amountMinor, 0) !== input.amountMinor) {
     throw new Error("Order items don't add up to the order amount");
   }
-  return paypalRequest<{ id: string; status: string }>({
+  return sdkRequest<{ id: string; status: string }>({
     method: "POST",
     path: "/v2/checkout/orders",
-    requestId: input.requestId,
     orderId: input.orderId,
-    body: {
-      intent: "AUTHORIZE",
-      purchase_units: [
-        {
-          reference_id: input.referenceId,
-          description: input.description?.slice(0, 127),
-          amount: {
-            currency_code: input.currency,
-            value,
-            breakdown: { item_total: { currency_code: input.currency, value } },
-          },
-          items: lines.map((l) => ({
-            name: l.name.slice(0, 127),
-            quantity: "1",
-            unit_amount: { currency_code: input.currency, value: toValue(l.amountMinor) },
-            category: "PHYSICAL_GOODS",
-          })),
-          ...(input.payeeEmail ? { payee: { email_address: input.payeeEmail } } : {}),
+    call: ({ orders }) =>
+      orders.createOrder({
+        paypalRequestId: input.requestId,
+        prefer: PREFER,
+        body: {
+          intent: CheckoutPaymentIntent.Authorize,
+          purchaseUnits: [
+            {
+              referenceId: input.referenceId,
+              description: input.description?.slice(0, 127),
+              amount: {
+                currencyCode: input.currency,
+                value,
+                breakdown: { itemTotal: { currencyCode: input.currency, value } },
+              },
+              items: lines.map((l) => ({
+                name: l.name.slice(0, 127),
+                quantity: "1",
+                unitAmount: { currencyCode: input.currency, value: toValue(l.amountMinor) },
+                category: ItemCategory.PhysicalGoods,
+              })),
+              ...(input.payeeEmail ? { payee: { emailAddress: input.payeeEmail } } : {}),
+            },
+          ],
         },
-      ],
-    },
+      }),
     summary: (ok, b) => (ok ? `Order ${b.id} created (AUTHORIZE, ${input.currency} ${value})` : "Create order failed"),
   });
 }
@@ -193,11 +243,11 @@ export function shippingFrom(body: PaypalBody): ShippingAddress | null {
 }
 
 export async function authorizeOrder(paypalOrderId: string, opts: { orderId?: string | null } = {}) {
-  const body = await paypalRequest({
+  const body = await sdkRequest({
     method: "POST",
     path: `/v2/checkout/orders/${paypalOrderId}/authorize`,
-    requestId: `authorize-${paypalOrderId}`,
     orderId: opts.orderId,
+    call: ({ orders }) => orders.authorizeOrder({ id: paypalOrderId, paypalRequestId: `authorize-${paypalOrderId}`, prefer: PREFER }),
     summary: (ok, b) => {
       const auth = b?.purchase_units?.[0]?.payments?.authorizations?.[0];
       return ok && auth ? `Authorized ${auth.amount.currency_code} ${auth.amount.value} — money held` : "Authorize failed";
@@ -215,10 +265,11 @@ export async function authorizeOrder(paypalOrderId: string, opts: { orderId?: st
 }
 
 export async function getOrder(paypalOrderId: string, opts: { orderId?: string | null } = {}) {
-  return paypalRequest({
+  return sdkRequest({
     method: "GET",
     path: `/v2/checkout/orders/${paypalOrderId}`,
     orderId: opts.orderId,
+    call: ({ orders }) => orders.getOrder({ id: paypalOrderId }),
     summary: (ok, b) => (ok ? `Order ${paypalOrderId} is ${b.status}` : "Show order failed"),
   });
 }
@@ -232,18 +283,23 @@ export async function addTracking(input: {
   carrierNameOther?: string;
   orderId?: string | null;
 }) {
-  return paypalRequest({
+  return sdkRequest({
     method: "POST",
     path: `/v2/checkout/orders/${input.paypalOrderId}/track`,
     requestId: `track-${input.captureId}-${input.trackingNumber}`,
     orderId: input.orderId,
-    body: {
-      capture_id: input.captureId,
-      tracking_number: input.trackingNumber,
-      carrier: input.carrier,
-      ...(input.carrier === "OTHER" ? { carrier_name_other: input.carrierNameOther ?? "Other" } : {}),
-      notify_payer: true,
-    },
+    call: ({ orders }) =>
+      orders.createOrderTracking({
+        id: input.paypalOrderId,
+        body: {
+          captureId: input.captureId,
+          trackingNumber: input.trackingNumber,
+          // PayPal's carrier codes; the SDK schema accepts codes newer than its enum.
+          carrier: input.carrier as ShipmentCarrier,
+          ...(input.carrier === "OTHER" ? { carrierNameOther: input.carrierNameOther ?? "Other" } : {}),
+          notifyPayer: true,
+        },
+      }),
     summary: (ok) => (ok ? `Tracking ${input.trackingNumber} attached` : "Add tracking failed"),
   });
 }
@@ -251,12 +307,12 @@ export async function addTracking(input: {
 // ---- Payments v2 ----
 
 export async function captureAuthorization(authorizationId: string, opts: { orderId?: string | null } = {}) {
-  const body = await paypalRequest({
+  const body = await sdkRequest({
     method: "POST",
     path: `/v2/payments/authorizations/${authorizationId}/capture`,
-    requestId: `capture-${authorizationId}`,
     orderId: opts.orderId,
-    body: { final_capture: true },
+    call: ({ payments }) =>
+      payments.captureAuthorizedPayment({ authorizationId, paypalRequestId: `capture-${authorizationId}`, prefer: PREFER, body: { finalCapture: true } }),
     summary: (ok, b) => (ok ? `Captured ${b.amount?.currency_code ?? ""} ${b.amount?.value ?? ""}`.trim() : "Capture failed"),
   });
   return { captureId: body.id as string, status: body.status as string, raw: body };
@@ -271,26 +327,31 @@ export async function refundCapture(input: {
   orderId?: string | null;
 }) {
   const value = toValue(input.amountMinor);
-  const body = await paypalRequest({
+  const body = await sdkRequest({
     method: "POST",
     path: `/v2/payments/captures/${input.captureId}/refund`,
-    requestId: input.requestId,
     orderId: input.orderId,
-    body: {
-      amount: { currency_code: input.currency, value },
-      ...(input.note ? { note_to_payer: input.note.slice(0, 255) } : {}),
-    },
+    call: ({ payments }) =>
+      payments.refundCapturedPayment({
+        captureId: input.captureId,
+        paypalRequestId: input.requestId,
+        prefer: PREFER,
+        body: {
+          amount: { currencyCode: input.currency, value },
+          ...(input.note ? { noteToPayer: input.note.slice(0, 255) } : {}),
+        },
+      }),
     summary: (ok) => (ok ? `Refunded ${input.currency} ${value}` : "Refund failed"),
   });
   return { refundId: body.id as string, status: body.status as string, raw: body };
 }
 
 export async function voidAuthorization(authorizationId: string, opts: { orderId?: string | null } = {}) {
-  await paypalRequest({
+  await sdkRequest({
     method: "POST",
     path: `/v2/payments/authorizations/${authorizationId}/void`,
-    requestId: `void-${authorizationId}`,
     orderId: opts.orderId,
+    call: ({ payments }) => payments.voidPayment({ authorizationId, paypalRequestId: `void-${authorizationId}` }),
     summary: (ok) => (ok ? "Authorization voided — hold released" : "Void failed"),
   });
 }
@@ -301,11 +362,12 @@ export async function voidAuthorization(authorizationId: string, opts: { orderId
  * authorization; earlier or later, PayPal refuses and the message says why.
  */
 export async function reauthorize(authorizationId: string, opts: { orderId?: string | null } = {}) {
-  const body = await paypalRequest({
+  const body = await sdkRequest({
     method: "POST",
     path: `/v2/payments/authorizations/${authorizationId}/reauthorize`,
-    requestId: `reauthorize-${authorizationId}`,
     orderId: opts.orderId,
+    call: ({ payments }) =>
+      payments.reauthorizePayment({ authorizationId, paypalRequestId: `reauthorize-${authorizationId}`, prefer: PREFER }),
     summary: (ok, b) => (ok ? `Hold renewed (${b.id})` : "Reauthorize failed"),
   });
   return { authorizationId: body.id as string, expirationTime: body.expiration_time as string | undefined };

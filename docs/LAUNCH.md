@@ -86,7 +86,7 @@ Replace the scripted prices with whatever the real run produced. Don't narrate n
 - [ ] Upload to YouTube as unlisted, check it, then make it public.
 - [ ] Paste `docs/DEVPOST.md` into Devpost after filling in the bracketed items. Add the thumbnail (3:2) and 4–6 screenshots.
 - [ ] README: add the live URL and video link.
-- [ ] Tick the sponsor prizes: AG Grid, Channel3 and Render. Add APIMatic only if its plugin was actually used. Read each prize's criteria first, especially whether AG Grid expects Enterprise or AG Studio features (the dashboard uses Community).
+- [ ] Tick the sponsor prizes: AG Grid, Channel3 and Render. APIMatic: tick only if its criteria accept building on an APIMatic-generated SDK (Mandi's Orders and Payments calls use PayPal's Server SDK); leave it if they require the context plugin. Read each prize's criteria first, especially whether AG Grid expects Enterprise or AG Studio features (the dashboard uses Community).
 - [ ] Final run in a logged-out browser:
   - [ ] Live link loads in under 5 s
   - [ ] Full flow works
