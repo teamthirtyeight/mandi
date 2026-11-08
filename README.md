@@ -6,9 +6,22 @@ Mandix is an agent-to-agent marketplace built for the PayPal AI Hackathon. Every
 
 The name comes from *mandi*, the Hindi word for a traditional market where buyers and sellers haggle face to face.
 
-- **Live demo:** _add the Render URL_
+- **Live demo:** https://mandi-4pjw.onrender.com
 - **Video:** _add the YouTube link_
 - **Try it:** open the live demo and click **Try the demo**. Approve the deal with the sandbox buyer login shown next to the PayPal button.
+
+### For judges: try it in two minutes
+
+No install or account is needed. Everything runs on PayPal **sandbox**, so no real money moves.
+
+1. Open https://mandi-4pjw.onrender.com and click **Try the demo**. You're signed in as Sarah, a buyer in London, and her agent starts negotiating with three sellers.
+2. When the agents agree, click **Approve** and pay in the PayPal popup with the sandbox buyer login shown next to the button. PayPal authorizes and holds the money.
+3. Go to `/login` and sign in with one click as the seller who won the deal (Meera, Arjun or Fatima). Open the order from `/dashboard` and click **Mark as shipped and get paid**: Mandix captures the payment and attaches tracking to the PayPal order.
+4. Sign back in as Sarah, open the order from **My orders** and click **Report a problem**: the seller's agent proposes a refund and PayPal pays it.
+5. On the landing page, click **Run the attack test** to watch code block a hijacked seller agent.
+6. As a seller, also open `/seller` (the phone view in Hindi) and `/agent` (My agent, including **Connect PayPal**).
+
+The "PayPal API calls" panel docked at the bottom shows every live PayPal request and its status. The free Render instance can take up to a minute to wake after a quiet spell.
 
 ![Mandix architecture](docs/architecture.svg)
 
@@ -33,11 +46,15 @@ Meera follows all of this on a phone-sized view in Hindi with rupee amounts (`/s
 
 ## Accounts
 
-Sellers and buyers sign up at `/signup`. A seller account also creates the seller profile: city, the story their agent tells, the PayPal account they're paid into, language, ship-by days, delivery time and refund cap. Logins use email and password (scrypt-hashed) with a signed, HTTP-only session cookie. Every API route checks the session and ownership: a buyer only sees their own requests and orders, and a seller only their own listings, orders and floors.
+Sellers and buyers sign up at `/signup`. A seller account also creates the seller profile: city, the story their agent tells, language, ship-by days, delivery time and refund cap. A seller can enter a PayPal email, or skip it and connect PayPal later (see below). Logins use email and password (scrypt-hashed) with a signed, HTTP-only session cookie. Every API route checks the session and ownership: a buyer only sees their own requests and orders, and a seller only their own listings, orders and floors.
 
 Each user tunes their own agent at `/agent` (**My agent**):
 - **Sellers:** how firmly it holds the price (firm, balanced or flexible), whether it offers gift wrapping or bundles, the maximum bundle discount (enforced in code), their own instructions, and the profile it argues from (story, language, shipping, refund cap).
 - **Buyers:** how hard it haggles (patient, balanced or quick), how many sellers it talks to (1–3), whether it may accept bundles, and what matters most in the recommendation (price, balanced or delivery).
+
+### Connect PayPal without leaving Mandix
+
+Sellers link their PayPal account from **My agent → Getting paid**. PayPal's own sign-up opens in a PayPal window over Mandix (PayPal Partner Referrals, mini-browser mode), where the seller logs in or creates a free business account, then returns to Mandix. Mandix saves the account only after PayPal confirms it signed up through that seller's link (`tracking_id`), and from then on pays the seller by PayPal merchant id. Payouts that failed earlier are resent. Code: `lib/paypal/partner.ts`, `lib/sellers/paypal-connect.ts`, `components/ConnectPayPal.tsx`.
 
 For judges, `/login` has one-click demo accounts (Sarah the buyer; Meera, Arjun and Fatima the sellers), and **Try the demo** signs in as Sarah automatically. The demo logins can be turned off with `DEMO_LOGINS=0`.
 
@@ -76,6 +93,18 @@ For judges, `/login` has one-click demo accounts (Sarah the buyer; Meera, Arjun 
 
 Every call is written to `paypal_events`, which feeds the docked "PayPal API calls" panel.
 
+## AI tools and how Mandix uses them
+
+| Tool | What it does in Mandix |
+| --- | --- |
+| **Claude** (Anthropic API, `claude-sonnet-5-5`) | Runs every agent: the seller's sales agent and the buyer's shopping agent negotiate turn by turn with structured output (Zod schemas). Claude also turns the buyer's one sentence into a mandate (budget, deadline, country), writes English listings from the seller's photos and voice note, recommends the best deal with reasons, proposes refunds, and checks damage photos with vision. |
+| **OpenAI speech-to-text** (`gpt-transcribe`) | Transcribes the seller's voice note, in Hindi or another language, for the listing writer. |
+| **PayPal Agent Toolkit** | Gives the agents two safe tools only: creating a catalog product when a seller publishes, and adding shipment tracking. |
+| **Channel3** | Comparable products from other stores, used for the seller's suggested price range and the buyer's reference price. |
+| **Claude Code** | Used by the team to build, test and deploy Mandix. |
+
+The agents choose what to say and what to offer. Deterministic code checks every offer against the seller's floor and the buyer's ceiling, and only code calls PayPal to move money (see Safety design).
+
 ## Built with
 
 | Layer | Choice |
@@ -95,6 +124,8 @@ Every call is written to `paypal_events`, which feeds the docked "PayPal API cal
 **If the model is unavailable** (no `ANTHROPIC_API_KEY`, a refusal, or invalid output twice), agents fall back to rule-based turns that still pass through the engine. The demo never stalls, and the room labels those turns "rule-based".
 
 ## Run locally
+
+You need Node 20+, Postgres, and a PayPal **sandbox** REST app. AI keys are optional: with `MANDIX_FAKE_AI=1` (or no `ANTHROPIC_API_KEY`) the agents use rule-based turns that still pass through the engine, so the whole flow runs without them.
 
 1. Install dependencies.
 
@@ -181,7 +212,7 @@ docs/             architecture, Postman collection, Devpost draft, launch checkl
 
 - **Shipping address:** the address the buyer chooses in the PayPal popup is read at authorization and shown to the seller on the order page and the phone view.
 - **One-of-a-kind stock:** stock is taken just before PayPal authorizes, so two buyers can't both pay for the last piece. A sold-out listing drops out of search; a voided hold puts it back.
-- **Payouts:** by default PayPal pays the Mandix merchant, which pays sellers out (marketplace payouts are future work). `PAYPAL_PAY_SELLERS_DIRECTLY=1` pays each seller's PayPal account instead, falling back to Mandix if PayPal refuses a seller as payee.
+- **Payouts:** by default PayPal pays the Mandix merchant, which pays sellers out (marketplace payouts are future work). A seller who used Connect PayPal is paid by PayPal merchant id. `PAYPAL_PAY_SELLERS_DIRECTLY=1` pays each seller's PayPal account directly at checkout instead, falling back to Mandix if PayPal refuses a seller as payee.
 - **Holds:** the seller can renew a hold (PayPal reauthorize, allowed after the 3-day honor period); an unshipped hold is voided automatically.
 - **Interrupted runs:** negotiations run in the web server; after a restart, runs that were in flight are marked interrupted and the buyer is told nothing was charged.
 - **Buyer choice:** the buyer can approve any agreed deal, not only the recommended one, or cancel the request.
@@ -192,7 +223,7 @@ docs/             architecture, Postman collection, Devpost draft, launch checkl
 
 - Real money, live merchants, and PayPal Agent Ready / Store Sync. These need a PayPal access request.
 - Real carrier tracking; delivery is simulated.
-- Platform fees, marketplace payouts and seller KYC.
+- Platform fees and marketplace payouts. Seller identity checks are PayPal's, during Connect PayPal.
 - Mobile apps; the web app is responsive.
 - Email verification. Password-reset links are emailed only if `RESEND_API_KEY` and `MAIL_FROM` are set; otherwise they're written to the server log.
 - WhatsApp sends free-form messages, which WhatsApp only delivers within 24 hours of the seller's last message (and, on the Twilio sandbox, after the seller joins it). Production needs approved message templates per language.
@@ -202,10 +233,9 @@ docs/             architecture, Postman collection, Devpost draft, launch checkl
 ## What's next
 
 - Connect Mandix sellers to PayPal's agentic commerce services, so they appear inside AI shopping assistants.
-- Reauthorize holds for sellers who need more than 3 days to ship.
 - Onboarding in more Indian languages.
 - Marketplace payouts.
 
 ## License
 
-MIT
+[MIT](LICENSE)
