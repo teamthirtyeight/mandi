@@ -98,18 +98,21 @@ const money = { valueFormatter: (p: { value: number | null }) => gbp(p.value), t
 // The grid takes its colours from the design tokens, so it follows dark mode.
 const theme = themeQuartz.withParams({
   fontFamily: "inherit",
-  fontSize: 15,
-  headerFontSize: 14,
-  rowHeight: 48,
-  headerHeight: 44,
+  fontSize: 13.5,
+  headerFontSize: 12.5,
+  headerFontWeight: 600,
+  rowHeight: 46,
+  headerHeight: 40,
   backgroundColor: "var(--raised)",
   foregroundColor: "var(--ink)",
   headerBackgroundColor: "var(--surface)",
-  headerTextColor: "var(--ink-2)",
+  headerTextColor: "var(--ink-3)",
   borderColor: "var(--line)",
+  rowBorder: { color: "var(--line)" },
   rowHoverColor: "var(--surface)",
   accentColor: "var(--indigo)",
-  wrapperBorderRadius: 14,
+  wrapperBorderRadius: 12,
+  cellHorizontalPadding: 16,
 });
 
 export default function DashboardPage() {
@@ -279,10 +282,18 @@ export default function DashboardPage() {
     );
   if (!data)
     return (
-      <main className="page">
-        <p className="text-ink-3" role="status">
+      <main className="page space-y-6" aria-busy="true">
+        <p className="sr-only" role="status">
           Loading dashboard…
         </p>
+        <div className="h-4 w-32 animate-pulse rounded bg-surface" />
+        <div className="h-9 w-80 animate-pulse rounded-lg bg-surface" />
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+          {[0, 1, 2, 3, 4].map((i) => (
+            <div key={i} className="h-28 animate-pulse rounded-xl bg-surface" />
+          ))}
+        </div>
+        <div className="h-80 animate-pulse rounded-xl bg-surface" />
       </main>
     );
 
@@ -314,15 +325,16 @@ export default function DashboardPage() {
   const TAB_LABEL = { orders: "Orders", negotiations: "Negotiations", listings: "Listings", custom: "Custom orders", statement: "PayPal statement" } as const;
 
   return (
-    <main className="page space-y-8">
-      <header className="flex flex-wrap items-end justify-between gap-4">
+    <main className="page space-y-6">
+      <header className="flex flex-wrap items-end justify-between gap-4 border-b border-line pb-6">
         <div>
-          <p className="text-ink-3">Seller dashboard</p>
-          <h1 className="title text-4xl">
-            {data.seller.name}, {data.seller.city}
+          <p className="eyebrow">Seller dashboard</p>
+          <h1 className="title mt-2 text-[1.75rem]">
+            {data.seller.name}
+            <span className="ml-2 text-lg font-normal text-ink-3">{data.seller.city}</span>
           </h1>
         </div>
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-wrap gap-2">
           <Link href="/seller" className="btn btn-secondary">
             Phone view
           </Link>
@@ -334,23 +346,24 @@ export default function DashboardPage() {
 
       {toShip.length > 0 && (
         <section className="panel overflow-hidden" aria-labelledby="to-ship">
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line bg-leaf-soft px-5 py-3">
-            <h2 id="to-ship" className="font-semibold text-leaf">
+          <div className="panel-head bg-leaf-soft">
+            <h2 id="to-ship" className="flex items-center gap-2 text-sm font-semibold text-leaf">
+              <span className="h-2 w-2 rounded-full bg-leaf" aria-hidden="true" />
               {toShip.length === 1 ? "1 order to ship" : `${toShip.length} orders to ship`}
             </h2>
             <p className="text-sm text-leaf">The buyer&apos;s money is held. You&apos;re paid when you add tracking.</p>
           </div>
           <ul className="divide-y divide-line">
             {toShip.map((o) => (
-              <li key={o.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
+              <li key={o.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5">
                 <div className="min-w-0">
-                  <p className="truncate font-semibold">{o.listing}</p>
+                  <p className="truncate font-medium">{o.listing}</p>
                   <p className="text-sm text-ink-3">
                     For {o.buyer}, held on {when(o.authorizedAt)}
                   </p>
                 </div>
                 <div className="flex items-center gap-4">
-                  <span className="money text-lg">{gbp(o.amount)}</span>
+                  <span className="stat-value text-base">{gbp(o.amount)}</span>
                   <Link href={`/order/${o.id}`} className="btn btn-primary btn-sm">
                     Ship it
                   </Link>
@@ -403,37 +416,44 @@ export default function DashboardPage() {
         </section>
       )}
 
-      <section className="panel grid grid-cols-2 divide-line sm:grid-cols-3 lg:grid-cols-5 lg:divide-x" aria-label="Summary">
+      <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5" aria-label="Summary">
         {stats.map((t, i) => (
-          <div key={t.label} className={`p-4 sm:p-5 ${i === 0 ? "col-span-2 sm:col-span-1" : ""}`}>
-            <p className="text-sm text-ink-3">{t.label}</p>
-            <p className={`money mt-1 text-[1.75rem] leading-tight ${t.tone}`}>{t.value}</p>
-            <p className="hint mt-1">{t.note}</p>
+          <div key={t.label} className={`panel p-4 sm:p-5 ${i === 0 ? "col-span-2 sm:col-span-1" : ""}`}>
+            <p className="stat-label">{t.label}</p>
+            <p className={`stat-value mt-2 text-[1.625rem] leading-none ${t.tone}`}>{t.value}</p>
+            <p className="hint mt-2.5">{t.note}</p>
           </div>
         ))}
       </section>
-      <p className="hint -mt-5">
+      <p className="hint -mt-2">
         PayPal disputes:{" "}
         {disputes?.available ? `${disputes.count} open, checked through the PayPal Agent Toolkit.` : "not checked (needs PayPal keys)."}
       </p>
 
-      <section>
-        <div className="mb-3 flex gap-1 overflow-x-auto border-b border-line" role="tablist" aria-label="Seller records">
+      <section className="space-y-3">
+        <div
+          className="inline-flex max-w-full gap-1 overflow-x-auto rounded-lg border border-line bg-surface p-1"
+          role="tablist"
+          aria-label="Seller records"
+        >
           {(["orders", "negotiations", "listings", "custom", "statement"] as const).map((t) => (
             <button
               key={t}
               role="tab"
               aria-selected={tab === t}
               onClick={() => setTab(t)}
-              className={`-mb-px whitespace-nowrap border-b-2 px-4 py-2.5 font-semibold ${
-                tab === t ? "border-indigo text-indigo" : "border-transparent text-ink-2 hover:text-ink"
+              className={`flex items-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                tab === t ? "bg-raised text-ink shadow-[var(--shadow-sm)]" : "text-ink-2 hover:text-ink"
               }`}
             >
-              {TAB_LABEL[t]} {t !== "custom" && t !== "statement" && <span className="money ml-1 text-sm text-ink-3">{data[t].length}</span>}
+              {TAB_LABEL[t]}
+              {t !== "custom" && t !== "statement" && (
+                <span className={`num rounded px-1.5 text-xs ${tab === t ? "bg-surface text-ink-2" : "text-ink-3"}`}>{data[t].length}</span>
+              )}
             </button>
           ))}
         </div>
-        {tab === "negotiations" && !selected && <p className="hint mb-3">Select a negotiation to read what the agents said.</p>}
+        {tab === "negotiations" && !selected && <p className="hint">Select a negotiation to read what the agents said.</p>}
 
         {tab === "custom" && <SellerCommissions />}
         {tab === "statement" && <Statement theme={theme} />}
@@ -462,10 +482,10 @@ export default function DashboardPage() {
           </div>
 
           {tab === "negotiations" && selected && (
-            <aside className="panel w-full p-4 lg:w-96" aria-label="Negotiation transcript">
-              <div className="mb-3 flex items-start justify-between gap-2">
+            <aside className="panel panel-raised w-full p-4 lg:w-96" aria-label="Negotiation transcript">
+              <div className="mb-3 flex items-start justify-between gap-2 border-b border-line pb-3">
                 <div>
-                  <p className="font-semibold">With {selected.buyer}&apos;s agent</p>
+                  <p className="text-sm font-semibold">With {selected.buyer}&apos;s agent</p>
                   <p className="text-sm text-ink-3">{selected.listing}</p>
                 </div>
                 <button onClick={() => setSelected(null)} className="btn btn-quiet btn-sm" aria-label="Close transcript">
@@ -481,7 +501,6 @@ export default function DashboardPage() {
                     if (t.from === "engine") return { id: t.id, from: "engine" as const, text: t.message, price: null, blocked: t.guardrail.startsWith("REJECTED") };
                     const notes: string[] = [];
                     if (t.injection) notes.push("Injection attempt ignored");
-                    if (t.source === "fallback") notes.push("Rule-based reply");
                     if (t.proposed != null && t.final != null && t.proposed !== t.final) notes.push(`Engine adjusted from ${gbp(t.proposed)}`);
                     return { id: t.id, from: t.from as "seller" | "buyer", text: t.message, price: t.final, notes };
                   })}
@@ -495,9 +514,17 @@ export default function DashboardPage() {
         </div>
       </section>
 
-      <section className="panel p-5">
-        <h2 className="font-semibold">Paid to you, by week</h2>
-        <AgCharts options={chart} />
+      <section className="panel overflow-hidden">
+        <div className="panel-head">
+          <div>
+            <h2 className="text-sm font-semibold">Paid to you, by week</h2>
+            <p className="hint">Payments released to you after shipping</p>
+          </div>
+          <span className="stat-value text-base">{gbp(data.tiles.paidOut)}</span>
+        </div>
+        <div className="p-5">
+          <AgCharts options={chart} />
+        </div>
       </section>
     </main>
   );

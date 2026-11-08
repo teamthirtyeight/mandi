@@ -130,8 +130,8 @@ export function NegotiationChat({
           ) : (
             <li key={l.id} className={`chat-line flex items-end gap-3 ${l.from === "buyer" ? "flex-row-reverse" : ""}`} style={delay(i)}>
               <div
-                className={`max-w-[78%] rounded-2xl px-3.5 py-2 text-[0.9375rem] leading-snug ${
-                  l.from === "seller" ? "rounded-bl-md bg-surface" : "rounded-br-md bg-indigo-soft"
+                className={`max-w-[78%] rounded-2xl px-3.5 py-2 text-sm leading-relaxed ${
+                  l.from === "seller" ? "rounded-bl-md border border-line bg-surface" : "rounded-br-md bg-indigo-soft"
                 }`}
               >
                 <p>{l.text}</p>
@@ -142,7 +142,7 @@ export function NegotiationChat({
                 )}
               </div>
               {l.price != null && (
-                <span className={`money shrink-0 pb-1.5 text-lg ${l.from === "buyer" ? "text-indigo" : ""}`}>{money(l.price, currency)}</span>
+                <span className={`money shrink-0 pb-1.5 text-base ${l.from === "buyer" ? "text-indigo" : ""}`}>{money(l.price, currency)}</span>
               )}
             </li>
           ),
@@ -178,7 +178,12 @@ export function NegotiationChat({
         <div className="chat-line mt-4 flex flex-wrap items-center gap-3 border-t border-line pt-4" style={delay(lines.length)}>
           {outcome.kind === "agreed" ? (
             <>
-              <span className="display rounded-xl bg-haldi px-3 py-1.5 text-xl text-ink">Agreed at {money(outcome.price, currency)}</span>
+              <span className="inline-flex items-center gap-2 rounded-lg border border-haldi/40 bg-haldi-soft px-3 py-1.5 text-sm font-semibold text-haldi-ink">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">
+                  <path d="M5 12.5l4.5 4.5L19 7.5" />
+                </svg>
+                Agreed at <span className="money text-ink">{money(outcome.price, currency)}</span>
+              </span>
               {outcome.held && <span className="chip chip-safe">{outcome.held}</span>}
             </>
           ) : (

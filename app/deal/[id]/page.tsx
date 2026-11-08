@@ -11,6 +11,7 @@ import { OffersChart } from "@/components/OffersChart";
 import { ListingImage } from "@/components/ListingImage";
 import { NegotiationChat, type ChatLine } from "@/components/NegotiationChat";
 import type { MandateSnapshot } from "@/lib/negotiation/snapshot";
+import { CheckIcon, LockIcon } from "@/components/Icons";
 
 type Turn = MandateSnapshot["turns"][number];
 type Neg = MandateSnapshot["negotiations"][number];
@@ -63,7 +64,7 @@ function toLine(t: Turn): ChatLine {
   const notes: string[] = [];
   if (t.injection) notes.push("Injection attempt ignored");
   if (t.limit_redacted) notes.push("Engine withheld a private limit");
-  if (t.source === "fallback") notes.push("Rule-based reply");
+  // Rule-based replies are counted once in the column header, not on every bubble.
   if (t.source === "script") notes.push(t.from === "buyer" ? "Scripted attack" : "Simulated compromised agent");
   if (t.guardrail_result === "ADDON_OFFERED") notes.push("Bundle offer, after the deal");
   // A declined bundle has no price of its own to show.
@@ -168,11 +169,17 @@ export default function DealPage({ params }: { params: Promise<{ id: string }> }
     );
   if (!snap)
     return (
-      <main className="page space-y-6" aria-busy="true">
-        <div className="h-16 w-2/3 animate-pulse rounded-xl bg-surface" />
+      <main className="mx-auto w-full max-w-[84rem] space-y-6 px-4 pb-24 pt-8 sm:px-6" aria-busy="true">
+        <div className="h-4 w-40 animate-pulse rounded bg-surface" />
+        <div className="h-9 w-2/3 animate-pulse rounded-lg bg-surface" />
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="h-[4.5rem] animate-pulse rounded-xl bg-surface" />
+          ))}
+        </div>
         <div className="grid gap-4 lg:grid-cols-3">
           {[0, 1, 2].map((i) => (
-            <div key={i} className="h-96 animate-pulse rounded-[1.25rem] bg-surface" />
+            <div key={i} className="h-96 animate-pulse rounded-xl bg-surface" />
           ))}
         </div>
       </main>
@@ -189,34 +196,43 @@ export default function DealPage({ params }: { params: Promise<{ id: string }> }
   const lastPrice = (ts: Turn[], who: "buyer" | "seller") =>
     [...ts].reverse().find((t) => t.from === who && t.final_price != null && !t.guardrail_result.startsWith("ADDON"))?.final_price ?? null;
 
+  const agreedCount = snap.negotiations.filter((n) => {
+    const s = states[n.id]?.state ?? n.state;
+    return s === "AGREED" || s === "AWAITING_BUYER_APPROVAL" || s === "ORDERED";
+  }).length;
+  const summary = [
+    { label: "Budget", value: money(snap.mandate.maxPrice, currency), mono: true },
+    { label: "Arrive by", value: deadline, mono: false },
+    { label: "Sellers contacted", value: String(snap.negotiations.length), mono: true },
+    { label: "Deals agreed", value: live && agreedCount === 0 ? "—" : String(agreedCount), mono: true },
+  ];
+
   return (
-    <main className="mx-auto w-full max-w-7xl space-y-6 px-4 pb-24 pt-8 sm:px-6">
-      <header className="space-y-4">
-        <div className="flex flex-wrap items-center gap-2 text-sm text-ink-3">
-          <span>Negotiation room</span>
+    <main className="mx-auto w-full max-w-[84rem] space-y-6 px-4 pb-24 pt-8 sm:px-6">
+      <header className="space-y-5">
+        <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-2 text-sm text-ink-3">
+          <Link href="/shop" className="hover:text-ink">
+            Shop
+          </Link>
+          <span aria-hidden="true">/</span>
+          <span className="text-ink-2">Negotiation room</span>
           {live ? (
-            <span className="chip chip-progress">
+            <span className="chip chip-progress ml-1">
               <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-indigo" aria-hidden="true" />
               Agents are negotiating
             </span>
           ) : status === "cancelled" ? (
-            <span className="chip">Cancelled</span>
+            <span className="chip ml-1">Cancelled</span>
           ) : null}
           {snap.mandate.hostile && (
             <span className="chip chip-bad">
               {snap.mandate.compromised ? "Attack test: compromised seller agent" : "Hostile buyer test"}
             </span>
           )}
-        </div>
-        <h1 className="title text-[clamp(1.75rem,3.5vw,2.5rem)]">&ldquo;{snap.mandate.requestText}&rdquo;</h1>
-        <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
-          <p>
-            <span className="text-ink-3">Budget</span> <span className="money text-lg">{money(snap.mandate.maxPrice, currency)}</span>
-          </p>
-          <p>
-            <span className="text-ink-3">Arrive by</span> <span className="font-semibold">{deadline}</span>
-          </p>
-          <div className="ml-auto flex flex-wrap items-center gap-2">
+        </nav>
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <h1 className="title max-w-4xl text-[clamp(1.5rem,2.6vw,2rem)]">&ldquo;{snap.mandate.requestText}&rdquo;</h1>
+          <div className="flex flex-wrap items-center gap-2">
             {FINAL.has(status) && turns.length > 0 &&
               (replay ? (
                 <>
@@ -257,48 +273,63 @@ export default function DealPage({ params }: { params: Promise<{ id: string }> }
                   </button>
                 </div>
               ) : (
-                <button onClick={() => setConfirmCancel(true)} className="btn btn-quiet btn-sm">
+                <button onClick={() => setConfirmCancel(true)} className="btn btn-secondary btn-sm">
                   Cancel request
                 </button>
               ))}
           </div>
         </div>
+        <dl className="grid grid-cols-2 overflow-hidden rounded-xl border border-line bg-raised shadow-[var(--shadow-xs)] md:grid-cols-4">
+          {summary.map((s, i) => (
+            <div
+              key={s.label}
+              className={`px-5 py-3.5 ${i > 0 ? "border-line md:border-l" : ""} ${i % 2 === 1 ? "border-l" : ""} ${i > 1 ? "border-t md:border-t-0" : ""}`}
+            >
+              <dt className="stat-label">{s.label}</dt>
+              <dd className={`mt-1 text-lg ${s.mono ? "stat-value" : "font-semibold tracking-[-0.015em]"}`}>{s.value}</dd>
+            </div>
+          ))}
+        </dl>
       </header>
 
       {best && !replay && status !== "cancelled" && (
         <section
           aria-labelledby="deal-title"
-          className={`panel grid gap-6 overflow-hidden border-2 p-5 sm:p-6 md:grid-cols-[1fr_minmax(16rem,22rem)] ${held ? "border-leaf" : "border-haldi"}`}
+          className="panel panel-raised relative grid overflow-hidden md:grid-cols-[1fr_minmax(17rem,24rem)]"
         >
-          <div>
-            <p className="flex items-center gap-2">
-              <span className={`chip ${held ? "chip-safe" : "chip-agreed"}`}>{isRecommended ? "Recommended deal" : "Your choice"}</span>
-            </p>
-            <h2 id="deal-title" className="display mt-3 text-[clamp(1.75rem,4vw,2.5rem)]">
-              {best.sellerName}, <span className="money">{money(bestTotal / 100, best.currency)}</span>
-            </h2>
-            <p className="mt-1 text-lg text-ink-2">{best.title}</p>
+          <span className={`absolute inset-x-0 top-0 h-1 ${held ? "bg-leaf" : "bg-haldi"}`} aria-hidden="true" />
+          <div className="p-6 sm:p-7">
+            <span className={`chip ${held ? "chip-safe" : "chip-agreed"}`}>{isRecommended ? "Recommended deal" : "Your choice"}</span>
+            <div className="mt-4 flex flex-wrap items-baseline gap-x-4 gap-y-1">
+              <h2 id="deal-title" className="title text-2xl">
+                {best.sellerName}
+              </h2>
+              <span className="money text-[2rem] leading-none tracking-[-0.03em]">{money(bestTotal / 100, best.currency)}</span>
+            </div>
+            <p className="mt-2 text-ink-2">{best.title}</p>
             {best.addon && (
-              <p className="mt-1 text-ink-2">
+              <p className="mt-1 text-sm text-ink-2">
                 Plus {best.addon.title}, bundled for <span className="money">{money(best.addon.priceMinor / 100, best.currency)}</span>
               </p>
             )}
-            <ul className="mt-4 space-y-1.5">
+            <ul className="mt-5 grid gap-2 sm:grid-cols-2">
               {best.reasons.map((r) => (
-                <li key={r} className="flex gap-2 text-ink-2">
-                  <svg className="mt-1 shrink-0 text-leaf" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">
-                    <path d="M5 12l5 5L20 7" />
-                  </svg>
+                <li key={r} className="flex items-start gap-2 text-sm text-ink-2">
+                  <CheckIcon size={16} className="mt-0.5 shrink-0 text-leaf" />
                   {r}
                 </li>
               ))}
             </ul>
           </div>
 
-          <div className="well flex flex-col justify-center p-4">
+          <div className="flex flex-col justify-center border-t border-line bg-surface p-6 md:border-l md:border-t-0">
             {held && (
               <div>
-                <p className="title text-xl text-leaf">
+                <p className="flex items-center gap-2 text-sm font-semibold text-leaf">
+                  <LockIcon size={16} />
+                  Payment secured
+                </p>
+                <p className="mt-2 font-semibold tracking-[-0.015em]">
                   {held.status === "CAPTURED"
                     ? `${money(held.amount, best.currency)} paid. ${best.sellerName} has shipped.`
                     : held.status === "SHIPPED"
@@ -313,9 +344,12 @@ export default function DealPage({ params }: { params: Promise<{ id: string }> }
               </div>
             )}
             {!held && (
-              <div className="mb-3">
-                <p className="font-semibold">Approve in PayPal</p>
-                <p className="hint">
+              <div className="mb-4">
+                <p className="flex items-center gap-2 font-semibold">
+                  <LockIcon size={16} className="text-indigo" />
+                  Approve in PayPal
+                </p>
+                <p className="mt-1 text-sm text-ink-2">
                   PayPal holds <span className="money">{money(bestTotal / 100, best.currency)}</span>. {best.sellerName} is paid only
                   after shipping.
                 </p>
@@ -397,38 +431,48 @@ export default function DealPage({ params }: { params: Promise<{ id: string }> }
                   : "OPEN"
                 : finalState;
           const isBest = best?.negotiationId === n.id && status !== "cancelled";
+          const backupReplies = ts.filter((t) => t.source === "fallback").length;
           return (
-            <section key={n.id} className={`panel flex flex-col overflow-hidden ${isBest ? "ring-2 ring-haldi" : ""}`} aria-label={`Negotiation with ${n.seller.name}`}>
-              <header className="space-y-3 border-b border-line p-4">
+            <section
+              key={n.id}
+              className={`panel flex flex-col overflow-hidden ${isBest ? "border-haldi shadow-[0_0_0_1px_var(--haldi),var(--shadow-md)]" : ""}`}
+              aria-label={`Negotiation with ${n.seller.name}`}
+            >
+              <header className="space-y-4 border-b border-line p-4">
                 <div className="flex items-start gap-3">
-                  <ListingImage src={n.listing.image} title={n.listing.title} className="h-14 w-14 shrink-0 rounded-xl" />
+                  <ListingImage src={n.listing.image} title={n.listing.title} className="h-12 w-12 shrink-0 rounded-lg" />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-start justify-between gap-2">
-                      <h2 className="font-semibold leading-tight">
+                      <h2 className="text-[0.9375rem] font-semibold leading-tight tracking-[-0.015em]">
                         {n.seller.name}
-                        <span className="block text-sm font-normal text-ink-3">{n.seller.city}</span>
+                        <span className="ml-1.5 text-sm font-normal text-ink-3">{n.seller.city}</span>
                       </h2>
                       <span className={`chip ${STATE_CHIP[st] ?? ""}`}>{STATE_LABEL[st] ?? st}</span>
                     </div>
-                    <Link href={`/listing/${n.listing.id}`} className="mt-1 block truncate text-sm text-ink-2 underline decoration-line-strong underline-offset-2 hover:text-ink">
+                    <Link href={`/listing/${n.listing.id}`} className="mt-0.5 block truncate text-sm text-ink-2 hover:text-ink hover:underline">
                       {n.listing.title}
                     </Link>
                   </div>
                 </div>
-                <dl className="grid grid-cols-3 gap-2 text-sm">
-                  <div className="well px-2.5 py-1.5">
-                    <dt className="text-ink-3">Seller asks</dt>
-                    <dd className="money text-base">{money(lastPrice(ts, "seller"), currency)}</dd>
+                <dl className="grid grid-cols-3 divide-x divide-line rounded-lg border border-line">
+                  <div className="px-3 py-2">
+                    <dt className="stat-label">Seller asks</dt>
+                    <dd className="stat-value mt-0.5">{money(lastPrice(ts, "seller"), currency)}</dd>
                   </div>
-                  <div className="rounded-[0.875rem] bg-indigo-soft px-2.5 py-1.5">
-                    <dt className="text-ink-3">You offer</dt>
-                    <dd className="money text-base text-indigo">{money(lastPrice(ts, "buyer"), currency)}</dd>
+                  <div className="bg-indigo-soft/60 px-3 py-2">
+                    <dt className="stat-label">You offer</dt>
+                    <dd className="stat-value mt-0.5 text-indigo">{money(lastPrice(ts, "buyer"), currency)}</dd>
                   </div>
-                  <div className="px-2.5 py-1.5">
-                    <dt className="text-ink-3">List price</dt>
-                    <dd className="money text-base text-ink-2">{money(n.listing.listPrice, currency)}</dd>
+                  <div className="px-3 py-2">
+                    <dt className="stat-label">List price</dt>
+                    <dd className="stat-value mt-0.5 text-ink-2">{money(n.listing.listPrice, currency)}</dd>
                   </div>
                 </dl>
+                {backupReplies > 0 && (
+                  <p className="hint" title="The AI didn't give a usable reply, so Mandi's rules engine replied instead.">
+                    {backupReplies} {backupReplies === 1 ? "reply" : "replies"} from the rules engine
+                  </p>
+                )}
                 {!held &&
                   status === "recommended" &&
                   st === "AGREED" &&

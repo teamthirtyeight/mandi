@@ -142,41 +142,65 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
   return (
     <main className="page grid items-start gap-8 lg:grid-cols-[1fr_380px]">
       <section className="space-y-6">
-        <header className="flex flex-wrap items-end justify-between gap-4">
+        <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-sm text-ink-3">
+          <a href={viewer === "buyer" ? "/orders" : "/dashboard"} className="hover:text-ink">
+            {viewer === "buyer" ? "My orders" : "Dashboard"}
+          </a>
+          <span aria-hidden="true">/</span>
+          <span className="text-ink-2">Order</span>
+        </nav>
+        <header className="panel flex flex-wrap items-end justify-between gap-6 p-6">
           <div>
-            <p className="text-ink-3">{headline}</p>
-            <h1 className="display mt-1 text-5xl">
-              <span className="money">{money(order.amountMinor, order.currency)}</span>
+            <span
+              className={`chip ${
+                order.status === "CAPTURED"
+                  ? "chip-safe"
+                  : order.status === "AUTHORIZED" || order.status === "SHIPPED"
+                    ? "chip-progress"
+                    : ""
+              }`}
+            >
+              {headline}
+            </span>
+            <h1 className="mt-3">
+              <span className="money text-[2.5rem] leading-none tracking-[-0.035em]">{money(order.amountMinor, order.currency)}</span>
             </h1>
           </div>
-          <p className="text-right text-sm text-ink-3">
-            PayPal order
-            <span className="block font-mono text-ink-2">{order.paypalOrderId}</span>
-          </p>
+          <dl className="text-right">
+            <dt className="stat-label">PayPal order</dt>
+            <dd className="mt-1 font-mono text-sm text-ink-2">{order.paypalOrderId}</dd>
+          </dl>
         </header>
 
         {order.status === "VOIDED" ? (
           <p className="notice">The hold was released before shipping. The buyer was not charged.</p>
         ) : (
-          <ol className="grid grid-cols-2 gap-2 sm:grid-cols-4" aria-label="Order progress">
-            {STEPS.map((s) => {
+          <ol className="panel grid grid-cols-2 gap-y-5 p-5 sm:grid-cols-4" aria-label="Order progress">
+            {STEPS.map((s, i) => {
               const on = done[s.key];
-              const tone = s.key === "refunded" ? "border-ink-3 bg-surface" : "border-leaf bg-leaf-soft";
+              const refund = s.key === "refunded";
               return (
-                <li
-                  key={s.key}
-                  aria-current={on ? "step" : undefined}
-                  className={`rounded-2xl border-2 px-3 py-2.5 ${on ? tone : "border-dashed border-line"}`}
-                >
-                  <p className={`flex items-center gap-1.5 font-semibold ${on ? (s.key === "refunded" ? "text-ink" : "text-leaf") : "text-ink-3"}`}>
+                <li key={s.key} aria-current={on ? "step" : undefined} className="relative pr-3">
+                  {i < STEPS.length - 1 && (
+                    <span
+                      className={`absolute left-7 right-1 top-3 hidden h-0.5 rounded sm:block ${on && done[STEPS[i + 1].key] ? "bg-leaf" : "bg-line"}`}
+                      aria-hidden="true"
+                    />
+                  )}
+                  <span
+                    className={`relative flex h-6 w-6 items-center justify-center rounded-full border-2 ${
+                      on ? (refund ? "border-ink-3 bg-ink-3 text-paper" : "border-leaf bg-leaf text-paper") : "border-line-strong bg-raised"
+                    }`}
+                    aria-hidden="true"
+                  >
                     {on && (
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" aria-hidden="true">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5">
                         <path d="M5 12l5 5L20 7" />
                       </svg>
                     )}
-                    {s.label}
-                  </p>
-                  <p className={`text-xs ${on ? "text-ink-2" : "text-ink-3"}`}>{s.detail}</p>
+                  </span>
+                  <p className={`mt-3 text-sm font-semibold ${on ? "text-ink" : "text-ink-3"}`}>{s.label}</p>
+                  <p className="mt-0.5 text-xs leading-snug text-ink-3">{s.detail}</p>
                 </li>
               );
             })}

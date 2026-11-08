@@ -14,8 +14,8 @@ export function NavLinks({ links }: { links: { href: string; label: string }[] }
           key={l.href}
           href={l.href}
           aria-current={active(l.href) ? "page" : undefined}
-          className={`rounded-lg px-2.5 py-1.5 text-[0.9375rem] font-medium whitespace-nowrap ${
-            active(l.href) ? "bg-indigo-soft text-indigo" : "text-ink-2 hover:text-ink"
+          className={`rounded-md px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-colors ${
+            active(l.href) ? "bg-surface text-ink shadow-[inset_0_0_0_1px_var(--line)]" : "text-ink-2 hover:bg-surface hover:text-ink"
           }`}
         >
           {l.label}
