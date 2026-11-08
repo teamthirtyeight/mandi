@@ -1,7 +1,7 @@
 "use client";
 
 // Per-seller offers chart: seller asks (solid, ink) and buyer bids (indigo) by
-// round, with the buyer's budget as a dashed haldi line, so convergence is
+// round, with the buyer's budget as a dashed haldi line (seller grey, buyer in the brand colour), so convergence is
 // visible. The chart draws on a canvas, so colours are read from the CSS tokens
 // at runtime and re-read when the colour scheme changes.
 import { useEffect, useMemo, useState } from "react";
@@ -13,6 +13,8 @@ import {
   NumberAxisModule,
   type AgCartesianChartOptions,
 } from "ag-charts-community";
+
+import { THEME_EVENT } from "./ThemeToggle";
 
 ModuleRegistry.registerModules([LineSeriesModule, CategoryAxisModule, NumberAxisModule]);
 
@@ -41,7 +43,11 @@ function useTokens() {
     read();
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
     mq.addEventListener("change", read);
-    return () => mq.removeEventListener("change", read);
+    window.addEventListener(THEME_EVENT, read);
+    return () => {
+      mq.removeEventListener("change", read);
+      window.removeEventListener(THEME_EVENT, read);
+    };
   }, []);
   return tokens;
 }
@@ -67,7 +73,7 @@ export function OffersChart({ turns, budget }: { turns: Point[]; budget: number 
       legend: { enabled: false },
       animation: { enabled: false },
       series: [
-        { type: "line", xKey: "round", yKey: "ask", yName: "Seller asks", stroke: c.ink, strokeWidth: 2, marker: { fill: c.ink, stroke: c.ink, size: 6 } },
+        { type: "line", xKey: "round", yKey: "ask", yName: "Seller asks", stroke: c.ink3, strokeWidth: 2, marker: { fill: c.ink3, stroke: c.ink3, size: 6 } },
         { type: "line", xKey: "round", yKey: "bid", yName: "Your agent offers", stroke: c.indigo, strokeWidth: 2, marker: { fill: c.indigo, stroke: c.indigo, size: 6 } },
         { type: "line", xKey: "round", yKey: "budget", yName: "Your budget", stroke: c.haldi, strokeWidth: 2, lineDash: [5, 4], marker: { enabled: false } },
       ],
@@ -89,7 +95,7 @@ export function OffersChart({ turns, budget }: { turns: Point[]; budget: number 
       <AgCharts options={options} />
       <ul className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-3" aria-hidden="true">
         <li className="flex items-center gap-1.5">
-          <span className="h-0.5 w-3.5 rounded bg-ink" />
+          <span className="h-0.5 w-3.5 rounded bg-ink-3" />
           Seller
         </li>
         <li className="flex items-center gap-1.5">

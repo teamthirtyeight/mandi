@@ -23,6 +23,7 @@ import {
   type AgCartesianChartOptions,
 } from "ag-charts-community";
 import { NegotiationChat } from "@/components/NegotiationChat";
+import { useThemeChange } from "@/components/ThemeToggle";
 import type { Dashboard } from "@/lib/dashboard/data";
 
 ModuleRegistry.registerModules([AllCommunityModule]);
@@ -236,13 +237,16 @@ export default function DashboardPage() {
     [],
   );
 
-  // AG Charts draws on canvas, so read the token values once on the client.
+  // AG Charts draws on canvas, so read the token values on the client, and
+  // again whenever the theme changes.
   const [ink, setInk] = useState({ leaf: "#1e7a4c", text: "#4a5072", line: "#e2e4ee" });
-  useEffect(() => {
+  const readInk = useCallback(() => {
     const css = getComputedStyle(document.documentElement);
     const v = (n: string, d: string) => css.getPropertyValue(n).trim() || d;
     setInk({ leaf: v("--leaf", "#1e7a4c"), text: v("--ink-2", "#4a5072"), line: v("--line", "#e2e4ee") });
   }, []);
+  useEffect(readInk, [readInk]);
+  useThemeChange(readInk);
 
   const chart = useMemo<AgCartesianChartOptions>(
     () => ({

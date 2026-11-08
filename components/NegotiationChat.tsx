@@ -135,16 +135,26 @@ export function NegotiationChat({
             <li key={l.id} className={`chat-line flex ${l.from === "buyer" ? "justify-end" : ""}`} style={delay(i)}>
               <div
                 className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed ${
-                  l.from === "seller" ? "rounded-bl-md border border-line bg-surface" : "rounded-br-md bg-indigo-soft"
+                  l.from === "seller" ? "rounded-bl-md border border-line bg-surface" : "rounded-br-md bg-indigo text-on-indigo"
                 }`}
               >
                 {/* The price leads each offer, so a reply that only restates it isn't repeated. */}
-                {l.price != null && (
-                  <p className={`money text-base leading-tight ${l.from === "buyer" ? "text-indigo" : ""}`}>{money(l.price, currency)}</p>
+                {l.price != null && <p className="money text-base leading-tight">{money(l.price, currency)}</p>}
+                {!(l.price != null && onlyStatesPrice(l.text)) && (
+                  <p className={l.price != null ? (l.from === "buyer" ? "mt-1 opacity-80" : "mt-1 text-ink-2") : ""}>{l.text}</p>
                 )}
-                {!(l.price != null && onlyStatesPrice(l.text)) && <p className={l.price != null ? "mt-1 text-ink-2" : ""}>{l.text}</p>}
                 {l.notes && l.notes.length > 0 && (
-                  <p className={`mt-1.5 text-xs ${l.notes.some((n) => /inject|withheld/i.test(n)) ? "font-semibold text-madder" : "text-ink-3"}`}>
+                  <p
+                    className={`mt-1.5 text-xs ${
+                      l.notes.some((n) => /inject|withheld/i.test(n))
+                        ? l.from === "buyer"
+                          ? "font-semibold text-haldi"
+                          : "font-semibold text-madder"
+                        : l.from === "buyer"
+                          ? "opacity-70"
+                          : "text-ink-3"
+                    }`}
+                  >
                     {l.notes.join(", ")}
                   </p>
                 )}

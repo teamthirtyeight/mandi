@@ -4,6 +4,7 @@ import { LogoutButton } from "./LogoutButton";
 import { NotificationBell } from "./NotificationBell";
 import { MobileNav, NavLinks } from "./NavLinks";
 import { LogoMark } from "./Icons";
+import { ThemeToggle } from "./ThemeToggle";
 
 export async function SiteNav() {
   const user = await getUser().catch(() => null);
@@ -34,6 +35,9 @@ export async function SiteNav() {
         </Link>
         <NavLinks links={all} />
         <div className="ml-auto flex items-center gap-1.5">
+          <span className="mr-1 hidden md:block">
+            <ThemeToggle />
+          </span>
           {user ? (
             <>
               <NotificationBell />
@@ -65,8 +69,12 @@ export async function SiteNav() {
             </>
           )}
           <MobileNav links={user ? all : [...all, { href: "/login", label: "Log in" }]}>
+            <div className="px-3">
+              <p className="stat-label mb-2">Theme</p>
+              <ThemeToggle showLabels />
+            </div>
             {user && (
-              <div className="flex items-center justify-between gap-3 px-3">
+              <div className="mt-4 flex items-center justify-between gap-3 border-t border-line px-3 pt-4">
                 <span className="flex items-center gap-2.5">
                   <span
                     className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-soft text-sm font-semibold text-indigo"

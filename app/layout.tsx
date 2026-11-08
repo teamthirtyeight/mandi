@@ -15,6 +15,7 @@ import {
 import "./globals.css";
 import { SiteNav } from "@/components/SiteNav";
 import { DockedCallLog } from "@/components/DockedCallLog";
+import { THEME_SCRIPT } from "@/components/ThemeToggle";
 import { getUser } from "@/lib/auth/session";
 
 // Inter for all Latin text. Anek, an Indian-designed family, covers Devanagari
@@ -46,6 +47,10 @@ export default async function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        {/* Applies a saved theme before the first paint, so it never flashes. */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+      </head>
       <body
         className={`${inter.variable} ${anek.variable} ${anekDev.variable} ${scripts.map((f) => f.variable).join(" ")} min-h-screen antialiased`}
       >

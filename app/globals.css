@@ -15,11 +15,12 @@
   --ink: #0a0b0f;
   --ink-2: #41464f;
   --ink-3: #676d78;
-  /* Brand: a bold electric blue. White text on it passes WCAG AA. */
-  --indigo: #1f3cff;
-  --indigo-hover: #1530d9;
+  /* Brand: bold ink black for actions, with marigold (haldi) as the accent.
+     The token keeps its old name, indigo, so existing classes still work. */
+  --indigo: #0a0b0f;
+  --indigo-hover: #2b2e36;
   --on-indigo: #ffffff;
-  --indigo-soft: #edf0ff;
+  --indigo-soft: #f1f2f4;
   --haldi: #e9a21b;
   --haldi-ink: #7a4f00;
   --haldi-soft: #fdf5e1;
@@ -27,7 +28,7 @@
   --leaf-soft: #e8f6ee;
   --madder: #b4362a;
   --madder-soft: #fcecea;
-  --focus: #1f3cff;
+  --focus: #0a0b0f;
   --shadow-xs: 0 1px 2px rgb(15 17 23 / 0.05);
   --shadow-sm: 0 1px 2px rgb(15 17 23 / 0.04), 0 1px 3px rgb(15 17 23 / 0.06);
   --shadow-md: 0 2px 4px -2px rgb(15 17 23 / 0.06), 0 8px 20px -6px rgb(15 17 23 / 0.1);
@@ -35,8 +36,41 @@
   color-scheme: light;
 }
 
+/*
+  Dark tokens. data-theme on <html> holds the user's explicit choice; with no
+  attribute (System), the operating system setting decides. The two blocks
+  below must stay identical.
+*/
+:root[data-theme="dark"] {
+  --paper: #0b0d12;
+  --surface: #12151c;
+  --raised: #161a22;
+  --line: #252a35;
+  --line-strong: #363c4a;
+  --ink: #eef0f4;
+  --ink-2: #b4bac6;
+  --ink-3: #8a909e;
+  --indigo: #f4f5f7;
+  --indigo-hover: #ffffff;
+  --on-indigo: #0b0d12;
+  --indigo-soft: #1f232c;
+  --haldi: #f2b84b;
+  --haldi-ink: #f6cd7e;
+  --haldi-soft: #2d2512;
+  --leaf: #5bcb8f;
+  --leaf-soft: #10261a;
+  --madder: #ff8a78;
+  --madder-soft: #2e1714;
+  --focus: #f4f5f7;
+  --shadow-xs: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4), 0 1px 3px rgb(0 0 0 / 0.3);
+  --shadow-md: 0 8px 20px -6px rgb(0 0 0 / 0.5);
+  --shadow-lg: 0 24px 48px -12px rgb(0 0 0 / 0.6);
+  color-scheme: dark;
+}
+
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme]) {
     --paper: #0b0d12;
     --surface: #12151c;
     --raised: #161a22;
@@ -45,10 +79,10 @@
     --ink: #eef0f4;
     --ink-2: #b4bac6;
     --ink-3: #8a909e;
-    --indigo: #7d93ff;
-    --indigo-hover: #9aabff;
+    --indigo: #f4f5f7;
+    --indigo-hover: #ffffff;
     --on-indigo: #0b0d12;
-    --indigo-soft: #1c2246;
+    --indigo-soft: #1f232c;
     --haldi: #f2b84b;
     --haldi-ink: #f6cd7e;
     --haldi-soft: #2d2512;
@@ -56,7 +90,7 @@
     --leaf-soft: #10261a;
     --madder: #ff8a78;
     --madder-soft: #2e1714;
-    --focus: #a9b3ff;
+    --focus: #f4f5f7;
     --shadow-xs: 0 1px 2px rgb(0 0 0 / 0.4);
     --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4), 0 1px 3px rgb(0 0 0 / 0.3);
     --shadow-md: 0 8px 20px -6px rgb(0 0 0 / 0.5);

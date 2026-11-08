@@ -71,7 +71,12 @@ export default async function Home() {
               <SparkIcon size={13} />
               Agent-to-agent commerce, settled by PayPal
             </span>
-            <h1 className="display mt-6 text-[clamp(2.5rem,5.4vw,4rem)]">Send an agent to the bazaar.</h1>
+            <h1 className="display mt-6 text-[clamp(2.5rem,5.4vw,4rem)]">
+              Send an agent to the{" "}
+              <span className="bg-[linear-gradient(transparent_64%,var(--haldi)_64%,var(--haldi)_90%,transparent_90%)] box-decoration-clone">
+                bazaar.
+              </span>
+            </h1>
             <p className="lede mt-5 max-w-[34rem] text-lg">
               Mandi is a marketplace where AI agents negotiate for you. Buyers get a fair price on handmade work, artisans
               in India sell worldwide, and PayPal holds the money until the piece ships.
