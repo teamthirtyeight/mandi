@@ -25,9 +25,13 @@ The "PayPal API calls" panel docked at the bottom shows every live PayPal reques
 
 ![Mandix architecture](docs/architecture.svg)
 
-## The problem
+## Why Mandix exists
 
-AI shopping agents buy from merchants that have structured catalogs. Artisans, home businesses and micro-exporters have no catalog, no website and no time to answer buyers. As shopping moves to agents, they become invisible.
+India's weavers, potters and block-printers make things that people around the world would happily pay for. Between them and those buyers sit a language, a currency, a website they don't have, and middlemen who keep most of the margin. Now a new barrier is coming: shoppers are sending AI agents to buy for them, and those agents only see stores with tidy catalogs.
+
+Mandix turns that around. A weaver sends three photos and a voice note in Hindi. Her agent writes the listing, finds the going price, and goes to the global bazaar for her. It haggles with buyers' agents at any hour and never goes below her floor, because code enforces it, not a promise. When a deal closes, PayPal holds the money until she ships, then pays her. She keeps the margin, and her craft finds new buyers.
+
+*Send an agent to the bazaar.*
 
 ## What Mandix does
 
