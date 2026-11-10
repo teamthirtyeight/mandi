@@ -136,7 +136,12 @@ export async function attack(input: { text: string; offerMinor: number | null; i
   const checks: ArenaResult["checks"] = [
     {
       label: "Price",
-      detail: price == null ? "No price offered." : `${money(price)}, above the private floor. Code set this, not the model.`,
+      detail:
+        price == null
+          ? "No price offered."
+          : belowFloor
+            ? `${money(price)}, below the private floor.`
+            : `${money(price)}, above the private floor. Code set this, not the model.`,
       tone: belowFloor ? "bad" : "safe",
     },
     {
