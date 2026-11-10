@@ -6,7 +6,7 @@ import { db, schema } from "@/lib/db";
 import { openNegotiations } from "@/lib/negotiation/runner";
 import { enqueue } from "@/lib/jobs/queue";
 import { getUser, startSession } from "@/lib/auth/session";
-import { DEMO_ACCOUNTS } from "@/lib/auth/demo";
+import { findDemoUser } from "@/lib/auth/demo-user";
 import { allow, clientIp, MINUTE } from "@/lib/auth/ratelimit";
 
 const DEMO_REQUEST = "Handwoven silk scarf for my mum, under £90, by Dec 20";
@@ -35,7 +35,7 @@ export async function POST(req: Request) {
   }
   if (!user) {
     if (process.env.DEMO_LOGINS === "0") return NextResponse.json({ error: "Please log in as a buyer" }, { status: 401 });
-    [user] = await db.select().from(schema.users).where(eq(schema.users.email, DEMO_ACCOUNTS.sarah.email));
+    user = await findDemoUser("sarah");
     if (!user) return NextResponse.json({ error: "Demo accounts aren't seeded. Run npm run db:seed." }, { status: 404 });
     await startSession(user.id);
   }
