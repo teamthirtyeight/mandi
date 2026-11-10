@@ -7,7 +7,7 @@ Mandix is an agent-to-agent marketplace built for the PayPal AI Hackathon. Every
 The name comes from *mandi*, the Hindi word for a traditional market where buyers and sellers haggle face to face.
 
 - **Live demo:** https://mandi-4pjw.onrender.com
-- **Video:** _add the YouTube link_
+- **Video:** https://www.youtube.com/watch?v=IPY8oHCtNMA
 - **Try it:** open the live demo and click **Try the demo**. Approve the deal with the sandbox buyer login shown next to the PayPal button.
 
 ### For judges: try it in two minutes

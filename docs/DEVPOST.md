@@ -4,90 +4,96 @@ Fill in the bracketed items, check every claim against the live demo, then paste
 
 **Project name:** Mandix
 **Tagline (≤ 60 characters):** Send an agent to the bazaar.
-**Links:** https://mandi-4pjw.onrender.com · [YouTube URL] · https://github.com/teamthirtyeight/mandi
+**Elevator pitch (≤ 200 characters):** Mandix connects India's artisans to the world: their AI agent sells in their language, haggles with buyers' agents, never drops below their price, and PayPal pays them when it ships.
+**Links:** https://mandi-4pjw.onrender.com · https://www.youtube.com/watch?v=IPY8oHCtNMA · https://github.com/teamthirtyeight/mandi
 **Sponsor prizes to tick:** AG Grid, Channel3, Render. APIMatic: Mandix's Orders and Payments calls go through PayPal's Server SDK, which APIMatic generates. Tick it only if the prize's criteria accept that; if they require APIMatic's context plugin, leave it.
 
 ## Inspiration
 
-Meera weaves silk in Varanasi. Each scarf takes about four days on the loom, and she sells by word of mouth. AI shopping agents are starting to buy for people, but they buy from merchants with structured catalogs. Meera has no catalog and no website, so as shopping moves to agents she becomes invisible. [Add one impact stat about small sellers or artisans, with its source.]
+India's weavers, potters and block-printers make things the whole world would pay for. Between them and those buyers stand a language, a currency, a website they don't have, and middlemen who keep most of the margin.
+
+Now a new wall is going up. Shoppers are starting to send AI agents to buy for them, and those agents only see stores with tidy, structured catalogs. Meera weaves silk in Varanasi; one scarf is four days on her loom, and she sells by word of mouth. In an agent-run market she simply doesn't exist.
+
+We asked: what if Meera had an agent too, one that speaks her language, knows her price, and is paid safely through PayPal?
 
 ## What it does
 
-Mandix gives every small seller an AI sales agent and every shopper an AI buying agent. Meera onboards with photos and a voice note; her agent writes the listing and defends her price. Sarah in London types one sentence, and her agent negotiates with three sellers at once, inside limits enforced in code. Sarah approves one deal, and PayPal holds the money until Meera ships. Sellers without a PayPal account create one without leaving Mandix: PayPal's sign-up opens in a window over the app, and Mandix pays them by their PayPal merchant id once PayPal confirms it.
+Mandix is an agent-to-agent bazaar. Every artisan gets an AI sales agent; every shopper can send an AI buying agent. The agents haggle, code keeps them honest, and PayPal holds the money until the work ships.
+
+1. **List in a minute, in any language.** Meera adds a photo and a voice note in Hindi. Her agent writes the English listing, checks what similar products sell for, and she sets a list price plus a private floor. Publishing creates a PayPal catalog product.
+2. **One sentence from the buyer.** Sarah in London types "silk scarf for my mum, under £90, by Dec 20". Her agent turns it into a mandate (budget, deadline, ship-to country) that she confirms once.
+3. **Three negotiations at once, live.** Sarah's agent bargains with up to three sellers in parallel. The room streams every turn with a price chart per seller, showing what each agent proposed and what the engine allowed.
+4. **One tap, money held.** Her agent recommends one deal with its reasons. Sarah approves in PayPal, which authorizes and holds the amount. Nothing is paid yet.
+5. **Ship, then get paid.** Meera adds tracking. Mandix captures the payment, attaches tracking to the PayPal order, and pays Meera out.
+6. **Problems handled by her agent.** If something's wrong, Sarah reports it. Meera's agent offers a refund within the limit Meera set and PayPal returns it at once; anything larger waits for Meera's tap.
+7. **Built for the seller's world.** Meera follows every sale on a phone view in Hindi (or any of 11 languages) with rupee amounts, and can get WhatsApp alerts. A seller with no PayPal account creates one inside Mandix: PayPal's sign-up opens in a window over the app.
+
+## How it works: the AI talks, code decides
+
+The agents choose what to say and what to offer. A deterministic negotiation engine decides whether an offer is allowed, and only code ever touches money.
+
+- Every agent turn passes the guardrail engine before it is saved, streamed or shown to the other side.
+- The seller's floor and the buyer's ceiling are enforced on every turn. An offer past a limit is **blocked, not clamped**, so the limit itself never leaks through the price.
+- A leak filter strips a seller's floor from any message before the buyer's agent reads it ("my floor is [withheld]").
+- The other agent's words reach each model as untrusted data, never as instructions.
+- Agents never get capture, refund or void as tools. No PayPal order exists without the buyer's tap, and refunds above the seller's cap need the seller's tap.
+- The **attack test** proves it on screen: a hostile buyer injects instructions and each seller agent is made to fall for it. Every £1 offer is blocked by code and the leaked floor arrives as "[withheld]".
+
+## PayPal integration (sandbox)
+
+| What | PayPal API or tool | When |
+| --- | --- | --- |
+| Catalog product | Agent Toolkit `create_product` | Seller publishes |
+| Create order (intent AUTHORIZE) | Orders v2 via the PayPal Server SDK (APIMatic) | Buyer taps Approve |
+| Authorize and hold | `POST /v2/checkout/orders/{id}/authorize` | PayPal approval |
+| Capture | `POST /v2/payments/authorizations/{id}/capture` | Seller adds tracking |
+| Tracking | `POST /v2/checkout/orders/{id}/track` | Right after capture |
+| Payout to seller | `POST /v1/payments/payouts` | After capture |
+| Refund | `POST /v2/payments/captures/{id}/refund` | Agent proposal within cap, or seller's tap |
+| Void / reauthorize | Payments v2 | Seller can't ship / needs more time |
+| Seller sign-up | Partner Referrals (mini-browser) | Seller taps Connect PayPal |
+| Webhooks | `verify-webhook-signature` | PayPal events |
+
+Every call is logged and shown live in a docked "PayPal API calls" panel, so judges can watch the money move.
 
 ## How we built it
 
-- **App:** one Next.js and TypeScript app on Render, with Postgres through Drizzle.
-- **Agents:** Claude, through the Anthropic SDK with structured output. Vision turns photos into listings and checks damage photos for refunds; OpenAI speech-to-text handles voice notes, including Hindi.
-- **Negotiation engine:** a deterministic state machine. Every agent turn passes through it before it is saved, streamed or shown to the other agent.
-- **Payments:** PayPal Orders v2 and Payments v2 through PayPal's Server SDK (`@paypal/paypal-server-sdk`, generated by APIMatic), Payouts through REST, Partner Referrals for seller sign-up, plus the PayPal Agent Toolkit for catalog products and tracking. Webhooks are verified with PayPal.
-- **Price data:** Channel3 comparable products, for the seller's price range and the buyer's reference price.
-- **Dashboard:** AG Grid and AG Charts for the seller dashboard.
-- **Live updates:** Server-Sent Events for the negotiation room.
-- **Development:** built with Claude Code.
+- **App:** one Next.js 15 and TypeScript app with Postgres (Drizzle), hosted on Render. Server-Sent Events stream the negotiation room.
+- **Agents:** Claude (`claude-sonnet-5-5`) through the Anthropic SDK with structured output (Zod). It runs both sides of every negotiation, parses the buyer's mandate, writes listings from photos and voice, recommends deals, proposes refunds and checks damage photos with vision.
+- **Speech:** OpenAI speech-to-text (`gpt-transcribe`) for seller voice notes, including Hindi.
+- **Prices:** Channel3 comparable products for the seller's suggested range and the buyer's reference price.
+- **Dashboard:** AG Grid and AG Charts for the seller dashboard and the live price charts.
+- **Reliability:** if the model is unavailable or returns bad output twice, a rule-based turn takes over, still through the engine, so a negotiation never stalls.
+- **Development:** built, tested (335 unit and 9 end-to-end tests) and deployed with Claude Code.
 
-![Architecture](architecture.svg)
+## Challenges we ran into
 
-## Tools used and how
+- **Capture timing.** PayPal captures most reliably within the 3-day honor period, so Mandix gives sellers a ship-by window, voids unshipped holds automatically so buyers are never charged, and lets slower sellers renew the hold.
+- **Cross-border sandbox setup.** An India business account can't receive GBP, so the platform runs on a UK merchant; India sandbox seller sign-ups route into real KYC steps, so linking had to work even when sign-up stops early.
+- **Dependable on camera.** Structured outputs, an engine that rejects bad turns and a rule-based fallback mean a model hiccup never freezes the demo.
 
-| Tool | How Mandix uses it |
-| --- | --- |
-| Claude (Anthropic API, `claude-sonnet-5-5`) | Runs both agents in every negotiation with structured output; parses the buyer's sentence into a mandate; writes listings from photos and a voice note; recommends a deal with reasons; proposes refunds and checks damage photos with vision. |
-| OpenAI speech-to-text (`gpt-transcribe`) | Transcribes the seller's voice note, including Hindi. |
-| PayPal Agent Toolkit | The only PayPal tools the agents get: create a catalog product, add tracking. |
-| PayPal Server SDK (APIMatic) and REST APIs | Orders, authorize, capture, tracking, refund, void, payouts, partner referrals and webhooks, all called by code, never by an agent. |
-| Channel3 | Comparable products for price ranges. |
-| AG Grid and AG Charts | The seller dashboard. |
-| Render | Hosting and Postgres. |
-| Claude Code | How the team built, tested and deployed Mandix. |
+## Accomplishments that we're proud of
 
-## Use of PayPal + AI
+- The full sandbox money flow works end to end: authorize, hold, capture, tracking, payout, refund and void.
+- Three live agent negotiations in parallel, readable by a human as they happen.
+- A prompt-injection attack visibly stopped by code, not by hoping the model behaves.
+- A seller can go from no PayPal account and no listing to selling abroad without leaving Mandix.
 
-| Capability | Endpoint / tool | Triggered by |
-| --- | --- | --- |
-| Catalog product | Agent Toolkit `create_product` | Seller publishes |
-| Create order (AUTHORIZE) | `POST /v2/checkout/orders` | Buyer's one tap |
-| Authorize | `POST /v2/checkout/orders/{id}/authorize` | PayPal approval |
-| Capture | `POST /v2/payments/authorizations/{id}/capture` | Seller posts tracking |
-| Tracking | `POST /v2/checkout/orders/{id}/track` | After capture |
-| Refund | `POST /v2/payments/captures/{id}/refund` | Seller agent's proposal within the seller's cap |
-| Void | `POST /v2/payments/authorizations/{id}/void` | Seller can't ship |
-| Payout | `POST /v1/payments/payouts` | After capture, to the seller |
-| Seller sign-up | `POST /v2/customer/partner-referrals` + merchant-integrations lookup | Seller taps Connect PayPal |
-| Webhooks | `verify-webhook-signature` | PayPal events |
+## What we learned
 
-## Agentic commerce
-
-The flow runs from discovery to negotiation to mandate, then authorize, capture on shipment, and refund. The agents decide what to say and what to offer. Deterministic code decides whether a price is allowed and is the only thing that moves money. The agents never get capture, refund or void as tools.
-
-## Safety
-
-- The floor and ceiling are enforced in code on every turn.
-- Counterparty messages are passed to each agent as untrusted data.
-- No PayPal order is created without the buyer's tap, and refunds above the seller's cap need the seller's tap.
-- An offer past a limit is blocked, not clamped, so the limit itself never reaches the other side. A leak filter removes a seller's floor from any message before the buyer's agent reads it.
-- The attack test asks the seller's agent for its floor and simulates an agent that falls for it. Its £1 offer is blocked on screen, and its leaked floor arrives as "[withheld]".
-
-## Challenges
-
-- **Capture timing.** PayPal captures most reliably within the 3-day honor period, so Mandix gives sellers a ship-by window, voids unshipped holds automatically, and lets a slower seller renew the hold with PayPal reauthorization.
-- **A negotiation that's dependable on camera.** Structured outputs, an engine that clamps or rejects bad turns, and a rule-based fallback turn mean a model hiccup never stalls the demo.
-
-## Accomplishments
-
-- The real sandbox money flow works end to end: authorize, capture, track and refund.
-- The buyer agent negotiates with three sellers in parallel, live on screen.
-- An injection attempt is visibly stopped by code, not by the model behaving.
+- Let the model talk, but let code decide. Blocking (not clamping) offers keeps private limits from ever leaking.
+- Between agents, prompt injection is a real threat; isolating each side's private data matters more than clever prompts.
+- PayPal's authorize-then-capture flow is a natural escrow for handmade goods: the buyer is protected until it ships, the seller once it does.
 
 ## What's next
 
-- Connect to PayPal's agentic commerce services (Agent Ready, Store Sync) so Mandix sellers appear in every AI shopping assistant.
-- Onboarding in more languages.
-- Marketplace payouts with platform fees.
+- Connect Mandix sellers to PayPal's agentic commerce services (Agent Ready, Store Sync) so they appear inside every AI shopping assistant.
+- Marketplace payouts with platform fees, and onboarding in more languages.
+- Real carrier tracking, and buyer budgets in more currencies.
 
 ## Try it
 
-- Open https://mandi-4pjw.onrender.com and click **Try the demo**. No account needed.
-- Sandbox buyer: shown next to the PayPal button (test money only).
-- Seller side: one-click demo sellers at `/login`, then `/dashboard`, `/sell`, `/seller` and `/agent`.
-- Step-by-step guide for judges and local setup: the README at https://github.com/teamthirtyeight/mandi
+- **Live demo:** https://mandi-4pjw.onrender.com (click **Try the demo**). No account needed; everything is PayPal sandbox (test money only).
+- **Video:** https://www.youtube.com/watch?v=IPY8oHCtNMA
+- **Seller side:** one-click demo sellers at `/login`, then `/dashboard`, `/sell`, `/seller` and `/agent`.
+- **Code and step-by-step judge guide:** https://github.com/teamthirtyeight/mandi
