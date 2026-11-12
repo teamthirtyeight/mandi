@@ -5,6 +5,7 @@ import { desc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db, schema } from "@/lib/db";
 import { requireUser } from "@/lib/auth/session";
+import { clientIp } from "@/lib/auth/ratelimit";
 import { errorResponse } from "@/lib/api/errors";
 import { refreshCommission, requestCommission } from "@/lib/commissions";
 
@@ -20,7 +21,7 @@ export async function POST(req: Request) {
     const user = await requireUser("buyer");
     const parsed = Body.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid request" }, { status: 400 });
-    const c = await requestCommission({ ...parsed.data, buyerUserId: user.id });
+    const c = await requestCommission({ ...parsed.data, buyerUserId: user.id, clientKey: clientIp(req) });
     return NextResponse.json({ id: c.id, status: c.status });
   } catch (err) {
     return errorResponse(err);

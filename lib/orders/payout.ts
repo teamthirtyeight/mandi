@@ -154,9 +154,11 @@ export async function refreshPayouts(orderIds: string[]): Promise<void> {
  * ponytail: a debt limit, not a payout hold; each new seller account can still
  * owe up to the limit. Hold payouts for a few days if that is ever abused.
  */
+// Sandbox demo default: every order is paid out as soon as it ships, so a full
+// refund always lands after the payout. Set lower for real money.
 const maxSellerDebtMinor = () => {
-  const n = Number(process.env.MANDIX_MAX_SELLER_DEBT_MINOR ?? 5000);
-  return Number.isFinite(n) && n >= 0 ? n : 5000;
+  const n = Number(process.env.MANDIX_MAX_SELLER_DEBT_MINOR ?? 100000);
+  return Number.isFinite(n) && n >= 0 ? n : 100000;
 };
 
 async function sellerIdFor(order: typeof schema.orders.$inferSelect): Promise<string | null> {

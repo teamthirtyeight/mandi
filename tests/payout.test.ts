@@ -120,8 +120,13 @@ describe.skipIf(!TEST_DB)("seller payouts", () => {
     const svc = await import("@/lib/orders/service");
     const { order, seller } = await sellerWithOrder(dbmod);
     await svc.shipOrder(order.id, { carrier: "DHL", trackingNumber: "1234567890" });
-    // The whole order is far over the debt limit (default £50): refused, nothing moved.
-    await expect(svc.refundOrder(order.id, { amountMinor: order.amountMinor, requestKey: "all", approvedBy: "seller" })).rejects.toThrow(/already been paid/);
+    // With a £50 debt limit, the whole order is far over it: refused, nothing moved.
+    process.env.MANDIX_MAX_SELLER_DEBT_MINOR = "5000";
+    try {
+      await expect(svc.refundOrder(order.id, { amountMinor: order.amountMinor, requestKey: "all", approvedBy: "seller" })).rejects.toThrow(/already been paid/);
+    } finally {
+      delete process.env.MANDIX_MAX_SELLER_DEBT_MINOR;
+    }
     const { eq } = await import("drizzle-orm");
     const [s] = await dbmod.db.select().from(dbmod.schema.sellers).where(eq(dbmod.schema.sellers.id, seller.id));
     const [o] = await dbmod.db.select().from(dbmod.schema.orders).where(eq(dbmod.schema.orders.id, order.id));

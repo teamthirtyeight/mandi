@@ -65,9 +65,10 @@ ${UNTRUSTED_DATA_RULE}`,
   return { priceMinor: price, readyInDays: q.readyInDays, message, source: out ? "agent" : "fallback" };
 }
 
-export async function requestCommission(input: { listingId: string; buyerUserId: string; request: string }) {
-  // Each request is a model call and a WhatsApp message to the artisan.
-  if (!allow(`commission:${input.buyerUserId}`, 5, 60 * MINUTE)) throw new CommissionError("That's a lot of custom requests. Please wait a while.", 429);
+export async function requestCommission(input: { listingId: string; buyerUserId: string; request: string; clientKey?: string }) {
+  // Each request is a model call and a WhatsApp message to the artisan. The client
+  // key (an IP) keeps judges who share the demo buyer from sharing one limit.
+  if (!allow(`commission:${input.buyerUserId}:${input.clientKey ?? ""}`, 5, 60 * MINUTE)) throw new CommissionError("That's a lot of custom requests. Please wait a while.", 429);
   const [row] = await db
     .select({ listing: schema.listings, seller: schema.sellers })
     .from(schema.listings)
