@@ -2,7 +2,7 @@
 // captured into Mandix's PayPal account; after capture this sends the seller
 // their share through PayPal Payouts, minus Mandix's fee and minus any refunds
 // made after an earlier payout. Deterministic code only: no agent can call it.
-import { and, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { createPayout, getPayout, PaypalError } from "@/lib/paypal/rest";
 import { notifyOrder } from "@/lib/notify";
@@ -19,12 +19,14 @@ const FINAL = new Set(["SUCCESS", "FAILED", "RETURNED", "REFUNDED", "REVERSED", 
 export async function payOutOrder(orderId: string): Promise<typeof schema.orders.$inferSelect | null> {
   const [claimed] = await db
     .update(schema.orders)
-    .set({ payoutStatus: "SENDING" })
+    .set({ payoutStatus: "SENDING", claimedAt: new Date() })
     .where(
       and(
         eq(schema.orders.id, orderId),
         eq(schema.orders.status, "CAPTURED"),
         isNull(schema.orders.payoutStatus),
+        // Test orders have no seller to pay.
+        isNotNull(schema.orders.negotiationId),
         // Paid straight to the seller already: nothing to pass on.
         isNull(schema.orders.payeeEmail),
       ),
@@ -145,19 +147,55 @@ export async function refreshPayouts(orderIds: string[]): Promise<void> {
   }
 }
 
-/** A refund after the seller was paid comes off their next payout. */
-export async function recordRefundAfterPayout(order: typeof schema.orders.$inferSelect, amountMinor: number) {
-  if (!order.payoutStatus || order.payoutStatus === "FAILED" || order.payoutStatus === "SENDING" || !order.negotiationId) return;
+/**
+ * The most a seller may owe Mandix for refunds made after they were paid.
+ * Without it, a seller could ship, be paid, then refund the buyer in full out
+ * of Mandix's balance and never sell again. MANDIX_MAX_SELLER_DEBT_MINOR sets it.
+ * ponytail: a debt limit, not a payout hold; each new seller account can still
+ * owe up to the limit. Hold payouts for a few days if that is ever abused.
+ */
+const maxSellerDebtMinor = () => {
+  const n = Number(process.env.MANDIX_MAX_SELLER_DEBT_MINOR ?? 5000);
+  return Number.isFinite(n) && n >= 0 ? n : 5000;
+};
+
+async function sellerIdFor(order: typeof schema.orders.$inferSelect): Promise<string | null> {
+  if (!order.negotiationId) return null;
   const [row] = await db
     .select({ sellerId: schema.listings.sellerId })
     .from(schema.negotiations)
     .innerJoin(schema.listings, eq(schema.listings.id, schema.negotiations.listingId))
     .where(eq(schema.negotiations.id, order.negotiationId));
-  if (!row) return;
-  await db
+  return row?.sellerId ?? null;
+}
+
+/**
+ * A refund after the seller was paid comes off their next payout. Taken before
+ * PayPal is called, in one statement, so two refunds can't both fit under the limit.
+ */
+export async function debitSellerForRefund(
+  order: typeof schema.orders.$inferSelect,
+  amountMinor: number,
+): Promise<"not_paid_out" | "debited" | "over_limit"> {
+  if (!order.payoutStatus || order.payoutStatus === "FAILED") return "not_paid_out";
+  const sellerId = await sellerIdFor(order);
+  if (!sellerId) return "not_paid_out";
+  const [ok] = await db
     .update(schema.sellers)
     .set({ payoutDebtMinor: sql`${schema.sellers.payoutDebtMinor} + ${amountMinor}` })
-    .where(eq(schema.sellers.id, row.sellerId));
+    .where(and(eq(schema.sellers.id, sellerId), sql`${schema.sellers.payoutDebtMinor} + ${amountMinor} <= ${maxSellerDebtMinor()}`))
+    .returning({ id: schema.sellers.id });
+  return ok ? "debited" : "over_limit";
+}
+
+/** Gives back a debit whose refund did not go through. */
+export async function creditSellerDebt(order: typeof schema.orders.$inferSelect, amountMinor: number) {
+  const sellerId = await sellerIdFor(order);
+  if (!sellerId) return;
+  await db
+    .update(schema.sellers)
+    .set({ payoutDebtMinor: sql`greatest(0, ${schema.sellers.payoutDebtMinor} - ${amountMinor})` })
+    .where(eq(schema.sellers.id, sellerId));
 }
 
 async function getOrder(orderId: string) {

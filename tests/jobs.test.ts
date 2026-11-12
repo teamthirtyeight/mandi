@@ -64,6 +64,7 @@ describe.skipIf(!TEST_DB)("job queue", () => {
   });
 
   it("a worker runs a queued negotiation to the end", async () => {
+    process.env.MANDIX_TURN_DELAY_MS = "0"; // the default pause between turns outlasts the test
     const { eq, sql } = await import("drizzle-orm");
     const { sellerWithOrder, TRUNCATE_ALL } = await import("./helpers/fixtures");
     await dbmod.db.execute(sql.raw(TRUNCATE_ALL));

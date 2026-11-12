@@ -281,11 +281,26 @@ export function redactLimit(
 ): { message: string; redacted: boolean } {
   if (offeredMinor === limitMinor) return { message, redacted: false };
   const pounds = limitMinor / 100;
-  const amount = Number.isInteger(pounds) ? `${pounds}(?:\\.00)?` : pounds.toFixed(2).replace(".", "\\.");
-  const pattern = new RegExp(`(£\\s?${amount}(?!\\d|\\.\\d)|\\b${amount}\\s?(?:pounds|GBP)\\b)`, "gi");
+  const amount = Number.isInteger(pounds) ? `${pounds}(?:\\.00?)?` : pounds.toFixed(2).replace(".", "\\.").replace(/0$/, "0?");
+  // The bare number counts too ("lowest is 68", "68 quid", "GBP 68"), and the amount in pence.
+  // ponytail: digits only; number words ("sixty-eight") pass. Add a word matcher if models start spelling limits out.
+  const pattern = new RegExp(
+    `(?<![\\d.,])(?:(?:£|GBP)\\s*)?${amount}(?!\\d|[.,]\\d)(?:\\s?(?:pounds?|GBP|quid)\\b)?|(?<![\\d.,])${limitMinor}\\s?(?:p|pence)\\b`,
+    "gi",
+  );
   const out = message.replace(pattern, "[withheld]");
   return { message: out, redacted: out !== message };
 }
+
+/**
+ * The proposed price a viewer may see. A blocked proposal says something about
+ * its sender's private limit, so only the sender's own side sees it; the other
+ * side sees the price the engine allowed. Scripted demo turns are always shown.
+ */
+export const shownProposedMinor = (
+  t: { actor: string; source: string; proposedPriceMinor: number | null; finalPriceMinor: number | null },
+  viewer: Actor,
+): number | null => (t.actor === viewer || t.source === "script" ? t.proposedPriceMinor : t.finalPriceMinor);
 
 const INJECTION_PATTERNS = [
   /ignore (all |any |your |the )?(previous |prior |above )?(instructions|rules|prompt)/i,

@@ -116,6 +116,28 @@ describe.skipIf(!TEST_DB)("seller payouts", () => {
     expect(s.payoutDebtMinor).toBe(2000);
   });
 
+  it("a paid seller can't refund the whole order out of Mandix's balance", async () => {
+    const svc = await import("@/lib/orders/service");
+    const { order, seller } = await sellerWithOrder(dbmod);
+    await svc.shipOrder(order.id, { carrier: "DHL", trackingNumber: "1234567890" });
+    // The whole order is far over the debt limit (default £50): refused, nothing moved.
+    await expect(svc.refundOrder(order.id, { amountMinor: order.amountMinor, requestKey: "all", approvedBy: "seller" })).rejects.toThrow(/already been paid/);
+    const { eq } = await import("drizzle-orm");
+    const [s] = await dbmod.db.select().from(dbmod.schema.sellers).where(eq(dbmod.schema.sellers.id, seller.id));
+    const [o] = await dbmod.db.select().from(dbmod.schema.orders).where(eq(dbmod.schema.orders.id, order.id));
+    expect(s.payoutDebtMinor).toBe(0);
+    expect(o.refundedMinor).toBe(0);
+    expect(paths.some((p) => p.path.endsWith("/refund"))).toBe(false);
+  });
+
+  it("a test order belongs to the user who made it", async () => {
+    const { assertOrderAccess } = await import("@/lib/auth/access");
+    const { buyer, sellerUser } = await sellerWithOrder(dbmod);
+    const [test] = await dbmod.db.insert(dbmod.schema.orders).values({ amountMinor: 7200, testUserId: buyer.id }).returning();
+    await expect(assertOrderAccess(buyer, test.id, "seller")).resolves.toBeUndefined();
+    await expect(assertOrderAccess(sellerUser, test.id, "either")).rejects.toThrow("Not allowed");
+  });
+
   it("the dashboard refreshes a payout PayPal is still processing", async () => {
     const svc = await import("@/lib/orders/service");
     const { getDashboard } = await import("@/lib/dashboard/data");

@@ -7,6 +7,7 @@ import { db, schema } from "@/lib/db";
 import { errorResponse, UUID } from "@/lib/api/errors";
 import { requireUser } from "@/lib/auth/session";
 import { assertOrderAccess } from "@/lib/auth/access";
+import { shownProposedMinor, type Actor } from "@/lib/engine/negotiation";
 
 export const dynamic = "force-dynamic";
 
@@ -14,8 +15,11 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const { id } = await params;
   if (!UUID.test(id)) return NextResponse.json({ error: "Invalid order id" }, { status: 400 });
 
+  let viewer: Actor;
   try {
-    await assertOrderAccess(await requireUser(), id, "either");
+    const user = await requireUser();
+    await assertOrderAccess(user, id, "either");
+    viewer = user.role as Actor;
   } catch (err) {
     return errorResponse(err);
   }
@@ -47,14 +51,19 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
           paypalProductId: row.listing.paypalProductId,
           images: row.listing.images.length,
         },
-        buyerRequest: { text: row.mandate.requestText, budget: row.mandate.maxPriceMinor / 100, deadline: row.mandate.deadline },
+        // The budget is the buyer's private ceiling: only the buyer's own pack has it.
+        buyerRequest: {
+          text: row.mandate.requestText,
+          ...(viewer === "buyer" ? { budget: row.mandate.maxPriceMinor / 100 } : {}),
+          deadline: row.mandate.deadline,
+        },
         agreedPrice: row.n.agreedPriceMinor != null ? row.n.agreedPriceMinor / 100 : null,
         chatLog: turns.map((t) => ({
           at: t.createdAt.toISOString(),
           from: t.actor,
           round: t.round,
           message: t.message,
-          proposedPrice: t.proposedPriceMinor != null ? t.proposedPriceMinor / 100 : null,
+          proposedPrice: ((p) => (p != null ? p / 100 : null))(shownProposedMinor(t, viewer)),
           allowedPrice: t.finalPriceMinor != null ? t.finalPriceMinor / 100 : null,
           engineDecision: t.guardrailResult,
         })),

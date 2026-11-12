@@ -2,8 +2,9 @@
 // The amount is set on the server; the browser only sends an idempotency key.
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { createAuthorizeOrder, PaypalError } from "@/lib/paypal/rest";
-import { AuthError, requireUser } from "@/lib/auth/session";
+import { createAuthorizeOrder } from "@/lib/paypal/rest";
+import { requireUser } from "@/lib/auth/session";
+import { errorResponse } from "@/lib/api/errors";
 
 const TEST_DEAL = {
   amountMinor: 7200,
@@ -19,13 +20,13 @@ export async function POST(req: Request) {
   if (!parsed.success) return NextResponse.json({ error: "requestKey (uuid) required" }, { status: 400 });
 
   try {
-    await requireUser();
+    const user = await requireUser();
     let orderRowId: string | null = null;
     if (process.env.DATABASE_URL) {
       const { db, schema } = await import("@/lib/db");
       const [row] = await db
         .insert(schema.orders)
-        .values({ amountMinor: TEST_DEAL.amountMinor, currency: TEST_DEAL.currency, status: "CREATED" })
+        .values({ amountMinor: TEST_DEAL.amountMinor, currency: TEST_DEAL.currency, status: "CREATED", testUserId: user.id })
         .returning({ id: schema.orders.id });
       orderRowId = row.id;
     }
@@ -58,7 +59,6 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ id: order.id, orderId: orderRowId });
   } catch (err) {
-    const status = err instanceof PaypalError || err instanceof AuthError ? err.status : 500;
-    return NextResponse.json({ error: (err as Error).message }, { status });
+    return errorResponse(err);
   }
 }

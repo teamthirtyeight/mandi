@@ -255,11 +255,11 @@ describe.skipIf(!TEST_DB)("features on the database", () => {
 
   describe("MCP server", () => {
     async function keyed() {
-      const { newApiKey, userForKey } = await import("@/lib/mcp");
+      const { hashApiKey, newApiKey, userForKey } = await import("@/lib/mcp");
       const { buyer } = await sellerWithOrder(dbmod, { order: { status: "AUTHORIZED" } });
       const key = newApiKey();
       const { eq } = await import("drizzle-orm");
-      await dbmod.db.update(dbmod.schema.users).set({ apiKey: key }).where(eq(dbmod.schema.users.id, buyer.id));
+      await dbmod.db.update(dbmod.schema.users).set({ apiKey: hashApiKey(key) }).where(eq(dbmod.schema.users.id, buyer.id));
       return { key, user: (await userForKey(key))! };
     }
 
@@ -330,11 +330,11 @@ describe("PayPal access token", () => {
           : json(200, { batch_header: { batch_status: "SUCCESS" }, items: [{ transaction_status: "SUCCESS" }] });
       }),
     );
+    vi.resetModules(); // no token cached by an earlier test
     const { getPayout } = await import("@/lib/paypal/rest");
-    // First a token is issued and refused, then a fresh one works.
-    await expect(getPayout("B-1")).rejects.toThrow();
+    // The first token is refused; the same call gets a fresh one and goes through.
     expect((await getPayout("B-1")).status).toBe("SUCCESS");
-    expect(seen.at(-1)).toBe("Bearer tok-2");
+    expect(seen).toEqual(["Bearer tok-1", "Bearer tok-2"]);
     vi.unstubAllGlobals();
   });
 });

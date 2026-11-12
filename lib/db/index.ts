@@ -2,8 +2,9 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as schema from "./schema";
 
-const url = process.env.DATABASE_URL;
-if (!url) throw new Error("DATABASE_URL is not set");
+// No throw when it's missing: `next build` imports this file without a database.
+// postgres.js connects on the first query, which then fails with a clear error.
+const url = process.env.DATABASE_URL ?? "postgres://DATABASE_URL-is-not-set.invalid/mandix";
 
 // Reuse one client across hot reloads in dev.
 const globalForDb = globalThis as unknown as { pg?: ReturnType<typeof postgres> };

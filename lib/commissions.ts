@@ -7,6 +7,7 @@
 // 4. Only then does Mandix's code create and send a PayPal invoice (Agent
 //    Toolkit create_invoice + send_invoice). The buyer pays it in PayPal.
 // 5. When PayPal says it's paid, the seller is paid out (lib/orders/payout.ts).
+import { allow, MINUTE } from "@/lib/auth/ratelimit";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db, schema } from "@/lib/db";
@@ -65,6 +66,8 @@ ${UNTRUSTED_DATA_RULE}`,
 }
 
 export async function requestCommission(input: { listingId: string; buyerUserId: string; request: string }) {
+  // Each request is a model call and a WhatsApp message to the artisan.
+  if (!allow(`commission:${input.buyerUserId}`, 5, 60 * MINUTE)) throw new CommissionError("That's a lot of custom requests. Please wait a while.", 429);
   const [row] = await db
     .select({ listing: schema.listings, seller: schema.sellers })
     .from(schema.listings)

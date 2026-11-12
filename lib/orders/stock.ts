@@ -14,17 +14,25 @@ async function listingIdsFor(orderId: string): Promise<string[]> {
   return row ? [row.main, ...(row.addon ? [row.addon] : [])] : [];
 }
 
-/** Takes one unit of each item. False (and nothing taken) if any is sold out. */
+/** True if the order holds its stock; false (and nothing taken) if any item is sold out. */
 export async function reserveStock(orderId: string): Promise<boolean> {
+  return (await takeStock(orderId)) !== "sold_out";
+}
+
+/**
+ * Takes one unit of each item. "taken": this call took it, and only this call
+ * may give it back if its payment then fails. "held": an earlier call did.
+ */
+export async function takeStock(orderId: string): Promise<"taken" | "held" | "sold_out"> {
   const ids = await listingIdsFor(orderId);
-  if (ids.length === 0) return true; // test orders have no listing
+  if (ids.length === 0) return "held"; // test orders have no listing
   return db.transaction(async (tx) => {
     const [claimed] = await tx
       .update(schema.orders)
       .set({ stockReserved: true })
       .where(and(eq(schema.orders.id, orderId), eq(schema.orders.stockReserved, false)))
       .returning({ id: schema.orders.id });
-    if (!claimed) return true; // already reserved (retry or double click)
+    if (!claimed) return "held" as const; // already reserved (retry or double click)
     for (const id of ids) {
       const [taken] = await tx
         .update(schema.listings)
@@ -38,9 +46,9 @@ export async function reserveStock(orderId: string): Promise<boolean> {
         tx.rollback();
       }
     }
-    return true;
+    return "taken" as const;
   }).catch((err) => {
-    if (String(err?.message ?? err).toLowerCase().includes("rollback")) return false;
+    if (String(err?.message ?? err).toLowerCase().includes("rollback")) return "sold_out" as const;
     throw err;
   });
 }

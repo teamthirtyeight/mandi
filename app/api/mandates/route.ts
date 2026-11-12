@@ -6,6 +6,7 @@ import { db, schema } from "@/lib/db";
 import { parseMandate } from "@/lib/agents/mandate";
 import { requireUser } from "@/lib/auth/session";
 import { errorResponse } from "@/lib/api/errors";
+import { allow, MINUTE } from "@/lib/auth/ratelimit";
 
 const Body = z.object({
   requestText: z.string().trim().min(5).max(300),
@@ -20,6 +21,10 @@ export async function POST(req: Request) {
     user = await requireUser("buyer");
   } catch (err) {
     return errorResponse(err);
+  }
+  // Each request starts model calls: cap them per buyer.
+  if (!allow(`mandate:${user.id}`, 20, 60 * MINUTE)) {
+    return NextResponse.json({ error: "That's a lot of requests. Please wait a while and try again." }, { status: 429 });
   }
   const parsed = Body.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Describe what you want in a sentence." }, { status: 400 });

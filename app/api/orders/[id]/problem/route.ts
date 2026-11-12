@@ -13,7 +13,7 @@ const Body = z.object({
   description: z.string().trim().min(5).max(500),
   photo: z
     .string()
-    .regex(/^data:image\/(jpeg|png|webp|gif);base64,/)
+    .regex(/^data:image\/(jpeg|png|webp|gif);base64,[A-Za-z0-9+/=]+$/)
     .max(7_000_000)
     .optional(),
   requestKey: z.string().uuid(),

@@ -5,7 +5,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { checkRefund, type RefundDecision } from "@/lib/engine/negotiation";
 import { releaseStock } from "./stock";
-import { payOutOrder, recordRefundAfterPayout } from "./payout";
+import { creditSellerDebt, debitSellerForRefund, payOutOrder } from "./payout";
 import { notifyOrder } from "@/lib/notify";
 import {
   addTracking,
@@ -39,7 +39,7 @@ export async function getOrderRow(orderId: string): Promise<Order> {
 export async function shipOrder(orderId: string, input: { carrier: string; trackingNumber: string }) {
   const [claimed] = await db
     .update(schema.orders)
-    .set({ status: "SHIPPED", carrier: input.carrier, trackingNumber: input.trackingNumber })
+    .set({ status: "SHIPPED", carrier: input.carrier, trackingNumber: input.trackingNumber, claimedAt: new Date() })
     .where(and(eq(schema.orders.id, orderId), eq(schema.orders.status, "AUTHORIZED")))
     .returning();
   if (!claimed) {
@@ -169,6 +169,9 @@ export async function refundOrder(orderId: string, input: RefundInput): Promise<
     throw new OrderError(`Order is ${order.status}; only captured orders can be refunded`, 409);
   }
 
+  // The payout is being worked out from this order's refunds right now.
+  if (order.payoutStatus === "SENDING") throw new OrderError("The seller's payout is being sent. Try again in a minute.", 409);
+
   const decision: RefundDecision = checkRefund({
     amountMinor: input.amountMinor,
     capturedMinor: order.amountMinor,
@@ -187,10 +190,28 @@ export async function refundOrder(orderId: string, input: RefundInput): Promise<
         eq(schema.orders.id, orderId),
         eq(schema.orders.status, "CAPTURED"),
         sql`${schema.orders.refundedMinor} + ${input.amountMinor} <= ${schema.orders.amountMinor}`,
+        // A payout that started since the order was read has already counted the refunds.
+        sql`${schema.orders.payoutStatus} is not distinct from ${order.payoutStatus}`,
       ),
     )
     .returning();
   if (!reserved) throw new OrderError("Refund exceeds what is left to refund", 409);
+
+  const unreserve = () =>
+    db
+      .update(schema.orders)
+      .set({ refundedMinor: sql`${schema.orders.refundedMinor} - ${input.amountMinor}` })
+      .where(eq(schema.orders.id, orderId));
+  // The seller already has this money: it comes off their next payout, within a limit.
+  const debited = await debitSellerForRefund(order, input.amountMinor);
+  if (debited === "over_limit") {
+    await unreserve();
+    throw new OrderError(
+      "The seller has already been paid for this order, and this refund is more than Mandix can take back from their next sales. The seller can refund it from their own PayPal account, or the buyer can open a PayPal dispute.",
+      409,
+    );
+  }
+  const undebit = () => (debited === "debited" ? creditSellerDebt(order, input.amountMinor) : Promise.resolve());
 
   try {
     const { refundId } = await refundCapture({
@@ -209,24 +230,19 @@ export async function refundOrder(orderId: string, input: RefundInput): Promise<
       .where(and(eq(schema.orders.id, orderId), sql`NOT (${schema.orders.refundIds} ? ${refundId})`))
       .returning();
     if (!counted) {
-      await db
-        .update(schema.orders)
-        .set({ refundedMinor: sql`${schema.orders.refundedMinor} - ${input.amountMinor}` })
-        .where(eq(schema.orders.id, orderId));
+      await unreserve();
+      await undebit();
       return { outcome: "REFUNDED", order: await getOrderRow(orderId), refundId };
     }
     await db
       .update(schema.orders)
       .set({ pendingRefundMinor: null, ...(counted.refundedMinor >= counted.amountMinor ? { status: "REFUNDED" as const } : {}) })
       .where(eq(schema.orders.id, orderId));
-    await recordRefundAfterPayout(order, input.amountMinor);
     await notifyOrder(orderId, "refunded", input.amountMinor);
     return { outcome: "REFUNDED", order: await getOrderRow(orderId), refundId };
   } catch (err) {
-    await db
-      .update(schema.orders)
-      .set({ refundedMinor: sql`${schema.orders.refundedMinor} - ${input.amountMinor}` })
-      .where(eq(schema.orders.id, orderId));
+    await unreserve();
+    await undebit();
     throw err;
   }
 }
