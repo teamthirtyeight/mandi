@@ -12,8 +12,14 @@ export async function POST(req: Request) {
   const parsed = Body.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Enter your email and password" }, { status: 400 });
 
-  // Slows password guessing: per account and per address.
-  if (!allow(`login:${parsed.data.email}`, 8, 15 * MINUTE) || !allow(`login-ip:${clientIp(req)}`, 30, 15 * MINUTE)) {
+  // Slows password guessing: per account from one address (so a stranger can't
+  // lock someone out with a few wrong guesses), per account overall, per address.
+  const ip = clientIp(req);
+  if (
+    !allow(`login:${parsed.data.email}:${ip}`, 8, 15 * MINUTE) ||
+    !allow(`login:${parsed.data.email}`, 100, 15 * MINUTE) ||
+    !allow(`login-ip:${ip}`, 30, 15 * MINUTE)
+  ) {
     return NextResponse.json({ error: "Too many attempts. Please wait a few minutes and try again." }, { status: 429 });
   }
   const [user] = await db.select().from(schema.users).where(eq(schema.users.email, parsed.data.email));

@@ -1,7 +1,7 @@
 // Buyer reports a problem → seller agent proposes a refund → the order
 // service refunds it if it is within the seller's cap, or parks it for the
 // seller's tap if it is above. The agent never calls PayPal itself.
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { proposeRefund } from "@/lib/agents/refund";
 import type { PhotoInput } from "@/lib/agents/listing";
@@ -74,10 +74,23 @@ export async function reportProblem(
     { refundCapMinor: capMinor, maxAutoRefundsPerOrder: MAX_AUTO_REFUNDS },
   );
   if (check.verdict === "DENY") throw new OrderError(`This refund can't be made: ${check.reason}`, 409);
-  const auto = check.verdict === "ALLOW" && proposal.source === "agent";
+  // The automatic refund is claimed in one statement, so two reports sent at
+  // once can't both get one; the loser's proposal waits for the seller.
+  const claim = () =>
+    db
+      .update(schema.orders)
+      .set({ agentRefundMessage: proposal.message })
+      .where(and(eq(schema.orders.id, orderId), isNull(schema.orders.agentRefundMessage)))
+      .returning({ id: schema.orders.id });
+  const auto = check.verdict === "ALLOW" && proposal.source === "agent" && (await claim()).length > 0;
 
   const result = auto
-    ? await refundOrder(orderId, { amountMinor: proposal.amountMinor, requestKey: input.requestKey, approvedBy: "agent", note: proposal.message })
+    ? await refundOrder(orderId, { amountMinor: proposal.amountMinor, requestKey: input.requestKey, approvedBy: "agent", note: proposal.message }).catch(
+        async (err) => {
+          await db.update(schema.orders).set({ agentRefundMessage: null }).where(eq(schema.orders.id, orderId));
+          throw err;
+        },
+      )
     : { outcome: "NEEDS_SELLER_APPROVAL" as const };
 
   // Saved only after the refund went through or was parked, so a failed PayPal

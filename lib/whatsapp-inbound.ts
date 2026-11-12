@@ -84,7 +84,9 @@ async function decide(seller: Seller, msg: InboundMessage): Promise<string> {
   else if (!intent && (tracking = findTrackingNumber(text))) intent = "ship";
   else if (!intent && text) {
     const guess = await classify(text);
-    intent = guess?.intent ?? "help";
+    // Yes/no approves refunds and invoices, so it must be one of the plain
+    // words quickIntent knows; the model's reading of a longer reply isn't enough.
+    intent = guess?.intent === "yes" || guess?.intent === "no" ? "help" : (guess?.intent ?? "help");
     tracking = guess?.trackingNumber ?? null;
   }
 

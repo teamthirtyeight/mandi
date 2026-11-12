@@ -14,6 +14,7 @@ export async function mcpPost(req: Request, keyFromPath: string | null) {
   const body = await req.json().catch(() => null);
   if (!body) return NextResponse.json({ jsonrpc: "2.0", id: null, error: { code: -32700, message: "Parse error" } }, { status: 400 });
   if (Array.isArray(body)) {
+    if (body.length > 10) return NextResponse.json({ jsonrpc: "2.0", id: null, error: { code: -32600, message: "At most 10 requests per batch" } }, { status: 400 });
     const out = (await Promise.all(body.map((r) => handleRpc(user, r)))).filter(Boolean);
     return out.length ? NextResponse.json(out) : new Response(null, { status: 202 });
   }

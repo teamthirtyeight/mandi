@@ -1,6 +1,6 @@
 // Ownership checks. A buyer may act on their own mandates and the orders from
 // them; a seller on orders and negotiations for their own listings. Orders not
-// tied to a negotiation (the /paypal-test page) are open to any logged-in user.
+// tied to a negotiation (the /paypal-test page) belong to the user who made them.
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { AuthError, type SessionUser } from "./session";
@@ -33,6 +33,7 @@ async function orderParties(where: ReturnType<typeof eq>) {
   const [row] = await db
     .select({
       negotiationId: schema.orders.negotiationId,
+      testUserId: schema.orders.testUserId,
       buyerUserId: schema.mandates.buyerUserId,
       sellerId: schema.listings.sellerId,
     })
@@ -46,7 +47,11 @@ async function orderParties(where: ReturnType<typeof eq>) {
 
 function check(user: SessionUser, party: Party, row: Awaited<ReturnType<typeof orderParties>>) {
   if (!row) throw new AuthError("Not found", 403);
-  if (!row.negotiationId) return; // test orders from /paypal-test
+  if (!row.negotiationId) {
+    // Test orders from /paypal-test: their maker plays both sides.
+    if (row.testUserId !== user.id) throw new AuthError("Not allowed", 403);
+    return;
+  }
   if (!allowed(user, party, row.buyerUserId, row.sellerId)) throw new AuthError("Not allowed", 403);
 }
 

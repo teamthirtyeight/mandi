@@ -8,7 +8,8 @@
 //
 // Transport: stateless JSON-RPC over HTTP POST (MCP "Streamable HTTP", JSON
 // responses only), at /api/mcp/<key> or /api/mcp with "Authorization: Bearer <key>".
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
+import { allow, MINUTE } from "@/lib/auth/ratelimit";
 import { and, desc, eq, gt, ilike, lte, or } from "drizzle-orm";
 import { z } from "zod";
 import { db, schema } from "@/lib/db";
@@ -18,7 +19,7 @@ import { enqueue } from "@/lib/jobs/queue";
 import { getMandateSnapshot } from "@/lib/negotiation/snapshot";
 import { appUrl } from "@/lib/notify";
 import { paypalOrderStatus } from "@/lib/reporting";
-import { requestCommission } from "@/lib/commissions";
+import { CommissionError, requestCommission } from "@/lib/commissions";
 
 export const MCP_PROTOCOL_VERSION = "2025-06-18";
 const SERVER_INFO = { name: "mandix", title: "Mandix: handmade from India, bargained by agents", version: "1.0.0" };
@@ -29,9 +30,12 @@ export function newApiKey() {
   return `mk_${randomBytes(24).toString("hex")}`;
 }
 
+/** What is stored for a key: its hash, so a database leak doesn't hand out working keys. */
+export const hashApiKey = (key: string) => `sha256:${createHash("sha256").update(key).digest("hex")}`;
+
 export async function userForKey(key: string | null | undefined): Promise<User | null> {
   if (!key || !/^mk_[0-9a-f]{48}$/.test(key)) return null;
-  const [u] = await db.select().from(schema.users).where(and(eq(schema.users.apiKey, key), eq(schema.users.role, "buyer")));
+  const [u] = await db.select().from(schema.users).where(and(eq(schema.users.apiKey, hashApiKey(key)), eq(schema.users.role, "buyer")));
   return u ?? null;
 }
 
@@ -142,6 +146,7 @@ async function searchListings(args: unknown): Promise<ToolResult> {
 async function startShopping(user: User, args: unknown): Promise<ToolResult> {
   const a = z.object({ request: z.string().trim().min(5).max(300) }).safeParse(args);
   if (!a.success) return fail("Describe what to buy in one sentence, with a budget in £.");
+  if (!allow(`mandate:${user.id}`, 20, 60 * MINUTE)) return fail("That's a lot of requests. Wait a while before starting another.");
   const draft = await parseMandate(a.data.request);
   if (!draft) return fail('No budget found. Try: "silk scarf for my mum, under £90, by Dec 20".');
   if (draft.currency !== "GBP") return fail("Mandix's sellers price in pounds for now. Give the budget in £.");
@@ -259,6 +264,7 @@ type RpcRequest = { jsonrpc: "2.0"; id?: string | number | null; method: string;
 export async function handleRpc(user: User, req: RpcRequest): Promise<object | null> {
   const reply = (result: unknown) => ({ jsonrpc: "2.0", id: req.id ?? null, result });
   const error = (code: number, message: string) => ({ jsonrpc: "2.0", id: req.id ?? null, error: { code, message } });
+  if (!req || typeof req !== "object") return { jsonrpc: "2.0", id: null, error: { code: -32600, message: "Invalid request" } };
   if (req.id === undefined) return null; // notification: no response
 
   switch (req.method) {
@@ -294,7 +300,8 @@ export async function handleRpc(user: User, req: RpcRequest): Promise<object | n
         }
       } catch (err) {
         console.error("[mcp] tool failed", name, err);
-        return reply(fail(`That didn't work: ${(err as Error).message}`));
+        // Known, user-facing errors keep their message; anything else stays in the log.
+        return reply(fail(err instanceof CommissionError ? err.message : "That didn't work just now. Try again in a minute."));
       }
     }
     default:

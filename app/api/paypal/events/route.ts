@@ -22,7 +22,7 @@ export async function GET(req: Request) {
     .leftJoin(schema.mandates, eq(schema.mandates.id, schema.negotiations.mandateId))
     .where(
       or(
-        isNull(schema.orders.negotiationId),
+        and(isNull(schema.orders.negotiationId), eq(schema.orders.testUserId, user.id)),
         user.role === "seller" ? eq(schema.listings.sellerId, user.sellerId!) : eq(schema.mandates.buyerUserId, user.id),
       ),
     );

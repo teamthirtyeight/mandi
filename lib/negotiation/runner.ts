@@ -35,6 +35,7 @@ import {
   MAX_ROUNDS,
   meetsDeadline,
   TERMINAL_STATES,
+  shownProposedMinor,
   toMajor,
   type Actor,
   type GuardrailOutcome,
@@ -341,7 +342,7 @@ async function runNegotiation(negotiationId: string, referenceMinor: number | nu
       const r = await runGuardedTurn(model, g, actor, prompt, metrics, { breaker });
       if (r.event.verdict === "REWRITE" && r.event.proposedMinor != null) {
         await engineRow(
-          `Blocked ${who(actor)}'s offer of ${money(r.event.proposedMinor, currency)}: outside what it may offer this round. Replaced with a counter-offer.`,
+          `Blocked ${who(actor)}'s offer: outside what it may offer this round. Replaced with a counter-offer.`,
           round,
           r.event.proposedMinor,
           r.source.action === "rules" ? "fallback" : "agent",
@@ -581,7 +582,8 @@ export function turnEvent(
     seller: sellerName,
     from: turn.actor,
     message: turn.message,
-    proposed_price: turn.proposedPriceMinor != null ? toMajor(turn.proposedPriceMinor) : null,
+    // The room is the buyer's: a seller's blocked proposal stays out of it.
+    proposed_price: ((p) => (p != null ? toMajor(p) : null))(shownProposedMinor(turn, "buyer")),
     final_price: turn.finalPriceMinor != null ? toMajor(turn.finalPriceMinor) : null,
     guardrail_result: turn.guardrailResult,
     injection: turn.injectionDetected,

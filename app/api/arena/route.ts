@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { ArenaLimit, arenaTarget, attack, hashIp, scoreboard } from "@/lib/arena";
 import { errorResponse } from "@/lib/api/errors";
+import { clientIp } from "@/lib/auth/ratelimit";
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +23,7 @@ const Body = z.object({
 export async function POST(req: Request) {
   const parsed = Body.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid attack" }, { status: 400 });
-  const ip = (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim() || req.headers.get("x-real-ip") || "unknown";
+  const ip = clientIp(req);
   try {
     const result = await attack({
       text: parsed.data.text,

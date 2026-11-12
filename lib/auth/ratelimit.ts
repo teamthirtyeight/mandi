@@ -4,7 +4,11 @@
 const g = globalThis as unknown as { mandixLimits?: Map<string, { count: number; resetAt: number }> };
 const buckets = (g.mandixLimits ??= new Map());
 
+// Render sits behind Cloudflare, which sets CF-Connecting-IP itself; the first
+// X-Forwarded-For entry is whatever the client sent, so it is only a fallback.
 export function clientIp(req: Request): string {
+  const cf = req.headers.get("cf-connecting-ip")?.trim();
+  if (cf) return cf;
   return req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || req.headers.get("x-real-ip") || "local";
 }
 

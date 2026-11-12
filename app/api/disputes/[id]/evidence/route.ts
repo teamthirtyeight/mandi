@@ -7,6 +7,7 @@ import { db, schema } from "@/lib/db";
 import { errorResponse } from "@/lib/api/errors";
 import { requireUser } from "@/lib/auth/session";
 import { provideDisputeEvidence } from "@/lib/paypal/rest";
+import { listDisputes } from "@/lib/paypal/toolkit";
 
 const Body = z.object({ transactionId: z.string().min(5).max(40) });
 
@@ -26,6 +27,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       .innerJoin(schema.listings, eq(schema.listings.id, schema.negotiations.listingId))
       .where(and(eq(schema.orders.captureId, parsed.data.transactionId), eq(schema.listings.sellerId, user.sellerId!)));
     if (!row) return NextResponse.json({ error: "No order of yours matches that transaction" }, { status: 404 });
+    // The dispute must be about that transaction, not just any dispute on the shared account.
+    // ponytail: checks the latest 20 disputes (one list call); fetch the dispute by id if sellers ever have more open.
+    const dispute = (await listDisputes())?.find((d) => d.id === id);
+    if (!dispute || dispute.transactionId !== parsed.data.transactionId) {
+      return NextResponse.json({ error: "That dispute isn't about this order" }, { status: 403 });
+    }
     if (!row.order.trackingNumber) return NextResponse.json({ error: "This order has no tracking to send" }, { status: 409 });
 
     const notes = [

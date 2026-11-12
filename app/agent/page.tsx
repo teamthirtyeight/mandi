@@ -158,7 +158,7 @@ interface WaMessage {
 // exactly what their agent sent.
 /** The buyer's MCP key and how to plug it into an assistant. */
 function McpPanel() {
-  const [state, setState] = useState<{ key: string | null; url: string | null; endpoint: string } | null>(null);
+  const [state, setState] = useState<{ key: string | null; exists: boolean; url: string | null; endpoint: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
   useEffect(() => {
@@ -170,7 +170,7 @@ function McpPanel() {
     setTimeout(() => setCopied(null), 1500);
   };
   async function create() {
-    if (state?.key && !confirm("Make a new key? Assistants using the old one will stop working.")) return;
+    if (state?.exists && !confirm("Make a new key? Assistants using the old one will stop working.")) return;
     setBusy(true);
     const res = await fetch("/api/me/api-key", { method: "POST" });
     if (res.ok) setState(await res.json());
@@ -189,7 +189,7 @@ function McpPanel() {
                 {copied === "url" ? "Copied" : "Copy"}
               </button>
             </div>
-            <p className="hint mt-1">Add it as a custom connector. Treat it like a password: anyone with it can shop as you (but never pay).</p>
+            <p className="hint mt-1">Copy it now: it is shown only this once. Add it as a custom connector. Treat it like a password: anyone with it can shop as you (but never pay).</p>
           </div>
           <div>
             <p className="label">Claude Code</p>
@@ -209,10 +209,12 @@ function McpPanel() {
           </p>
         </>
       ) : (
-        <p className="text-sm text-ink-2">No assistant connected yet.</p>
+        <p className="text-sm text-ink-2">
+          {state?.exists ? "A key is active. It was shown once when you made it; make a new one if you've lost it." : "No assistant connected yet."}
+        </p>
       )}
       <button type="button" className="btn btn-secondary btn-sm min-h-10" disabled={busy} onClick={create}>
-        {state?.key ? "Make a new key" : "Create a connection key"}
+        {state?.exists ? "Make a new key" : "Create a connection key"}
       </button>
     </div>
   );

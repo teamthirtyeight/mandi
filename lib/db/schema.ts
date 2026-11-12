@@ -199,6 +199,8 @@ export const negotiationTurns = pgTable("negotiation_turns", {
 export const orders = pgTable("orders", {
   id: uuid("id").primaryKey().defaultRandom(),
   negotiationId: uuid("negotiation_id").references(() => negotiations.id),
+  // Test orders (/paypal-test) have no negotiation; they belong to whoever made them.
+  testUserId: uuid("test_user_id").references(() => users.id),
   paypalOrderId: text("paypal_order_id").unique(),
   authorizationId: text("authorization_id"),
   captureId: text("capture_id"),
@@ -240,6 +242,9 @@ export const orders = pgTable("orders", {
   feeMinor: integer("fee_minor"),
   payoutError: text("payout_error"),
   paidOutAt: timestamp("paid_out_at"),
+  // When a money step (capture, payout) last claimed this order, so a step cut
+  // short by a crash can be found and released (lib/orders/expiry.ts).
+  claimedAt: timestamp("claimed_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

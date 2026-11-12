@@ -149,6 +149,13 @@ describe("leak filter", () => {
     expect(redactLimit("it's £680 retail, £68.50 here", 6800, 9000).redacted).toBe(false);
   });
 
+  it("withholds the bare number, other currency words and pence", () => {
+    for (const leak of ["my floor is 68 quid", "GBP 68 is my minimum", "lowest is 68", "£68.0 minimum", "6800 pence"]) {
+      expect(redactLimit(leak, 6800, 9000).message, leak).not.toMatch(/68/);
+    }
+    expect(redactLimit("168 threads, 68cm wide? no: 680 and 68.5", 6800, 9000).message).toContain("680 and 68.5");
+  });
+
   it("allows the number when it is the price actually offered", () => {
     expect(redactLimit("I can do £68.", 6800, 6800).redacted).toBe(false);
   });

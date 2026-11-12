@@ -2,7 +2,7 @@
 // their agent relies on (story, language, shipping, refund cap).
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { eq } from "drizzle-orm";
+import { and, eq, ne } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { requireUser } from "@/lib/auth/session";
 import { errorResponse } from "@/lib/api/errors";
@@ -92,6 +92,14 @@ export async function PUT(req: Request) {
     const { refundCap, paypalEmail, ...rest } = profile.data;
     if (rest.whatsappOptIn && !rest.whatsappNumber) {
       return NextResponse.json({ error: "Add your WhatsApp number to turn on WhatsApp alerts" }, { status: 400 });
+    }
+    if (rest.whatsappNumber) {
+      // Replies are matched to a seller by number, so one number, one seller.
+      const [taken] = await db
+        .select({ id: schema.sellers.id })
+        .from(schema.sellers)
+        .where(and(eq(schema.sellers.whatsappNumber, rest.whatsappNumber), ne(schema.sellers.id, user.sellerId!)));
+      if (taken) return NextResponse.json({ error: "That WhatsApp number is already used by another seller" }, { status: 409 });
     }
     await db
       .update(schema.sellers)

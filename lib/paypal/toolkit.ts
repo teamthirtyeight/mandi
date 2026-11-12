@@ -84,6 +84,19 @@ export interface DisputeSummary {
 }
 
 /** Open PayPal disputes for the merchant, via the Agent Toolkit. Null if unavailable. */
+/** Capture ids of one seller's orders: the transactions a dispute of theirs can be about. */
+export async function sellerCaptureIds(sellerId: string): Promise<string[]> {
+  const { db, schema } = await import("@/lib/db");
+  const { and, eq, isNotNull } = await import("drizzle-orm");
+  const rows = await db
+    .select({ captureId: schema.orders.captureId })
+    .from(schema.orders)
+    .innerJoin(schema.negotiations, eq(schema.negotiations.id, schema.orders.negotiationId))
+    .innerJoin(schema.listings, eq(schema.listings.id, schema.negotiations.listingId))
+    .where(and(eq(schema.listings.sellerId, sellerId), isNotNull(schema.orders.captureId)));
+  return rows.map((r) => r.captureId!);
+}
+
 export async function listDisputes(): Promise<DisputeSummary[] | null> {
   const tk = getToolkit();
   if (!tk) return null;
